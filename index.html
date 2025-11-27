@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        :root{
+            --color-yellow: #FCB814;
+            --color-black: #221F20;
+
+        }
+
+        body{
+            width: 100%;
+            height: 100dvb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 0;
+            margin: 0;
+        }
+
+        header{
+            width: 100%;
+            height: 5%;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            background-color: var(--color-black);
+            padding: 0;
+            margin: 0;
+        }
+
+        main{
+            width: 100%;
+            height: 95%;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            background-color: var(--color-yellow);
+            padding: 0;
+            margin: 0;
+        }
+    </style>
+
+</head>
+<body>
+
+    <header>
+        <a href=""><img src="" alt="LOGO"></a>
+    </header>
+
+    <main>
+        
+    </main>
+    
+
+    <script>
+
+        
+
+
+        class materia{
+            constructor(nombre_materia, horas_materia, grado_materia, turno_materia, tsu_materia){
+                this.nombre_materia = nombre_materia
+                this.horas_materia = horas_materia
+                this.grado_materia = grado_materia
+                this.turno_materia = turno_materia
+                this.tsu_materia = tsu_materia
+                
+            }
+        }
+
+        //------------------
+        //Materias matutinas
+        //------------------
+        //Materias 1° cuatrimestre LAD
+        let DESARROLLO_HUMANO_Y_VALORES = new materia("DESARROLLO HUMANO Y VALORES", 4, 1, "MATUTINO", "NA")
+        let FUNDAMENTOS_MATEMATICOS = new materia("FUNDAMENTOS MATEMATICOS", 7, 1, "MATUTINO", "GCH")
+        let FUNDAMENTOS_DE_LA_ADMINISTRACION = new materia("FUNDAMENTOS DE LA ADMINISTRACION", 4, 1, "MATUTINO", "NA")
+        let CONTABILIDAD_I = new materia("CONTABILIDAD_I", 6, 1, "MATUTINO", "NA")
+        let MARCO_LEGAL_DE_LAS_ORGANIZACIONES = new materia("CONTABILIDAD_I", 4, 1, "MATUTINO", "NA")
+        let COMUNICACION_Y_HABILIDADES_DIGITALES = new materia("COMUNICACION Y HABILIDADES DIGITALES", 5, 1, "MATUTINO", "NA")
+        let INGLES_I = new materia("INGLES I", 15, 1, "MATUTINO", "NA")
+
+        //------------------
+        //Materias vespertinas
+        //------------------
+        //Materias 4° cuatrimestre (Gestion del capital humano / GCH) LAD
+        let ETICA_PROFESIONAL_GCH = new materia("ETICA PROFESIONAL", 4, 4, "VESPERTINO", "GCH")
+        let GESTION_DEL_CAPITAL_HUMANO = new materia("GESTION DEL CAPITAL HUMANO", 5, 4, "VESPERTINO", "GCH")
+        let INTEGRACIÓN_DEL_CAPITAL_HUMANO = new materia("INTEGRACION DEL CAPITAL HUMANO", 5, 4, "VESPERTINO", "GCH")
+        let COMPORTAMIENTO_ORGANIZACIONAL = new materia("COMPORTAMIENTO ORGANIZACIONAL", 5, 4, "VESPERTINO", "GCH")
+        let SUELDOS_Y_SALARIOS_I = new materia("SUELDOS Y SALARIOS I", 7, 4, "VESPERTINO", "GCH")
+        let LEGISLACION_LABORAL = new materia("LEGISLACION LABORAL", 4, 4, "VESPERTINO", "GCH")
+        let INGLES_IV_GCH = new materia("INGLES IV", 8, 4, "VESPERTINO", "GCH")
+
+        //Materias 4° cuatrimestre (Emprendimiento y formulacion y evaluacion de proyectos / EFEP) LAD
+        let ETICA_PROFESIONAL_EFEP = new materia("ETICA PROFESIONAL", 4, 4, "VESPERTINO", "EFEP")
+        let INNOVACION_Y_EMPRENDIMIENTO = new materia("INNOVACION Y EMPRENDIMIENTO", 5, 4, "VESPERTINO", "EFEP")
+        let ESTUDIO_DE_MERCADO = new materia("ESTUDIO DE MERCADO", 6, 4, "VESPERTINO", "EFEP")
+        let ADMINISTRACIÓN_DE_PROYECTOS_I = new materia("ESTUDIO DE MERCADO", 5, 4, "VESPERTINO", "EFEP")
+        let FUNDAMENTOS_DE_SISTEMAS_DE_PRODUCCIÓN = new materia("FUNDAMENTOS DE SISTEMAS DE PRODUCCION", 4, 4, "VESPERTINO", "EFEP")
+        let ESTUDIO_TÉCNICO_Y_ORGANIZACIONAL = new materia("ESTUDIO TÉCNICO Y ORGANIZACIONAL", 6, 4, "VESPERTINO", "EFEP")
+        let INGLES_IV_EFEP = new materia("INGLES IV", 8, 4, "VESPERTINO", "EFEP")
+
+        //Materias 7° cuatrimestre LAGE
+        let COMERCIO_INTERNACIONAL = new materia("COMERCIO INTERNACIONAL", 5, 7, "VESPERTINO", "NA")
+        let SUSTENTABILIDAD = new materia("SUSTENTABILIDAD", 5, 7, "VESPERTINO", "NA")
+        let CONTRIBUCIONES_FISCALES = new materia("CONTRIBUCIONES FISCALES", 6, 7, "VESPERTINO", "NA")
+        let ADMINISTRACION_DE_LA_PRODUCCION = new materia("ADMINISTRACION DE LA PRODUCCION", 6, 7, "VESPERTINO", "NA")
+        let TECNOLOGIAS_DE_LA_INFORMACION_APLICADA_A_LOS_NEGOCIOS = new materia("TECNOLOGIAS DE LA INFORMACION APLICADA A LOS NEGOCIOS", 4, 7, "VESPERTINO", "NA")
+        let SEMINARIO_DE_LA_INNOVACION = new materia("SEMINARIO DE LA INNOVACION", 5, 7, "VESPERTINO", "NA")
+        let INGLES_VII_EFEP = new materia("INGLES VII", 5, 7, "VESPERTINO", "EFEP")
+
+        class docente{
+            constructor(nombre_docente, dispoinibilidad_lunes, dispoinibilidad_martes, dispoinibilidad_miercoles, dispoinibilidad_jueves, dispoinibilidad_viernes, dispoinibilidad_sabado, materias_asignadas){
+                this.nombre_docente = nombre_docente
+                this.dispoinibilidad_lunes = dispoinibilidad_lunes
+                this.dispoinibilidad_martes = dispoinibilidad_martes
+                this.dispoinibilidad_miercoles = dispoinibilidad_miercoles
+                this.dispoinibilidad_jueves = dispoinibilidad_jueves
+                this.dispoinibilidad_viernes = dispoinibilidad_viernes
+                this.dispoinibilidad_sabado = dispoinibilidad_sabado
+                this.materias_asignadas = materias_asignadas
+
+            }
+
+        }
+
+        alert(DESARROLLO_HUMANO_Y_VALORES.nombre_materia + FUNDAMENTOS_MATEMATICOS.nombre_materia)
+
+    </script>
+</body>
+</html>
