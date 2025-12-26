@@ -71,11 +71,13 @@
     </header>
 
     <main>
-        
+        <button class="button_accion" id="button_accion">Descargar excel</button>
     </main>
     
-
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
     <script>
+
+        let button_accion = document.getElementById("button_accion")
 
         const Universidad = {
             nombre: "UPMH",
@@ -139,6 +141,7 @@
             }
         }
 
+        //creamos los grados
         let LAGE_1ro = new Grado("LAGE_1ro")
         let LAGE_2do = new Grado("LAGE_2do")
         let LAGE_3ro = new Grado("LAGE_3ro")
@@ -149,6 +152,7 @@
         let LAGE_8vo = new Grado("LAGE_8vo")
         let LAGE_9no = new Grado("LAGE_9no")
 
+        //asignamos cada grado a cada especialidad correspondiente
         LAGE_NA.agregarGrado(LAGE_1ro)
         LAGE_NA.agregarGrado(LAGE_2do)
         LAGE_NA.agregarGrado(LAGE_3ro)
@@ -162,6 +166,7 @@
         LAGE_EFEP.agregarGrado(LAGE_4to)
         LAGE_EFEP.agregarGrado(LAGE_5to)
 
+        //creamos la clase Grupo
         class Grupo {
             constructor(nombre) {
                 this.nombre = nombre 
@@ -175,24 +180,52 @@
             }
         }
 
-        let LAGE_A = new Grupo("LAGE_A")
-        let LAGE_B = new Grupo("LAGE_B")
-        let LAGE_C = new Grupo("LAGE_C")
-        let LAGE_D = new Grupo("LAGE_D")
+        //creamos los grupos de LAGE
+        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A")
+        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B")
+        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C")
 
-        LAGE_1ro.agregarGrupo(LAGE_A)
-        LAGE_1ro.agregarGrupo(LAGE_B)
-        LAGE_1ro.agregarGrupo(LAGE_C)
-
-        LAGE_4to.agregarGrupo(LAGE_A)
-        LAGE_4to.agregarGrupo(LAGE_B)
-        LAGE_4to.agregarGrupo(LAGE_C)
-
-        LAGE_7mo.agregarGrupo(LAGE_A)
-        LAGE_7mo.agregarGrupo(LAGE_B)
-        LAGE_7mo.agregarGrupo(LAGE_C)
+        let LAGE_4to_GCH_A = new Grupo("LAGE_4to_GCH_A")
         
-        // --- CLASE MATERIA (Corregida) ---
+        let LAGE_4to_EFEP_A = new Grupo("LAGE_4to_EFEP_A")
+        let LAGE_4to_EFEP_B = new Grupo("LAGE_4to_EFEP_B")
+
+        let LAGE_7mo_NA_A = new Grupo("LAGE_7mo_NA_A")
+        let LAGE_7mo_NA_B = new Grupo("LAGE_7mo_NA_B")
+        let LAGE_7mo_NA_C = new Grupo("LAGE_7mo_NA_C")
+
+        /*
+        //le agregamos las materias a los grupos de LAGE
+        LAGE_1ro_NA_A.materias = lista_materias_LAGE_1ro
+        LAGE_1ro_NA_B.materias = lista_materias_LAGE_1ro
+        LAGE_1ro_NA_C.materias = lista_materias_LAGE_1ro
+
+        LAGE_4to_GCH_A.materias = lista_materias_LAGE_4to_GCH
+
+        LAGE_4to_EFEP_A.materias = lista_materias_LAGE_4to_EFEP
+        LAGE_4to_EFEP_A.materias = lista_materias_LAGE_4to_EFEP
+
+        LAGE_7mo_NA_A.materias = lista_materias_LAGE_7mo
+        LAGE_7mo_NA_B.materias = lista_materias_LAGE_7mo
+        LAGE_7mo_NA_C.materias = lista_materias_LAGE_7mo
+
+        //añadimos los grupos de LAGE a los grados correspondientes
+        LAGE_1ro.agregarGrupo(LAGE_1ro_NA_A)
+        LAGE_1ro.agregarGrupo(LAGE_1ro_NA_B)
+        LAGE_1ro.agregarGrupo(LAGE_1ro_NA_C)
+
+        LAGE_4to.agregarGrupo(LAGE_4to_GCH_A)
+
+        LAGE_4to.agregarGrupo(LAGE_4to_EFEP_A)
+        LAGE_4to.agregarGrupo(LAGE_4to_EFEP_B)
+
+        LAGE_7mo.agregarGrupo(LAGE_7mo_NA_A)
+        LAGE_7mo.agregarGrupo(LAGE_7mo_NA_B)
+        LAGE_7mo.agregarGrupo(LAGE_7mo_NA_C)
+
+        */
+        
+        // --- CLASE MATERIA ---
         class Materia {
             constructor(nombre_materia, horas_materia, grado_materia, turno_materia, tsu_materia) {
                 this.nombre = nombre_materia
@@ -254,7 +287,7 @@
         let SEMINARIO_DE_LA_INNOVACION = new Materia("SEMINARIO DE LA INNOVACION", 5, 7, "VESPERTINO", "NA")
         let INGLES_VII_EFEP = new Materia("INGLES VII", 5, 7, "VESPERTINO", "EFEP")
 
-        let todas_las_materias_LAGE = [
+        let lista_todas_las_materias_LAGE = [
             // Materias 1° cuatrimestre LAGE_NA
             TUTORIS_BIS,
             DESARROLLO_HUMANO_Y_VALORES,
@@ -288,13 +321,56 @@
             TECNOLOGIAS_DE_LA_INFORMACION_APLICADA_A_LOS_NEGOCIOS,
             SEMINARIO_DE_LA_INNOVACION,
             INGLES_VII_EFEP
-
-
         ]
+
+        let lista_materias_LAGE_1ro = [
+            TUTORIS_BIS,
+            DESARROLLO_HUMANO_Y_VALORES,
+            FUNDAMENTOS_MATEMATICOS,
+            FUNDAMENTOS_DE_LA_ADMINISTRACION,
+            CONTABILIDAD_I,
+            MARCO_LEGAL_DE_LAS_ORGANIZACIONES,
+            COMUNICACION_Y_HABILIDADES_DIGITALES,
+            INGLES_I
+        ]
+
+        let lista_materias_LAGE_4to_GCH = [
+            ETICA_PROFESIONAL_GCH,
+            GESTION_DEL_CAPITAL_HUMANO,
+            INTEGRACIÓN_DEL_CAPITAL_HUMANO,
+            COMPORTAMIENTO_ORGANIZACIONAL,
+            SUELDOS_Y_SALARIOS_I,
+            LEGISLACION_LABORAL,
+            INGLES_IV_GCH
+        ]
+
+        let lista_materias_LAGE_4to_EFEP = [
+            ETICA_PROFESIONAL_EFEP,
+            INNOVACION_Y_EMPRENDIMIENTO,
+            ESTUDIO_DE_MERCADO,
+            ADMINISTRACIÓN_DE_PROYECTOS_I,
+            FUNDAMENTOS_DE_SISTEMAS_DE_PRODUCCIÓN,
+            ESTUDIO_TÉCNICO_Y_ORGANIZACIONAL,
+            INGLES_IV_EFEP
+        ]
+
+        let lista_materias_LAGE_7mo = [
+            COMERCIO_INTERNACIONAL,
+            SUSTENTABILIDAD,
+            CONTRIBUCIONES_FISCALES,
+            ADMINISTRACION_DE_LA_PRODUCCION,
+            TECNOLOGIAS_DE_LA_INFORMACION_APLICADA_A_LOS_NEGOCIOS,
+            SEMINARIO_DE_LA_INNOVACION,
+            INGLES_VII_EFEP
+        ]
+
+
 
 
         // --- CLASE DOCENTE
         class Docente {
+            static lista_docentes = []
+
             constructor(nombre_docente, dispoinibilidad_lunes, dispoinibilidad_martes, dispoinibilidad_miercoles, dispoinibilidad_jueves, dispoinibilidad_viernes, dispoinibilidad_sabado) {
                 this.nombre_docente = nombre_docente;
                 this.dispoinibilidad_lunes = dispoinibilidad_lunes;
@@ -306,24 +382,28 @@
                 this.dispoinibilidad_jueves = dispoinibilidad_jueves;
                 this.horas_jueves = 0;
                 this.dispoinibilidad_viernes = dispoinibilidad_viernes;
-                this.horas_viernes = 0;
+                this.horas_viernes = 0
                 this.dispoinibilidad_sabado = dispoinibilidad_sabado;
-                this.horas_sabado = 0;
-                this.horas_carga = 0;
-                this.horas_disponibilidad = 0; // Se inicializa a 0
-                this.materiasImpartidas = [];
+                this.horas_sabado = 0
+                this.horas_carga = 0
+                this.horas_disponibilidad = 0 // Se inicializa a 0
+                this.materiasImpartidas = []
+
+                Docente.lista_docentes.push(this)
+
             }
             agregarMateria(materia) {
                 this.materiasImpartidas.push(materia);
                 this.horas_carga += materia.horas_materia;
             }
+            
         }
 
         let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-15 17-21", "9-17", "9-17", "7-15", "7-15", "-")
         let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "12-21", "9-17", "7-14", "7-15", "7-15", "-")
 
-        const lista_docentes = [Alonzo_Lara_Flores, Andres_Dimas_Espino];
 
+        //Funcion para calcular las horas disponibles de los docentes por dia
         function calcularHorasDisponibles(disponibilidad_cadena) {
             
             if (disponibilidad_cadena === "-" || disponibilidad_cadena.trim() === "") {
@@ -348,8 +428,8 @@
             return total_horas;
         }
 
-        // Único bucle para procesar a todos los docentes
-        for (const docente of lista_docentes) {
+        // bucle para calcular las horas disponibles por docente
+        for (const docente of Docente.lista_docentes) {
             docente.horas_lunes = calcularHorasDisponibles(docente.dispoinibilidad_lunes)
             docente.horas_martes = calcularHorasDisponibles(docente.dispoinibilidad_martes)
             docente.horas_miercoles = calcularHorasDisponibles(docente.dispoinibilidad_miercoles)
@@ -363,9 +443,60 @@
         FUNDAMENTOS_MATEMATICOS.asignarDocente(Alonzo_Lara_Flores)
         TUTORIS_BIS.asignarDocente(Alonzo_Lara_Flores)
 
+
+
+
         
-        
-        
+        //Funcion de impresion en el excel--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        button_accion.addEventListener("click", descargar_documentos)
+
+        function generar_excel_disponibilidad_docentes() {
+            // 1. Crear un nuevo libro de trabajo (Workbook)
+            const workbook = XLSX.utils.book_new();
+
+            // 3. Iterar la lista y crear una hoja por cada docente
+            Docente.lista_docentes.forEach(docente => {
+                const filasDeHoras = HORAS.map(hora => [hora]);
+
+                const datosHoja = [
+                    ["Docente: " + docente.nombre_docente], // Fila 1 (A1)
+                    ["Disponbilidad total (horas): " + docente.horas_disponibilidad], // Fila 1 (A2)
+                    ["Horas carga (horas): " + docente.horas_carga], // Fila 3 (A3)
+                    ["DÍAS:", ...DIAS.map(d => d.toUpperCase())], // Fila 3 (A4) en diferentes columnas
+                    ...filasDeHoras
+                ]
+                
+                
+                // Creamos una hoja de un array de impresion.
+                const worksheet = XLSX.utils.aoa_to_sheet(datosHoja)
+
+                // Limpiar nombre (máximo 31 caracteres y quitar caracteres prohibidos)
+                const nombreHoja = docente.nombre_docente.substring(0, 31)
+
+                // 4. Añadir la hoja al libro con el nombre del docente
+                XLSX.utils.book_append_sheet(workbook, worksheet, nombreHoja)
+            })
+
+            // 5. Generar y descargar el archivo
+            // Esta función en el navegador dispara la descarga automáticamente
+            XLSX.writeFile(workbook, 'Disponibilidad_docentes.xlsx');
+        }
+
+        function generar_excel_horarios_grupos(){
+
+        }
+
+        function generar_excel_horarios_docentes(){
+
+        }
+
+        function descargar_documentos(){
+            generar_excel_disponibilidad_docentes()
+            generar_excel_horarios_grupos()
+            generar_excel_horarios_docentes()
+
+        }
+
 
 
     </script>
