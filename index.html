@@ -242,16 +242,12 @@
                     this.docente = docente;
                     // Llama al método del Docente para agregarse a su lista y sumar las horas
                     docente.agregarMateria(this); 
-                    console.log(`✅ Materia "${this.nombre_materia}" asignada a ${docente.nombre_docente} ${docente.horas_carga}.`);
-
-                } else {
-                    console.error(`❌ Error: Intentando asignar un objeto no Docente a la materia ${this.nombre}.`);
                 }
             }
         }
         
         // Materias 1° cuatrimestre LAGE_NA
-        let TUTORIS_BIS = new Materia("TUTORISBIS", 3, 1, "MATUTINO", "NA")
+        let TUTORIA_1RO = new Materia("TUTORISBIS", 2, 1, "MATUTINO", "NA")
         let DESARROLLO_HUMANO_Y_VALORES = new Materia("DESARROLLO HUMANO Y VALORES", 4, 1, "MATUTINO", "NA");
         let FUNDAMENTOS_MATEMATICOS = new Materia("FUNDAMENTOS MATEMATICOS", 7, 1, "MATUTINO", "GCH");
         let FUNDAMENTOS_DE_LA_ADMINISTRACION = new Materia("FUNDAMENTOS DE LA ADMINISTRACION", 4, 1, "MATUTINO", "NA");
@@ -261,6 +257,7 @@
         let INGLES_I = new Materia("INGLES I", 15, 1, "MATUTINO", "NA");
 
         // Materias 4° cuatrimestre (Gestion del capital humano / GCH) 
+        let TUTORIA_4TO_GCH = new Materia("TUTORISBIS", 2, 4, "VESPERTINO", "GCH")
         let ETICA_PROFESIONAL_GCH = new Materia("ETICA PROFESIONAL", 4, 4, "VESPERTINO", "GCH");
         let GESTION_DEL_CAPITAL_HUMANO = new Materia("GESTION DEL CAPITAL HUMANO", 5, 4, "VESPERTINO", "GCH");
         let INTEGRACIÓN_DEL_CAPITAL_HUMANO = new Materia("INTEGRACION DEL CAPITAL HUMANO", 5, 4, "VESPERTINO", "GCH");
@@ -270,6 +267,7 @@
         let INGLES_IV_GCH = new Materia("INGLES IV", 8, 4, "VESPERTINO", "GCH");
 
         // Materias 4° cuatrimestre (Emprendimiento y formulacion y evaluacion de proyectos / EFEP)
+        let TUTORIA_4TO_EFEP = new Materia("TUTORISBIS", 2, 4, "VESPERTINO", "EFEP")
         let ETICA_PROFESIONAL_EFEP = new Materia("ETICA PROFESIONAL", 4, 4, "VESPERTINO", "EFEP");
         let INNOVACION_Y_EMPRENDIMIENTO = new Materia("INNOVACION Y EMPRENDIMIENTO", 5, 4, "VESPERTINO", "EFEP");
         let ESTUDIO_DE_MERCADO = new Materia("ESTUDIO DE MERCADO", 6, 4, "VESPERTINO", "EFEP");
@@ -279,6 +277,7 @@
         let INGLES_IV_EFEP = new Materia("INGLES IV", 8, 4, "VESPERTINO", "EFEP");
 
         // Materias 7° cuatrimestre LAGE_NA
+        let TUTORIA_7MO = new Materia("TUTORISBIS", 2, 7, "VESPERTINO", "NA")
         let COMERCIO_INTERNACIONAL = new Materia("COMERCIO INTERNACIONAL", 5, 7, "VESPERTINO", "NA")
         let SUSTENTABILIDAD = new Materia("SUSTENTABILIDAD", 5, 7, "VESPERTINO", "NA")
         let CONTRIBUCIONES_FISCALES = new Materia("CONTRIBUCIONES FISCALES", 6, 7, "VESPERTINO", "NA")
@@ -289,7 +288,7 @@
 
         let lista_todas_las_materias_LAGE = [
             // Materias 1° cuatrimestre LAGE_NA
-            TUTORIS_BIS,
+            TUTORIA_1RO,
             DESARROLLO_HUMANO_Y_VALORES,
             FUNDAMENTOS_MATEMATICOS,
             FUNDAMENTOS_DE_LA_ADMINISTRACION,
@@ -298,6 +297,7 @@
             COMUNICACION_Y_HABILIDADES_DIGITALES,
             INGLES_I,
             // Materias 4° cuatrimestre (Gestion del capital humano / GCH) 
+            TUTORIA_4TO_GCH,
             ETICA_PROFESIONAL_GCH,
             GESTION_DEL_CAPITAL_HUMANO,
             INTEGRACIÓN_DEL_CAPITAL_HUMANO,
@@ -306,6 +306,7 @@
             LEGISLACION_LABORAL,
             INGLES_IV_GCH,
             // Materias 4° cuatrimestre (Emprendimiento y formulacion y evaluacion de proyectos / EFEP)
+            TUTORIA_4TO_EFEP,
             ETICA_PROFESIONAL_EFEP,
             INNOVACION_Y_EMPRENDIMIENTO,
             ESTUDIO_DE_MERCADO,
@@ -314,6 +315,7 @@
             ESTUDIO_TÉCNICO_Y_ORGANIZACIONAL,
             INGLES_IV_EFEP,
             // Materias 7° cuatrimestre LAGE_NA
+            TUTORIA_7MO,
             COMERCIO_INTERNACIONAL,
             SUSTENTABILIDAD,
             CONTRIBUCIONES_FISCALES,
@@ -324,7 +326,7 @@
         ]
 
         let lista_materias_LAGE_1ro = [
-            TUTORIS_BIS,
+            TUTORIA_1RO,
             DESARROLLO_HUMANO_Y_VALORES,
             FUNDAMENTOS_MATEMATICOS,
             FUNDAMENTOS_DE_LA_ADMINISTRACION,
@@ -335,6 +337,7 @@
         ]
 
         let lista_materias_LAGE_4to_GCH = [
+            TUTORIA_4TO_GCH,
             ETICA_PROFESIONAL_GCH,
             GESTION_DEL_CAPITAL_HUMANO,
             INTEGRACIÓN_DEL_CAPITAL_HUMANO,
@@ -345,6 +348,7 @@
         ]
 
         let lista_materias_LAGE_4to_EFEP = [
+            TUTORIA_4TO_EFEP,
             ETICA_PROFESIONAL_EFEP,
             INNOVACION_Y_EMPRENDIMIENTO,
             ESTUDIO_DE_MERCADO,
@@ -355,6 +359,7 @@
         ]
 
         let lista_materias_LAGE_7mo = [
+            TUTORIA_7MO,
             COMERCIO_INTERNACIONAL,
             SUSTENTABILIDAD,
             CONTRIBUCIONES_FISCALES,
@@ -371,7 +376,7 @@
         class Docente {
             static lista_docentes = []
 
-            constructor(nombre_docente, dispoinibilidad_lunes, dispoinibilidad_martes, dispoinibilidad_miercoles, dispoinibilidad_jueves, dispoinibilidad_viernes, dispoinibilidad_sabado) {
+            constructor(nombre_docente, dispoinibilidad_lunes, dispoinibilidad_martes, dispoinibilidad_miercoles, dispoinibilidad_jueves, dispoinibilidad_viernes, dispoinibilidad_sabado, tipo_docente) {
                 this.nombre_docente = nombre_docente;
                 this.dispoinibilidad_lunes = dispoinibilidad_lunes;
                 this.horas_lunes = 0;
@@ -385,13 +390,17 @@
                 this.horas_viernes = 0
                 this.dispoinibilidad_sabado = dispoinibilidad_sabado;
                 this.horas_sabado = 0
+                this.tipo_docente = tipo_docente //1 = Ingles, 2 = PA, 3 = PTC, 4 = administractivos
                 this.horas_carga = 0
-                this.horas_disponibilidad = 0 // Se inicializa a 0
+                this.horas_disponibilidad = 0
+                this.cantidad_dias_disponibles = 0
+                this.prioridad = 0
                 this.materiasImpartidas = []
 
                 Docente.lista_docentes.push(this)
 
             }
+
             agregarMateria(materia) {
                 this.materiasImpartidas.push(materia);
                 this.horas_carga += materia.horas_materia;
@@ -399,9 +408,8 @@
             
         }
 
-        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-15 17-21", "9-17", "9-17", "7-15", "7-15", "-")
-        let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "12-21", "9-17", "7-14", "7-15", "7-15", "-")
-
+        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-15 17-21", "9-17", "9-17", "7-15", "7-15", "-", 4)
+        let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "12-21", "9-17", "7-14", "7-15", "7-15", "-", 4)
 
         //Funcion para calcular las horas disponibles de los docentes por dia
         function calcularHorasDisponibles(disponibilidad_cadena) {
@@ -439,17 +447,73 @@
 
             docente.horas_disponibilidad = docente.horas_lunes + docente.horas_martes + docente.horas_miercoles + docente.horas_jueves + docente.horas_viernes + docente.horas_sabado
         }
-
+        
         FUNDAMENTOS_MATEMATICOS.asignarDocente(Alonzo_Lara_Flores)
-        TUTORIS_BIS.asignarDocente(Alonzo_Lara_Flores)
+        TUTORIA_1RO.asignarDocente(Alonzo_Lara_Flores)
+
+        FUNDAMENTOS_DE_LA_ADMINISTRACION.asignarDocente(Andres_Dimas_Espino)
+        TUTORIA_1RO.asignarDocente(Andres_Dimas_Espino)
+
+        //Funcion para determinar el orden en el que se crearan los horarios de los docentes
+        for (const docente of Docente.lista_docentes) {
+
+            if(docente.dispoinibilidad_lunes !== "-"){
+                docente.cantidad_dias_disponibles += 1
+            }
+            if(docente.dispoinibilidad_martes !== "-"){
+                docente.cantidad_dias_disponibles += 1
+            }
+            if(docente.dispoinibilidad_miercoles !== "-"){
+                docente.cantidad_dias_disponibles += 1
+            }
+            if(docente.dispoinibilidad_jueves !== "-"){
+                docente.cantidad_dias_disponibles += 1   
+            }
+            if(docente.dispoinibilidad_viernes !== "-"){
+                docente.cantidad_dias_disponibles += 1  
+            }
+            if(docente.dispoinibilidad_sabado !== "-"){
+                docente.cantidad_dias_disponibles += 1  
+            }
 
 
+            // 2. Calcular prioridad evitando división por cero
+            if (docente.horas_carga > 0) {
+                docente.prioridad = (docente.horas_disponibilidad / docente.horas_carga) * (docente.cantidad_dias_disponibles) * (docente.tipo_docente);
+            } else {
+                docente.prioridad = 0; // O la lógica que prefieras para docentes sin carga
+            }
+            
+        }
+        //reacomodamos la lista de docentes segun su prioridad
+        Docente.lista_docentes.sort((a, b) => a.prioridad - b.prioridad);
+        
 
+        Docente.lista_docentes.forEach((docente, index) => {
+            console.log(`${index + 1}. Docente: ${docente.nombre_docente} | Prioridad: ${docente.prioridad.toFixed(2)}`);
+        })
+
+        
+
+        function estaDisponible(hora, disponibilidad_cadena) {
+            if (!disponibilidad_cadena || disponibilidad_cadena === "-") return false;
+    
+            // Separamos por espacios por si hay rangos múltiples
+            const rangos = disponibilidad_cadena.split(" ");
+    
+            return rangos.some(rango => {
+                const [inicio, fin] = rango.split("-").map(Number);
+                // Verificamos si la hora está dentro del rango
+                // Usamos >= inicio y < fin (común en horarios)
+                return hora >= inicio && hora < fin;
+            })
+        }
 
         
         //Funcion de impresion en el excel--------------------------------------------------------------------------------------------------------------------------------------------------------------------
         button_accion.addEventListener("click", descargar_documentos)
 
+        //Funcion de descarga del excel de disponibilidades de docentes
         function generar_excel_disponibilidad_docentes() {
             // 1. Crear un nuevo libro de trabajo (Workbook)
             const workbook = XLSX.utils.book_new();
@@ -462,9 +526,28 @@
                     ["Docente: " + docente.nombre_docente], // Fila 1 (A1)
                     ["Disponbilidad total (horas): " + docente.horas_disponibilidad], // Fila 1 (A2)
                     ["Horas carga (horas): " + docente.horas_carga], // Fila 3 (A3)
-                    ["DÍAS:", ...DIAS.map(d => d.toUpperCase())], // Fila 3 (A4) en diferentes columnas
-                    ...filasDeHoras
+                    ["DÍAS:", ...DIAS.map(d => d.toUpperCase())] // Fila 3 (A4) en diferentes columnas
+                    
                 ]
+
+                HORAS.forEach(hora => {
+                    // La primera columna es la hora
+                    const fila = [hora]; 
+
+                    // Recorremos cada día para ver si ponemos "X" o vacío
+                    DIAS.forEach(dia => {
+                        // Accedemos a la propiedad dinámica: docente.dispoinibilidad_lunes, etc.
+                        const dispDia = docente[`dispoinibilidad_${dia}`];
+                
+                        if (estaDisponible(hora, dispDia)) {
+                            fila.push("X"); // Marcamos con una X si está disponible
+                        } else {
+                            fila.push(""); // Vacío si no
+                        }
+                    })
+
+                    datosHoja.push(fila)
+                })
                 
                 
                 // Creamos una hoja de un array de impresion.
@@ -490,6 +573,7 @@
 
         }
 
+        //Funcion madre de descarga de documentos
         function descargar_documentos(){
             generar_excel_disponibilidad_docentes()
             generar_excel_horarios_grupos()
