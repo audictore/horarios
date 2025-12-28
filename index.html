@@ -80,15 +80,15 @@
         let button_accion = document.getElementById("button_accion")
 
         const Universidad = {
-            nombre: "UPMH",
+            nombre_universidad: "UPMH",
             carreras: []
         }
 
         // --- CLASES ESTRUCTURALES ---
 
         class Carrera {
-            constructor(nombre) {
-                this.nombre = nombre
+            constructor(nombre_carrera) {
+                this.nombre_carrera = nombre_carrera
                 this.especialidades = []
             }
 
@@ -107,8 +107,8 @@
         Universidad.carreras.push(LAGE)
 
         class Especialidad {
-            constructor(nombre) {
-                this.nombre = nombre
+            constructor(nombre_especialidad) {
+                this.nombre_especialidad = nombre_especialidad
                 this.grados = []
             }
 
@@ -129,8 +129,8 @@
         LAGE.agregarEspecialidad(LAGE_EFEP)
 
         class Grado {
-            constructor(nombre) {
-                this.nombre = nombre
+            constructor(nombre_grado) {
+                this.nombre_grado = nombre_grado
                 this.grupos = []
             }
 
@@ -166,69 +166,10 @@
         LAGE_EFEP.agregarGrado(LAGE_4to)
         LAGE_EFEP.agregarGrado(LAGE_5to)
 
-        //creamos la clase Grupo
-        class Grupo {
-            constructor(nombre) {
-                this.nombre = nombre 
-                this.materias = []
-            }
-
-            agregarMateria(materia) {
-                if (materia instanceof Materia) {
-                    this.materias.push(materia)
-                }
-            }
-        }
-
-        //creamos los grupos de LAGE
-        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A")
-        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B")
-        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C")
-
-        let LAGE_4to_GCH_A = new Grupo("LAGE_4to_GCH_A")
-        
-        let LAGE_4to_EFEP_A = new Grupo("LAGE_4to_EFEP_A")
-        let LAGE_4to_EFEP_B = new Grupo("LAGE_4to_EFEP_B")
-
-        let LAGE_7mo_NA_A = new Grupo("LAGE_7mo_NA_A")
-        let LAGE_7mo_NA_B = new Grupo("LAGE_7mo_NA_B")
-        let LAGE_7mo_NA_C = new Grupo("LAGE_7mo_NA_C")
-
-        /*
-        //le agregamos las materias a los grupos de LAGE
-        LAGE_1ro_NA_A.materias = lista_materias_LAGE_1ro
-        LAGE_1ro_NA_B.materias = lista_materias_LAGE_1ro
-        LAGE_1ro_NA_C.materias = lista_materias_LAGE_1ro
-
-        LAGE_4to_GCH_A.materias = lista_materias_LAGE_4to_GCH
-
-        LAGE_4to_EFEP_A.materias = lista_materias_LAGE_4to_EFEP
-        LAGE_4to_EFEP_A.materias = lista_materias_LAGE_4to_EFEP
-
-        LAGE_7mo_NA_A.materias = lista_materias_LAGE_7mo
-        LAGE_7mo_NA_B.materias = lista_materias_LAGE_7mo
-        LAGE_7mo_NA_C.materias = lista_materias_LAGE_7mo
-
-        //añadimos los grupos de LAGE a los grados correspondientes
-        LAGE_1ro.agregarGrupo(LAGE_1ro_NA_A)
-        LAGE_1ro.agregarGrupo(LAGE_1ro_NA_B)
-        LAGE_1ro.agregarGrupo(LAGE_1ro_NA_C)
-
-        LAGE_4to.agregarGrupo(LAGE_4to_GCH_A)
-
-        LAGE_4to.agregarGrupo(LAGE_4to_EFEP_A)
-        LAGE_4to.agregarGrupo(LAGE_4to_EFEP_B)
-
-        LAGE_7mo.agregarGrupo(LAGE_7mo_NA_A)
-        LAGE_7mo.agregarGrupo(LAGE_7mo_NA_B)
-        LAGE_7mo.agregarGrupo(LAGE_7mo_NA_C)
-
-        */
         
         // --- CLASE MATERIA ---
         class Materia {
             constructor(nombre_materia, horas_materia, grado_materia, turno_materia, tsu_materia) {
-                this.nombre = nombre_materia
                 this.nombre_materia = nombre_materia;
                 this.horas_materia = horas_materia;
                 this.grado_materia = grado_materia;
@@ -247,7 +188,7 @@
         }
         
         // Materias 1° cuatrimestre LAGE_NA
-        let TUTORIA_1RO = new Materia("TUTORISBIS", 2, 1, "MATUTINO", "NA")
+        let TUTORIA_1RO = new Materia("TUTORIA 1RO", 2, 1, "MATUTINO", "NA")
         let DESARROLLO_HUMANO_Y_VALORES = new Materia("DESARROLLO HUMANO Y VALORES", 4, 1, "MATUTINO", "NA");
         let FUNDAMENTOS_MATEMATICOS = new Materia("FUNDAMENTOS MATEMATICOS", 7, 1, "MATUTINO", "GCH");
         let FUNDAMENTOS_DE_LA_ADMINISTRACION = new Materia("FUNDAMENTOS DE LA ADMINISTRACION", 4, 1, "MATUTINO", "NA");
@@ -257,7 +198,7 @@
         let INGLES_I = new Materia("INGLES I", 15, 1, "MATUTINO", "NA");
 
         // Materias 4° cuatrimestre (Gestion del capital humano / GCH) 
-        let TUTORIA_4TO_GCH = new Materia("TUTORISBIS", 2, 4, "VESPERTINO", "GCH")
+        let TUTORIA_4TO_GCH = new Materia("TUTORIA 4TO GCH", 2, 4, "VESPERTINO", "GCH")
         let ETICA_PROFESIONAL_GCH = new Materia("ETICA PROFESIONAL", 4, 4, "VESPERTINO", "GCH");
         let GESTION_DEL_CAPITAL_HUMANO = new Materia("GESTION DEL CAPITAL HUMANO", 5, 4, "VESPERTINO", "GCH");
         let INTEGRACIÓN_DEL_CAPITAL_HUMANO = new Materia("INTEGRACION DEL CAPITAL HUMANO", 5, 4, "VESPERTINO", "GCH");
@@ -267,7 +208,7 @@
         let INGLES_IV_GCH = new Materia("INGLES IV", 8, 4, "VESPERTINO", "GCH");
 
         // Materias 4° cuatrimestre (Emprendimiento y formulacion y evaluacion de proyectos / EFEP)
-        let TUTORIA_4TO_EFEP = new Materia("TUTORISBIS", 2, 4, "VESPERTINO", "EFEP")
+        let TUTORIA_4TO_EFEP = new Materia("TUTORIA 4TO EFEP", 2, 4, "VESPERTINO", "EFEP")
         let ETICA_PROFESIONAL_EFEP = new Materia("ETICA PROFESIONAL", 4, 4, "VESPERTINO", "EFEP");
         let INNOVACION_Y_EMPRENDIMIENTO = new Materia("INNOVACION Y EMPRENDIMIENTO", 5, 4, "VESPERTINO", "EFEP");
         let ESTUDIO_DE_MERCADO = new Materia("ESTUDIO DE MERCADO", 6, 4, "VESPERTINO", "EFEP");
@@ -277,7 +218,7 @@
         let INGLES_IV_EFEP = new Materia("INGLES IV", 8, 4, "VESPERTINO", "EFEP");
 
         // Materias 7° cuatrimestre LAGE_NA
-        let TUTORIA_7MO = new Materia("TUTORISBIS", 2, 7, "VESPERTINO", "NA")
+        let TUTORIA_7MO = new Materia("TUTORIA 7MO", 2, 7, "VESPERTINO", "NA")
         let COMERCIO_INTERNACIONAL = new Materia("COMERCIO INTERNACIONAL", 5, 7, "VESPERTINO", "NA")
         let SUSTENTABILIDAD = new Materia("SUSTENTABILIDAD", 5, 7, "VESPERTINO", "NA")
         let CONTRIBUCIONES_FISCALES = new Materia("CONTRIBUCIONES FISCALES", 6, 7, "VESPERTINO", "NA")
@@ -285,45 +226,6 @@
         let TECNOLOGIAS_DE_LA_INFORMACION_APLICADA_A_LOS_NEGOCIOS = new Materia("TECNOLOGIAS DE LA INFORMACION APLICADA A LOS NEGOCIOS", 4, 7, "VESPERTINO", "NA")
         let SEMINARIO_DE_LA_INNOVACION = new Materia("SEMINARIO DE LA INNOVACION", 5, 7, "VESPERTINO", "NA")
         let INGLES_VII_EFEP = new Materia("INGLES VII", 5, 7, "VESPERTINO", "EFEP")
-
-        let lista_todas_las_materias_LAGE = [
-            // Materias 1° cuatrimestre LAGE_NA
-            TUTORIA_1RO,
-            DESARROLLO_HUMANO_Y_VALORES,
-            FUNDAMENTOS_MATEMATICOS,
-            FUNDAMENTOS_DE_LA_ADMINISTRACION,
-            CONTABILIDAD_I,
-            MARCO_LEGAL_DE_LAS_ORGANIZACIONES,
-            COMUNICACION_Y_HABILIDADES_DIGITALES,
-            INGLES_I,
-            // Materias 4° cuatrimestre (Gestion del capital humano / GCH) 
-            TUTORIA_4TO_GCH,
-            ETICA_PROFESIONAL_GCH,
-            GESTION_DEL_CAPITAL_HUMANO,
-            INTEGRACIÓN_DEL_CAPITAL_HUMANO,
-            COMPORTAMIENTO_ORGANIZACIONAL,
-            SUELDOS_Y_SALARIOS_I,
-            LEGISLACION_LABORAL,
-            INGLES_IV_GCH,
-            // Materias 4° cuatrimestre (Emprendimiento y formulacion y evaluacion de proyectos / EFEP)
-            TUTORIA_4TO_EFEP,
-            ETICA_PROFESIONAL_EFEP,
-            INNOVACION_Y_EMPRENDIMIENTO,
-            ESTUDIO_DE_MERCADO,
-            ADMINISTRACIÓN_DE_PROYECTOS_I,
-            FUNDAMENTOS_DE_SISTEMAS_DE_PRODUCCIÓN,
-            ESTUDIO_TÉCNICO_Y_ORGANIZACIONAL,
-            INGLES_IV_EFEP,
-            // Materias 7° cuatrimestre LAGE_NA
-            TUTORIA_7MO,
-            COMERCIO_INTERNACIONAL,
-            SUSTENTABILIDAD,
-            CONTRIBUCIONES_FISCALES,
-            ADMINISTRACION_DE_LA_PRODUCCION,
-            TECNOLOGIAS_DE_LA_INFORMACION_APLICADA_A_LOS_NEGOCIOS,
-            SEMINARIO_DE_LA_INNOVACION,
-            INGLES_VII_EFEP
-        ]
 
         let lista_materias_LAGE_1ro = [
             TUTORIA_1RO,
@@ -369,6 +271,63 @@
             INGLES_VII_EFEP
         ]
 
+        //creamos la clase Grupo
+        class Grupo {
+            static lista_grupos_LAGE = []
+
+
+            constructor(nombre_grupo, listaMateriasPlantilla = []) {
+                this.nombre_grupo = nombre_grupo
+                this.materias = [];
+
+                // Si pasamos una lista al crear el grupo, las clonamos automáticamente
+                listaMateriasPlantilla.forEach(materia => {
+                    this.agregarMateria(materia);
+                })
+
+                Grupo.lista_grupos_LAGE.push(this)
+            }
+
+            agregarMateria(materia) {
+                if (materia instanceof Materia) {
+                    // Creamos un nuevo objeto Materia con los mismos datos 
+                    // para que cada grupo tenga su propia instancia única
+                    const materiaClonada = new Materia(
+                        materia.nombre_materia,
+                        materia.horas_materia,
+                        materia.grado_materia,
+                        materia.turno_materia,
+                        materia.tsu_materia
+                    );
+                    this.materias.push(materiaClonada);
+                }
+            }
+
+            asignarDocenteAMateria(nombreMateria, docente) {
+                const materia = this.materias.find(m => m.nombre_materia === nombreMateria);
+                if (materia) {
+                    materia.asignarDocente(docente);
+                } else {
+                    console.error(`La materia ${nombreMateria} no existe en el grupo ${this.nombre}`);
+                }
+            }
+
+        }
+
+        //creamos los grupos de LAGE
+        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A", lista_materias_LAGE_1ro)
+        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B", lista_materias_LAGE_1ro)
+        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C", lista_materias_LAGE_1ro)
+
+        let LAGE_4to_GCH_A = new Grupo("LAGE_4to_GCH_A", lista_materias_LAGE_4to_GCH)
+        
+        let LAGE_4to_EFEP_A = new Grupo("LAGE_4to_EFEP_A", lista_materias_LAGE_4to_EFEP)
+        let LAGE_4to_EFEP_B = new Grupo("LAGE_4to_EFEP_B", lista_materias_LAGE_4to_EFEP)
+
+        let LAGE_7mo_NA_A = new Grupo("LAGE_7mo_NA_A", lista_materias_LAGE_7mo)
+        let LAGE_7mo_NA_B = new Grupo("LAGE_7mo_NA_B", lista_materias_LAGE_7mo)
+        let LAGE_7mo_NA_C = new Grupo("LAGE_7mo_NA_C", lista_materias_LAGE_7mo)
+
 
 
 
@@ -402,8 +361,11 @@
             }
 
             agregarMateria(materia) {
-                this.materiasImpartidas.push(materia);
-                this.horas_carga += materia.horas_materia;
+                // Evitamos duplicar la misma instancia de materia en la lista del docente
+                if (!this.materiasImpartidas.includes(materia)) {
+                    this.materiasImpartidas.push(materia);
+                    this.horas_carga += materia.horas_materia;
+                }
             }
             
         }
@@ -448,11 +410,17 @@
             docente.horas_disponibilidad = docente.horas_lunes + docente.horas_martes + docente.horas_miercoles + docente.horas_jueves + docente.horas_viernes + docente.horas_sabado
         }
         
-        FUNDAMENTOS_MATEMATICOS.asignarDocente(Alonzo_Lara_Flores)
-        TUTORIA_1RO.asignarDocente(Alonzo_Lara_Flores)
 
-        FUNDAMENTOS_DE_LA_ADMINISTRACION.asignarDocente(Andres_Dimas_Espino)
-        TUTORIA_1RO.asignarDocente(Andres_Dimas_Espino)
+        //Asignacion docente-materia-grupo
+        LAGE_1ro_NA_C.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Alonzo_Lara_Flores)
+        LAGE_1ro_NA_C.asignarDocenteAMateria("TUTORIA 1RO", Alonzo_Lara_Flores)
+
+        console.log(Alonzo_Lara_Flores.horas_carga)
+
+        LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Andres_Dimas_Espino)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("TUTORIA 1RO", Andres_Dimas_Espino)
+
+        console.log(Andres_Dimas_Espino.horas_carga)
 
         //Funcion para determinar el orden en el que se crearan los horarios de los docentes
         for (const docente of Docente.lista_docentes) {
@@ -565,8 +533,45 @@
             XLSX.writeFile(workbook, 'Disponibilidad_docentes.xlsx');
         }
 
-        function generar_excel_horarios_grupos(){
-
+        function generar_excel_horarios_grupos() {
+            // 1. Crear un nuevo libro de trabajo
+            const workbook = XLSX.utils.book_new();
+                
+            // 2. Iterar el array estático de la clase Grupo
+            Grupo.lista_grupos_LAGE.forEach(grupo => {
+                
+                // Estructura base: Título y Encabezado de columnas
+                const datosHoja = [
+                    ["Horario del grupo: " + grupo.nombre_grupo], // Fila 1: Título
+                    [],                                           // Fila 2: Espacio en blanco
+                    ["HORA", ...DIAS.map(d => d.toUpperCase())]   // Fila 3: Cabecera (HORA, LUNES, MARTES...)
+                ];
+            
+                // 3. Generar las filas de horas
+                HORAS.forEach(hora => {
+                    // Creamos una fila que empieza con la hora y tiene celdas vacías para cada día
+                    const fila = [hora, ...DIAS.map(() => "")]; 
+                    datosHoja.push(fila);
+                });
+                
+                // 4. Convertir el Array de Arrays (AOA) a una hoja (Worksheet)
+                const worksheet = XLSX.utils.aoa_to_sheet(datosHoja);
+            
+                // 5. Configurar anchos de columna (Opcional, para que se vea bien)
+                // La columna A (Hora) más ancha, las demás estándar
+                worksheet['!cols'] = [{ wch: 15 }, ...DIAS.map(() => ({ wch: 12 }))];
+            
+                // 6. Limpiar el nombre de la hoja (Excel solo acepta 31 caracteres y sin caracteres especiales)
+                const nombreLimpio = grupo.nombre_grupo.toString()
+                    .replace(/[\\\/\?\*\[\]]/g, "") 
+                    .substring(0, 31);
+            
+                // 7. Añadir la hoja al libro
+                XLSX.utils.book_append_sheet(workbook, worksheet, nombreLimpio);
+            });
+        
+            // 8. Descargar el archivo final
+            XLSX.writeFile(workbook, 'Horarios_Grupos_LAGE.xlsx');
         }
 
         function generar_excel_horarios_docentes(){
