@@ -176,13 +176,54 @@
                 this.turno_materia = turno_materia;
                 this.tsu_materia = tsu_materia;
                 this.docente = null; // Inicializa la referencia al docente
+
+                this.desglose_horas = {
+                    horas_clase_1: 0,
+                    horas_clase_2: 0,
+                    horas_clase_3: 0,
+                    horas_clase_4: 0,
+                    horas_clase_5: 0
+                }
+            }
+
+            determinar_horas_clase_por_materia(){
+                const tipo = this.docente.tipo_docente;
+                const horas = this.horas_materia;
+                // Referencia corta para no escribir tanto
+                const d = this.desglose_horas; 
+                        
+                // Particion para Ingles (Tipo 1)
+                if (tipo === 1) {
+                    if (horas == 5) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 1; }
+                    else if (horas == 6) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; }
+                    else if (horas == 7) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; d.horas_clase_4 = 1; }
+                    else if (horas == 8) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; d.horas_clase_4 = 2; }
+                    else if (horas == 9) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; d.horas_clase_4 = 2; d.horas_clase_5 = 1; }
+                    else if (horas == 10) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; d.horas_clase_4 = 2; d.horas_clase_5 = 2; }
+                    else if (horas == 15) { d.horas_clase_1 = 3; d.horas_clase_2 = 3; d.horas_clase_3 = 3; d.horas_clase_4 = 3; d.horas_clase_5 = 3; }
+                    else if (horas == 20) { d.horas_clase_1 = 4; d.horas_clase_2 = 4; d.horas_clase_3 = 4; d.horas_clase_4 = 4; d.horas_clase_5 = 4; }
+                }
+                // Particion para PA, PTC y Admin (Tipo 2, 3, 4)
+                else {
+                    if (horas == 2) { d.horas_clase_1 = 1; d.horas_clase_2 = 1; }
+                    else if (horas == 3) { d.horas_clase_1 = 2; d.horas_clase_2 = 1; }
+                    else if (horas == 4) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; }
+                    else if (horas == 5) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 1; }
+                    else if (horas == 6) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; }
+                    else if (horas == 7) { 
+                        if (tipo === 2) { d.horas_clase_1 = 3; d.horas_clase_2 = 2; d.horas_clase_3 = 2; }
+                        else { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; d.horas_clase_4 = 1; }
+                    }
+                }
+
             }
 
             asignarDocente(docente) {
                 if (docente instanceof Docente) {
                     this.docente = docente;
-                    // Llama al método del Docente para agregarse a su lista y sumar las horas
                     docente.agregarMateria(this); 
+                    // ¡Llamarlo aquí asegura que las horas se repartan en cuanto llega el docente!
+                    this.determinar_horas_clase_por_materia(); 
                 }
             }
         }
@@ -454,6 +495,14 @@
         console.log(Alonzo_Lara_Flores.nombre_docente)
         console.log(Alonzo_Lara_Flores.horas_carga)
         console.log(Alonzo_Lara_Flores.materias_impartidas_docente)
+        Alonzo_Lara_Flores.materias_impartidas_docente.forEach((materia, index) => {
+    console.log(`--- Materia ${index + 1}: ${materia.nombre_materia} ---`);
+    console.log("Sesión 1:", materia.desglose_horas.horas_clase_1);
+    console.log("Sesión 2:", materia.desglose_horas.horas_clase_2);
+    console.log("Sesión 3:", materia.desglose_horas.horas_clase_3);
+    console.log("Sesión 4:", materia.desglose_horas.horas_clase_4);
+    console.log("Sesión 5:", materia.desglose_horas.horas_clase_5);
+});
         console.log(Alonzo_Lara_Flores.lista_horas_lunes_docente)
         console.log(Alonzo_Lara_Flores.lista_horas_martes_docente)
         console.log(Alonzo_Lara_Flores.lista_horas_miercoles_docente)
