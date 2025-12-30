@@ -276,9 +276,15 @@
             static lista_grupos_LAGE = []
 
 
-            constructor(nombre_grupo, listaMateriasPlantilla = []) {
+            constructor(nombre_grupo, horario_lunes, horario_martes, horario_miercoles, horario_jueves, horario_viernes, horario_sabado, listaMateriasPlantilla = []) {
                 this.nombre_grupo = nombre_grupo
-                this.materias = [];
+                this.horario_lunes = horario_lunes
+                this.horario_martes = horario_martes
+                this.horario_miercoles = horario_miercoles
+                this.horario_jueves = horario_jueves
+                this.horario_viernes = horario_viernes
+                this.horario_sabado = horario_sabado
+                this.materias = []
 
                 // Si pasamos una lista al crear el grupo, las clonamos automáticamente
                 listaMateriasPlantilla.forEach(materia => {
@@ -305,70 +311,100 @@
 
             asignarDocenteAMateria(nombreMateria, docente) {
                 const materia = this.materias.find(m => m.nombre_materia === nombreMateria);
+
                 if (materia) {
                     materia.asignarDocente(docente);
                 } else {
-                    console.error(`La materia ${nombreMateria} no existe en el grupo ${this.nombre}`);
+                    // Cambiamos this.nombre por this.nombre_grupo
+                    console.error(`La materia "${nombreMateria}" no existe en el grupo ${this.nombre_grupo}`);
                 }
             }
 
         }
 
         //creamos los grupos de LAGE
-        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A", lista_materias_LAGE_1ro)
-        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B", lista_materias_LAGE_1ro)
-        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C", lista_materias_LAGE_1ro)
+        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A", "7-16", "7-16", "7-16", "7-16", "7-16", "-", lista_materias_LAGE_1ro)
+        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B", "7-16", "7-16", "7-16", "7-16", "7-16", "-", lista_materias_LAGE_1ro)
+        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C", "7-16", "7-16", "7-16", "7-16", "7-16", "-", lista_materias_LAGE_1ro)
 
-        let LAGE_4to_GCH_A = new Grupo("LAGE_4to_GCH_A", lista_materias_LAGE_4to_GCH)
+        let LAGE_4to_GCH_A = new Grupo("LAGE_4to_GCH_A", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_4to_GCH)
         
-        let LAGE_4to_EFEP_A = new Grupo("LAGE_4to_EFEP_A", lista_materias_LAGE_4to_EFEP)
-        let LAGE_4to_EFEP_B = new Grupo("LAGE_4to_EFEP_B", lista_materias_LAGE_4to_EFEP)
+        let LAGE_4to_EFEP_A = new Grupo("LAGE_4to_EFEP_A", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_4to_EFEP)
+        let LAGE_4to_EFEP_B = new Grupo("LAGE_4to_EFEP_B", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_4to_EFEP)
 
-        let LAGE_7mo_NA_A = new Grupo("LAGE_7mo_NA_A", lista_materias_LAGE_7mo)
-        let LAGE_7mo_NA_B = new Grupo("LAGE_7mo_NA_B", lista_materias_LAGE_7mo)
-        let LAGE_7mo_NA_C = new Grupo("LAGE_7mo_NA_C", lista_materias_LAGE_7mo)
-
-
+        let LAGE_7mo_NA_A = new Grupo("LAGE_7mo_NA_A", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_7mo)
+        let LAGE_7mo_NA_B = new Grupo("LAGE_7mo_NA_B", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_7mo)
+        let LAGE_7mo_NA_C = new Grupo("LAGE_7mo_NA_C", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_7mo)
 
 
-        // --- CLASE DOCENTE
-        class Docente {
-            static lista_docentes = []
 
-            constructor(nombre_docente, dispoinibilidad_lunes, dispoinibilidad_martes, dispoinibilidad_miercoles, dispoinibilidad_jueves, dispoinibilidad_viernes, dispoinibilidad_sabado, tipo_docente) {
-                this.nombre_docente = nombre_docente;
-                this.dispoinibilidad_lunes = dispoinibilidad_lunes;
-                this.horas_lunes = 0;
-                this.dispoinibilidad_martes = dispoinibilidad_martes;
-                this.horas_martes = 0;
-                this.dispoinibilidad_miercoles = dispoinibilidad_miercoles;
-                this.horas_miercoles = 0;
-                this.dispoinibilidad_jueves = dispoinibilidad_jueves;
-                this.horas_jueves = 0;
-                this.dispoinibilidad_viernes = dispoinibilidad_viernes;
-                this.horas_viernes = 0
-                this.dispoinibilidad_sabado = dispoinibilidad_sabado;
-                this.horas_sabado = 0
-                this.tipo_docente = tipo_docente //1 = Ingles, 2 = PA, 3 = PTC, 4 = administractivos
-                this.horas_carga = 0
-                this.horas_disponibilidad = 0
-                this.cantidad_dias_disponibles = 0
-                this.prioridad = 0
-                this.materiasImpartidas = []
 
-                Docente.lista_docentes.push(this)
+            // --- CLASE DOCENTE
+            class Docente {
+                static lista_docentes = []
 
-            }
+                constructor(nombre_docente, dispoinibilidad_lunes, dispoinibilidad_martes, dispoinibilidad_miercoles, dispoinibilidad_jueves, dispoinibilidad_viernes, dispoinibilidad_sabado, tipo_docente) {
+                    this.nombre_docente = nombre_docente
 
-            agregarMateria(materia) {
-                // Evitamos duplicar la misma instancia de materia en la lista del docente
-                if (!this.materiasImpartidas.includes(materia)) {
-                    this.materiasImpartidas.push(materia);
-                    this.horas_carga += materia.horas_materia;
+                    this.dispoinibilidad_lunes = dispoinibilidad_lunes;
+                    this.horas_lunes = 0;
+                    this.lista_horas_lunes_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_lunes)
+
+                    this.dispoinibilidad_martes = dispoinibilidad_martes
+                    this.horas_martes = 0;
+                    this.lista_horas_martes_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_martes)
+
+                    this.dispoinibilidad_miercoles = dispoinibilidad_miercoles
+                    this.horas_miercoles = 0;
+                    this.lista_horas_miercoles_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_miercoles)
+
+                    this.dispoinibilidad_jueves = dispoinibilidad_jueves
+                    this.horas_jueves = 0;
+                    this.lista_horas_jueves_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_jueves)
+
+                    this.dispoinibilidad_viernes = dispoinibilidad_viernes
+                    this.horas_viernes = 0
+                    this.lista_horas_viernes_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_viernes)
+
+                    this.dispoinibilidad_sabado = dispoinibilidad_sabado
+                    this.horas_sabado = 0
+                    this.lista_horas_sabado_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_sabado)
+
+                    this.tipo_docente = tipo_docente //1 = Ingles, 2 = PA, 3 = PTC, 4 = administractivos
+                    this.horas_carga = 0
+                    this.horas_disponibilidad = 0
+                    this.cantidad_dias_disponibles = 0
+                    this.prioridad = 0
+                    this.materias_impartidas_docente = []
+
+                    Docente.lista_docentes.push(this)
+
                 }
-            }
+
+                //Funcion que crea las listas de horarios de los docentes (Con esto ya empezamos a considerar horarios)
+                generar_lista_disponibilidad_por_dia_docente(str){
+                    if (!str || str === "-") return [];
+        
+                        let horas = [];
+                        const grupos = str.split(" ");
+                                                            grupos.forEach(grupo => {
+                            const [inicio, fin] = grupo.split("-").map(Number);
+                            for (let i = inicio; i < fin; i++) {
+                                horas.push(i);
+                            }
+                        })
+                        return horas;
+                }
+                    
+                agregarMateria(materia) {
+                    // Evitamos duplicar la misma instancia de materia en la lista del docente
+                    if (!this.materias_impartidas_docente.includes(materia)) {
+                        this.materias_impartidas_docente.push(materia);
+                        this.horas_carga += materia.horas_materia;                        
+                    }
+                }
             
-        }
+            }
 
         let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-15 17-21", "9-17", "9-17", "7-15", "7-15", "-", 4)
         let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "12-21", "9-17", "7-14", "7-15", "7-15", "-", 4)
@@ -398,7 +434,7 @@
             return total_horas;
         }
 
-        // bucle para calcular las horas disponibles por docente
+        // bucle para calcular la cantidad de horas disponibles por docente
         for (const docente of Docente.lista_docentes) {
             docente.horas_lunes = calcularHorasDisponibles(docente.dispoinibilidad_lunes)
             docente.horas_martes = calcularHorasDisponibles(docente.dispoinibilidad_martes)
@@ -409,18 +445,34 @@
 
             docente.horas_disponibilidad = docente.horas_lunes + docente.horas_martes + docente.horas_miercoles + docente.horas_jueves + docente.horas_viernes + docente.horas_sabado
         }
-        
+
 
         //Asignacion docente-materia-grupo
         LAGE_1ro_NA_C.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Alonzo_Lara_Flores)
         LAGE_1ro_NA_C.asignarDocenteAMateria("TUTORIA 1RO", Alonzo_Lara_Flores)
 
+        console.log(Alonzo_Lara_Flores.nombre_docente)
         console.log(Alonzo_Lara_Flores.horas_carga)
+        console.log(Alonzo_Lara_Flores.materias_impartidas_docente)
+        console.log(Alonzo_Lara_Flores.lista_horas_lunes_docente)
+        console.log(Alonzo_Lara_Flores.lista_horas_martes_docente)
+        console.log(Alonzo_Lara_Flores.lista_horas_miercoles_docente)
+        console.log(Alonzo_Lara_Flores.lista_horas_jueves_docente)
+        console.log(Alonzo_Lara_Flores.lista_horas_viernes_docente)
+        console.log(Alonzo_Lara_Flores.lista_horas_sabado_docente)
 
         LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Andres_Dimas_Espino)
         LAGE_1ro_NA_A.asignarDocenteAMateria("TUTORIA 1RO", Andres_Dimas_Espino)
 
+        console.log(Andres_Dimas_Espino.nombre_docente)
         console.log(Andres_Dimas_Espino.horas_carga)
+        console.log(Andres_Dimas_Espino.materias_impartidas_docente)
+        console.log(Andres_Dimas_Espino.lista_horas_lunes_docente)
+        console.log(Andres_Dimas_Espino.lista_horas_martes_docente)
+        console.log(Andres_Dimas_Espino.lista_horas_miercoles_docente)
+        console.log(Andres_Dimas_Espino.lista_horas_jueves_docente)
+        console.log(Andres_Dimas_Espino.lista_horas_viernes_docente)
+        console.log(Andres_Dimas_Espino.lista_horas_sabado_docente)
 
         //Funcion para determinar el orden en el que se crearan los horarios de los docentes
         for (const docente of Docente.lista_docentes) {
