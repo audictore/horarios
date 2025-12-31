@@ -79,93 +79,8 @@
 
         let button_accion = document.getElementById("button_accion")
 
-        const Universidad = {
-            nombre_universidad: "UPMH",
-            carreras: []
-        }
-
-        // --- CLASES ESTRUCTURALES ---
-
-        class Carrera {
-            constructor(nombre_carrera) {
-                this.nombre_carrera = nombre_carrera
-                this.especialidades = []
-            }
-
-            agregarEspecialidad(especialidad) {
-                if (especialidad instanceof Especialidad) {
-                    this.especialidades.push(especialidad)
-                }
-            }
-        }
-
         const DIAS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"]
         const HORAS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-
-        let LAGE = new Carrera("LAGE")
-
-        Universidad.carreras.push(LAGE)
-
-        class Especialidad {
-            constructor(nombre_especialidad) {
-                this.nombre_especialidad = nombre_especialidad
-                this.grados = []
-            }
-
-            agregarGrado(grado) {
-                if (grado instanceof Grado) {
-                    this.grados.push(grado)
-                }
-            }
-        }
-
-        //Especialidades LAGE
-        let LAGE_NA = new Especialidad("NA")
-        let LAGE_GCH = new Especialidad("GCH")
-        let LAGE_EFEP = new Especialidad("EFEP")
-
-        LAGE.agregarEspecialidad(LAGE_NA)
-        LAGE.agregarEspecialidad(LAGE_GCH)
-        LAGE.agregarEspecialidad(LAGE_EFEP)
-
-        class Grado {
-            constructor(nombre_grado) {
-                this.nombre_grado = nombre_grado
-                this.grupos = []
-            }
-
-            agregarGrupo(grupo) {
-                if (grupo instanceof Grupo) {
-                    this.grupos.push(grupo)
-                }
-            }
-        }
-
-        //creamos los grados
-        let LAGE_1ro = new Grado("LAGE_1ro")
-        let LAGE_2do = new Grado("LAGE_2do")
-        let LAGE_3ro = new Grado("LAGE_3ro")
-        let LAGE_4to = new Grado("LAGE_4to")
-        let LAGE_5to = new Grado("LAGE_5to")
-        let LAGE_6to = new Grado("LAGE_6to")
-        let LAGE_7mo = new Grado("LAGE_7mo")
-        let LAGE_8vo = new Grado("LAGE_8vo")
-        let LAGE_9no = new Grado("LAGE_9no")
-
-        //asignamos cada grado a cada especialidad correspondiente
-        LAGE_NA.agregarGrado(LAGE_1ro)
-        LAGE_NA.agregarGrado(LAGE_2do)
-        LAGE_NA.agregarGrado(LAGE_3ro)
-        LAGE_NA.agregarGrado(LAGE_7mo)
-        LAGE_NA.agregarGrado(LAGE_8vo)
-        LAGE_NA.agregarGrado(LAGE_9no)
-
-        LAGE_GCH.agregarGrado(LAGE_4to)
-        LAGE_GCH.agregarGrado(LAGE_5to)
-
-        LAGE_EFEP.agregarGrado(LAGE_4to)
-        LAGE_EFEP.agregarGrado(LAGE_5to)
-
         
         // --- CLASE MATERIA ---
         class Materia {
@@ -191,7 +106,7 @@
                 const horas = this.horas_materia;
                 // Referencia corta para no escribir tanto
                 const d = this.desglose_horas; 
-                        
+
                 // Particion para Ingles (Tipo 1)
                 if (tipo === 1) {
                     if (horas == 5) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 1; }
@@ -317,19 +232,19 @@
             static lista_grupos_LAGE = []
 
 
-            constructor(nombre_grupo, horario_lunes, horario_martes, horario_miercoles, horario_jueves, horario_viernes, horario_sabado, listaMateriasPlantilla = []) {
+            constructor(nombre_grupo, listaMateriasPlantilla = []) {
                 this.nombre_grupo = nombre_grupo
-                this.horario_lunes = horario_lunes
-                this.horario_martes = horario_martes
-                this.horario_miercoles = horario_miercoles
-                this.horario_jueves = horario_jueves
-                this.horario_viernes = horario_viernes
-                this.horario_sabado = horario_sabado
+                this.horario_lunes_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+                this.horario_martes_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+                this.horario_miercoles_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+                this.horario_jueves_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+                this.horario_viernes_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+                this.horario_sabado_grupo = []
                 this.materias = []
 
                 // Si pasamos una lista al crear el grupo, las clonamos automáticamente
                 listaMateriasPlantilla.forEach(materia => {
-                    this.agregarMateria(materia);
+                    this.agregarMateria(materia)
                 })
 
                 Grupo.lista_grupos_LAGE.push(this)
@@ -345,8 +260,10 @@
                         materia.grado_materia,
                         materia.turno_materia,
                         materia.tsu_materia
-                    );
-                    this.materias.push(materiaClonada);
+                    )
+                    // NUEVO: Vincular la materia clonada con este grupo específico
+                     materiaClonada.grupo = this
+                    this.materias.push(materiaClonada)
                 }
             }
 
@@ -364,18 +281,18 @@
         }
 
         //creamos los grupos de LAGE
-        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A", "7-16", "7-16", "7-16", "7-16", "7-16", "-", lista_materias_LAGE_1ro)
-        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B", "7-16", "7-16", "7-16", "7-16", "7-16", "-", lista_materias_LAGE_1ro)
-        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C", "7-16", "7-16", "7-16", "7-16", "7-16", "-", lista_materias_LAGE_1ro)
+        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A", lista_materias_LAGE_1ro)
+        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B", lista_materias_LAGE_1ro)
+        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C", lista_materias_LAGE_1ro)
 
-        let LAGE_4to_GCH_A = new Grupo("LAGE_4to_GCH_A", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_4to_GCH)
+        let LAGE_4to_GCH_A = new Grupo("LAGE_4to_GCH_A", lista_materias_LAGE_4to_GCH)
         
-        let LAGE_4to_EFEP_A = new Grupo("LAGE_4to_EFEP_A", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_4to_EFEP)
-        let LAGE_4to_EFEP_B = new Grupo("LAGE_4to_EFEP_B", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_4to_EFEP)
+        let LAGE_4to_EFEP_A = new Grupo("LAGE_4to_EFEP_A", lista_materias_LAGE_4to_EFEP)
+        let LAGE_4to_EFEP_B = new Grupo("LAGE_4to_EFEP_B", lista_materias_LAGE_4to_EFEP)
 
-        let LAGE_7mo_NA_A = new Grupo("LAGE_7mo_NA_A", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_7mo)
-        let LAGE_7mo_NA_B = new Grupo("LAGE_7mo_NA_B", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_7mo)
-        let LAGE_7mo_NA_C = new Grupo("LAGE_7mo_NA_C", "12-20", "12-20", "12-20", "12-20", "12-20", "-", lista_materias_LAGE_7mo)
+        let LAGE_7mo_NA_A = new Grupo("LAGE_7mo_NA_A", lista_materias_LAGE_7mo)
+        let LAGE_7mo_NA_B = new Grupo("LAGE_7mo_NA_B", lista_materias_LAGE_7mo)
+        let LAGE_7mo_NA_C = new Grupo("LAGE_7mo_NA_C", lista_materias_LAGE_7mo)
 
 
 
@@ -447,7 +364,7 @@
             
             }
 
-        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-15 17-21", "9-17", "9-17", "7-15", "7-15", "-", 4)
+        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-10", "7-10", "7-10", "7-10", "7-10", "-", 1)
         let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "12-21", "9-17", "7-14", "7-15", "7-15", "-", 4)
 
         //Funcion para calcular las horas disponibles de los docentes por dia
@@ -489,39 +406,10 @@
 
 
         //Asignacion docente-materia-grupo
-        LAGE_1ro_NA_C.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Alonzo_Lara_Flores)
-        LAGE_1ro_NA_C.asignarDocenteAMateria("TUTORIA 1RO", Alonzo_Lara_Flores)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("INGLES I", Alonzo_Lara_Flores)
 
-        console.log(Alonzo_Lara_Flores.nombre_docente)
-        console.log(Alonzo_Lara_Flores.horas_carga)
-        console.log(Alonzo_Lara_Flores.materias_impartidas_docente)
-        Alonzo_Lara_Flores.materias_impartidas_docente.forEach((materia, index) => {
-    console.log(`--- Materia ${index + 1}: ${materia.nombre_materia} ---`);
-    console.log("Sesión 1:", materia.desglose_horas.horas_clase_1);
-    console.log("Sesión 2:", materia.desglose_horas.horas_clase_2);
-    console.log("Sesión 3:", materia.desglose_horas.horas_clase_3);
-    console.log("Sesión 4:", materia.desglose_horas.horas_clase_4);
-    console.log("Sesión 5:", materia.desglose_horas.horas_clase_5);
-});
-        console.log(Alonzo_Lara_Flores.lista_horas_lunes_docente)
-        console.log(Alonzo_Lara_Flores.lista_horas_martes_docente)
-        console.log(Alonzo_Lara_Flores.lista_horas_miercoles_docente)
-        console.log(Alonzo_Lara_Flores.lista_horas_jueves_docente)
-        console.log(Alonzo_Lara_Flores.lista_horas_viernes_docente)
-        console.log(Alonzo_Lara_Flores.lista_horas_sabado_docente)
+        
 
-        LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Andres_Dimas_Espino)
-        LAGE_1ro_NA_A.asignarDocenteAMateria("TUTORIA 1RO", Andres_Dimas_Espino)
-
-        console.log(Andres_Dimas_Espino.nombre_docente)
-        console.log(Andres_Dimas_Espino.horas_carga)
-        console.log(Andres_Dimas_Espino.materias_impartidas_docente)
-        console.log(Andres_Dimas_Espino.lista_horas_lunes_docente)
-        console.log(Andres_Dimas_Espino.lista_horas_martes_docente)
-        console.log(Andres_Dimas_Espino.lista_horas_miercoles_docente)
-        console.log(Andres_Dimas_Espino.lista_horas_jueves_docente)
-        console.log(Andres_Dimas_Espino.lista_horas_viernes_docente)
-        console.log(Andres_Dimas_Espino.lista_horas_sabado_docente)
 
         //Funcion para determinar el orden en el que se crearan los horarios de los docentes
         for (const docente of Docente.lista_docentes) {
@@ -556,14 +444,12 @@
         }
         //reacomodamos la lista de docentes segun su prioridad
         Docente.lista_docentes.sort((a, b) => a.prioridad - b.prioridad);
-        
-
         Docente.lista_docentes.forEach((docente, index) => {
             console.log(`${index + 1}. Docente: ${docente.nombre_docente} | Prioridad: ${docente.prioridad.toFixed(2)}`);
         })
 
         
-
+        //Esta funcion revisa si una hora es disponible para el excel de disponibilidad docente
         function estaDisponible(hora, disponibilidad_cadena) {
             if (!disponibilidad_cadena || disponibilidad_cadena === "-") return false;
     
@@ -578,6 +464,51 @@
             })
         }
 
+        //Apartir de este punto, todo lo de arriba se creo para la funcion que esta debajo
+        //Funcion principal, para lo que se hizo todo esto pues----------------------------------------------------------------------------------------------------------------------------------------------
+        function crear_horarios_grupos_y_docentes(){
+            // 1. Iteramos sobre cada instancia de docente
+            Docente.lista_docentes.forEach((docente) => {
+        
+                // 2. IMPORTANTE: Usamos 'docente' (la instancia), no 'Docente' (la clase)
+                if (docente.tipo_docente === 1) { 
+
+                    // 3. Iteramos las materias que tiene asignadas este docente
+                    docente.materias_impartidas_docente.forEach((materia) => {
+
+                        // Ejemplo con "INGLES I" y solo para el Lunes
+                        if (materia.nombre_materia === "INGLES I") {
+
+                            // Obtenemos el grupo al que pertenece esta materia
+                            const grupo = materia.grupo;
+                        
+                            // Identificamos las horas que coinciden entre el docente y el grupo
+                            // Usamos un Set para que la comparación sea ultra rápida
+                            const horasDisponiblesDocente = new Set(docente.lista_horas_lunes_docente);
+                        
+                            // --- TRANSFORMACIÓN DE LISTAS ---
+                        
+                            // En el horario del grupo, marcamos con "x" las horas que el docente tomará
+                            grupo.horario_lunes_grupo = grupo.horario_lunes_grupo.map(hora => 
+                                horasDisponiblesDocente.has(hora) ? "x" : hora
+                            );
+                        
+                            // En la lista del docente, marcamos con "y" las horas que ya asignó
+                            // Ojo: Solo marcamos como "y" las que estaban disponibles y ahora se usan
+                            docente.lista_horas_lunes_docente = docente.lista_horas_lunes_docente.map(() => "y");
+                        
+                            
+                        }
+                    });
+                }
+            });
+            
+        }
+        crear_horarios_grupos_y_docentes()
+        
+        console.log("Horario Lunes Grupo " + LAGE_1ro_NA_A.horario_lunes_grupo );
+                    console.log("Disponibilidad Lunes Docente " + Alonzo_Lara_Flores.lista_horas_lunes_docente);
+        
         
         //Funcion de impresion en el excel--------------------------------------------------------------------------------------------------------------------------------------------------------------------
         button_accion.addEventListener("click", descargar_documentos)
@@ -634,6 +565,7 @@
             XLSX.writeFile(workbook, 'Disponibilidad_docentes.xlsx');
         }
 
+        //Funcion de descarga del excel de disponibilidades de los horarios de los grupos
         function generar_excel_horarios_grupos() {
             // 1. Crear un nuevo libro de trabajo
             const workbook = XLSX.utils.book_new();
@@ -675,6 +607,7 @@
             XLSX.writeFile(workbook, 'Horarios_Grupos_LAGE.xlsx');
         }
 
+        //Funcion de descarga del excel de los horarios de los docentes
         function generar_excel_horarios_docentes(){
 
         }
