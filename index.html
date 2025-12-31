@@ -181,7 +181,7 @@
         let ADMINISTRACION_DE_LA_PRODUCCION = new Materia("ADMINISTRACION DE LA PRODUCCION", 6, 7, "VESPERTINO", "NA")
         let TECNOLOGIAS_DE_LA_INFORMACION_APLICADA_A_LOS_NEGOCIOS = new Materia("TECNOLOGIAS DE LA INFORMACION APLICADA A LOS NEGOCIOS", 4, 7, "VESPERTINO", "NA")
         let SEMINARIO_DE_LA_INNOVACION = new Materia("SEMINARIO DE LA INNOVACION", 5, 7, "VESPERTINO", "NA")
-        let INGLES_VII_EFEP = new Materia("INGLES VII", 5, 7, "VESPERTINO", "EFEP")
+        let INGLES_VII = new Materia("INGLES VII", 5, 7, "VESPERTINO", "EFEP")
 
         let lista_materias_LAGE_1ro = [
             TUTORIA_1RO,
@@ -224,7 +224,7 @@
             ADMINISTRACION_DE_LA_PRODUCCION,
             TECNOLOGIAS_DE_LA_INFORMACION_APLICADA_A_LOS_NEGOCIOS,
             SEMINARIO_DE_LA_INNOVACION,
-            INGLES_VII_EFEP
+            INGLES_VII
         ]
 
         //creamos la clase Grupo
@@ -364,7 +364,7 @@
             
             }
 
-        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-10", "7-10", "7-10", "7-10", "7-10", "-", 1)
+        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "18-21", "-", "18-21", "-", "16-18", "-", 1)
         let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "12-21", "9-17", "7-14", "7-15", "7-15", "-", 4)
 
         //Funcion para calcular las horas disponibles de los docentes por dia
@@ -406,7 +406,7 @@
 
 
         //Asignacion docente-materia-grupo
-        LAGE_1ro_NA_A.asignarDocenteAMateria("INGLES I", Alonzo_Lara_Flores)
+        LAGE_4to_GCH_A.asignarDocenteAMateria("INGLES IV", Alonzo_Lara_Flores)
 
         
 
@@ -476,38 +476,71 @@
                     // 3. Iteramos las materias que tiene asignadas este docente
                     docente.materias_impartidas_docente.forEach((materia) => {
 
-                        // Ejemplo con "INGLES I" y solo para el Lunes
-                        if (materia.nombre_materia === "INGLES I") {
+                        // Esto sirve para las placas de los grupos de ingles en este caso solo esta ingles i y ingles iv, entonces proximamente habria que meter los demas grupos de ingles
+                        if (materia.nombre_materia === "INGLES I" || materia.nombre_materia === "INGLES IV") {
 
-                            // Obtenemos el grupo al que pertenece esta materia
                             const grupo = materia.grupo;
-                        
-                            // Identificamos las horas que coinciden entre el docente y el grupo
-                            // Usamos un Set para que la comparación sea ultra rápida
-                            const horasDisponiblesDocente = new Set(docente.lista_horas_lunes_docente);
-                        
-                            // --- TRANSFORMACIÓN DE LISTAS ---
-                        
-                            // En el horario del grupo, marcamos con "x" las horas que el docente tomará
-                            grupo.horario_lunes_grupo = grupo.horario_lunes_grupo.map(hora => 
-                                horasDisponiblesDocente.has(hora) ? "x" : hora
-                            );
-                        
-                            // En la lista del docente, marcamos con "y" las horas que ya asignó
-                            // Ojo: Solo marcamos como "y" las que estaban disponibles y ahora se usan
-                            docente.lista_horas_lunes_docente = docente.lista_horas_lunes_docente.map(() => "y");
-                        
-                            
+                            const dias = ["lunes", "martes", "miercoles", "jueves", "viernes"];
+
+                            dias.forEach((dia, index) => {
+                                // 1. Obtenemos cuántas horas le tocan a esta materia este día (del desglose)
+                                // Ejemplo: horas_clase_1 para lunes, horas_clase_2 para martes...
+                                const numHorasNecesarias = materia.desglose_horas[`horas_clase_${index + 1}`];
+
+                                if (numHorasNecesarias > 0) {
+                                    // 2. Identificamos las horas comunes (donde coinciden grupo y docente)
+                                    const disponibilidadDocente = docente[`lista_horas_${dia}_docente`];
+                                    const horarioGrupo = grupo[`horario_${dia}_grupo`];
+
+                                    // Filtramos las horas en las que AMBOS están disponibles
+                                    const horasPosibles = disponibilidadDocente.filter(hora => 
+                                        horarioGrupo.includes(hora)
+                                    );
+                                
+                                    // 3. Tomamos solo las N horas necesarias (usando slice)
+                                    const horasAsignadas = horasPosibles.slice(0, numHorasNecesarias);
+                                    const setAsignadas = new Set(horasAsignadas);
+                                
+                                    // 4. Actualizamos el horario del GRUPO
+                                    grupo[`horario_${dia}_grupo`] = grupo[`horario_${dia}_grupo`].map(hora => 
+                                        setAsignadas.has(hora) ? `${materia.nombre_materia} - ${docente.nombre_docente}` : hora
+                                    );
+                                
+                                    // 5. Actualizamos el horario del DOCENTE
+                                    docente[`lista_horas_${dia}_docente`] = docente[`lista_horas_${dia}_docente`].map(hora => 
+                                        setAsignadas.has(hora) ? `${materia.nombre_materia} - ${grupo.nombre_grupo}` : hora
+                                    )
+                                }
+                            })
+
+
                         }
-                    });
+
+                        if(materia.nombre_materia === "INGLES VII"){
+
+                        }
+
+                    })
                 }
-            });
+            })
             
         }
         crear_horarios_grupos_y_docentes()
         
-        console.log("Horario Lunes Grupo " + LAGE_1ro_NA_A.horario_lunes_grupo );
-                    console.log("Disponibilidad Lunes Docente " + Alonzo_Lara_Flores.lista_horas_lunes_docente);
+        console.log("Horario Lunes Grupo " + LAGE_4to_GCH_A.horario_lunes_grupo )
+        console.log("Horario Lunes Docente " + Alonzo_Lara_Flores.lista_horas_lunes_docente)
+
+        console.log("Horario martes Grupo " + LAGE_4to_GCH_A.horario_martes_grupo )
+        console.log("Horario martes Docente " + Alonzo_Lara_Flores.lista_horas_martes_docente)
+
+        console.log("Horario miercoles Grupo " + LAGE_4to_GCH_A.horario_miercoles_grupo )
+        console.log("Horario miercoles Docente " + Alonzo_Lara_Flores.lista_horas_miercoles_docente)
+
+        console.log("Horario jueves Grupo " + LAGE_4to_GCH_A.horario_jueves_grupo )
+        console.log("Horario jueves Docente " + Alonzo_Lara_Flores.lista_horas_jueves_docente)
+
+        console.log("Horario viernes Grupo " + LAGE_4to_GCH_A.horario_viernes_grupo )
+        console.log("Horario viernes Docente " + Alonzo_Lara_Flores.lista_horas_viernes_docente)
         
         
         //Funcion de impresion en el excel--------------------------------------------------------------------------------------------------------------------------------------------------------------------
