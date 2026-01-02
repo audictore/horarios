@@ -364,8 +364,8 @@
             
             }
 
-        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-10", "7-10", "11-14", "11-14", "11-14", "-", 1)
-        let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "7-15", "7-15", "7-15", "7-15", "7-15", "-", 2)
+        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-13", "7-13", "7-13", "7-13", "-", "-", 2)
+        let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "7-15", "7-15", "7-15", "7-15", "7-15", "-", 4)
 
         //Funcion para calcular las horas disponibles de los docentes por dia
         function calcularHorasDisponibles(disponibilidad_cadena) {
@@ -406,9 +406,10 @@
 
 
         //Asignacion docente-materia-grupo
-        LAGE_1ro_NA_A.asignarDocenteAMateria("INGLES I", Alonzo_Lara_Flores)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Alonzo_Lara_Flores)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("TUTORIA 1RO", Alonzo_Lara_Flores)
         LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Andres_Dimas_Espino)
-        LAGE_1ro_NA_A.asignarDocenteAMateria("TUTORIA 1RO", Andres_Dimas_Espino)
+        
         
 
         
@@ -448,7 +449,7 @@
         //reacomodamos la lista de docentes segun su prioridad
         Docente.lista_docentes.sort((a, b) => a.prioridad - b.prioridad);
         Docente.lista_docentes.forEach((docente, index) => {
-            console.log(`${index + 1}. Docente: ${docente.nombre_docente} | Prioridad: ${docente.prioridad.toFixed(2)}`);
+            console.log(`${index + 1}. Docente: ${docente.nombre_docente} | Prioridad: ${docente.prioridad.toFixed(2)} | Carga: ${docente.horas_carga}`);
         })
 
         
@@ -575,6 +576,52 @@
                             }
                         });
                     });
+                }
+                //El condicional de abajo ayuda con los docentes PTCs, como ellos son de tipo 3, se les da prioridad por encima de los demas docentes, pero van despues de los docentes de los PAs
+                //El condicional de abajo ayuda con los docentes administractivos, como ellos son de tipo 4, se les da prioridad por debajo de todos los demas docentes
+                else if(docente.tipo_docente === 3 || docente.tipo_docente === 4){
+                    docente.materias_impartidas_docente.forEach((materia) => {
+                        const grupo = materia.grupo;
+                        const diasSemana = ["lunes", "martes", "miercoles", "jueves", "viernes"];
+
+                        diasSemana.forEach((dia, index) => {
+                            // Obtenemos cuántas horas necesita esta materia en este día específico
+                            const numHorasNecesarias = materia.desglose_horas[`horas_clase_${index + 1}`];
+
+                            // Si el desglose para este día es 0, saltamos al siguiente día
+                            if (numHorasNecesarias <= 0) return;
+                        
+                            const propDocente = `lista_horas_${dia}_docente`;
+                            const propGrupo = `horario_${dia}_grupo`;
+                        
+                            // Buscamos horas donde ambos estén disponibles (que el valor sea un número)
+                            const horasComunes = grupo[propGrupo].filter(h => 
+                                typeof h === 'number' && docente[propDocente].includes(h)
+                            );
+                        
+                            let horasAAsignar = [];
+                            // Respetamos el turno (Matutino toma las primeras, Vespertino las últimas)
+                            if (materia.turno_materia === "VESPERTINO") {
+                                horasAAsignar = horasComunes.slice(-numHorasNecesarias);
+                            } else {
+                                horasAAsignar = horasComunes.slice(0, numHorasNecesarias);
+                            }
+                        
+                            // Si hay espacio suficiente, hacemos la asignación
+                            if (horasAAsignar.length > 0) {
+                                // Marcamos el horario del Grupo
+                                grupo[propGrupo] = grupo[propGrupo].map(h => 
+                                    horasAAsignar.includes(h) ? `${materia.nombre_materia} - ${docente.nombre_docente}` : h
+                                );
+                            
+                                // Marcamos el horario del Docente
+                                docente[propDocente] = docente[propDocente].map(h => 
+                                    horasAAsignar.includes(h) ? `${materia.nombre_materia} - ${grupo.nombre_grupo}` : h
+                                );
+                            }
+                        });
+                    });
+
                 }
 
             })
