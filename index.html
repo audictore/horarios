@@ -118,17 +118,24 @@
                     else if (horas == 15) { d.horas_clase_1 = 3; d.horas_clase_2 = 3; d.horas_clase_3 = 3; d.horas_clase_4 = 3; d.horas_clase_5 = 3; }
                     else if (horas == 20) { d.horas_clase_1 = 4; d.horas_clase_2 = 4; d.horas_clase_3 = 4; d.horas_clase_4 = 4; d.horas_clase_5 = 4; }
                 }
-                // Particion para PA, PTC y Admin (Tipo 2, 3, 4)
-                else {
-                    if (horas == 2) { d.horas_clase_1 = 1; d.horas_clase_2 = 1; }
-                    else if (horas == 3) { d.horas_clase_1 = 2; d.horas_clase_2 = 1; }
-                    else if (horas == 4) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; }
+                // Particion para PA
+                else if (tipo === 2) {
+                    if (horas == 1) { d.horas_clase_1 = 1 }
+                    else if (horas == 2) { d.horas_clase_1 = 2 }
+                    else if (horas == 3) { d.horas_clase_1 = 2; d.horas_clase_2 = 1 }
+                    else if (horas == 4) { d.horas_clase_1 = 2; d.horas_clase_2 = 2 }
                     else if (horas == 5) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 1; }
                     else if (horas == 6) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; }
-                    else if (horas == 7) { 
-                        if (tipo === 2) { d.horas_clase_1 = 3; d.horas_clase_2 = 2; d.horas_clase_3 = 2; }
-                        else { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; d.horas_clase_4 = 1; }
-                    }
+                    else if (horas == 7) { d.horas_clase_1 = 3; d.horas_clase_2 = 2; d.horas_clase_3 = 2 }
+                }
+                else if (tipo === 3 || tipo === 4) {
+                    if (horas == 1) { d.horas_clase_1 = 1 }
+                    else if (horas == 2) { d.horas_clase_1 = 2 }
+                    else if (horas == 3) { d.horas_clase_1 = 2; d.horas_clase_2 = 1 }
+                    else if (horas == 4) { d.horas_clase_1 = 2; d.horas_clase_2 = 2 }
+                    else if (horas == 5) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 1; }
+                    else if (horas == 6) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; }
+                    else if (horas == 7) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; d.horas_clase_4 = 1 }
                 }
 
             }
@@ -239,7 +246,7 @@
                 this.horario_miercoles_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
                 this.horario_jueves_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
                 this.horario_viernes_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-                this.horario_sabado_grupo = []
+                this.horario_sabado_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
                 this.materias = []
 
                 // Si pasamos una lista al crear el grupo, las clonamos automáticamente
@@ -364,7 +371,7 @@
             
             }
 
-        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-13", "7-13", "7-13", "7-13", "-", "-", 2)
+        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-13", "7-13", "7-13", "7-13", "-", "-", 4)
         let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "7-15", "7-15", "7-15", "7-15", "7-15", "-", 4)
 
         //Funcion para calcular las horas disponibles de los docentes por dia
@@ -706,49 +713,65 @@
 
         //Funcion de descarga del excel de disponibilidades de los horarios de los grupos
         function generar_excel_horarios_grupos() {
-            // 1. Crear un nuevo libro de trabajo
-            const workbook = XLSX.utils.book_new();
+    const workbook = XLSX.utils.book_new();
+    
+    // Definimos el orden de las columnas y a qué propiedad del objeto pertenecen
+    const columnasConfig = [
+        { etiqueta: "LUNES", propiedad: "horario_lunes_grupo" },
+        { etiqueta: "MARTES", propiedad: "horario_martes_grupo" },
+        { etiqueta: "MIERCOLES", propiedad: "horario_miercoles_grupo" },
+        { etiqueta: "JUEVES", propiedad: "horario_jueves_grupo" },
+        { etiqueta: "VIERNES", propiedad: "horario_viernes_grupo" },
+        { etiqueta: "SABADO", propiedad: "horario_sabado_grupo" }
+    ];
+
+    Grupo.lista_grupos_LAGE.forEach(grupo => {
+        const datosHoja = [
+            ["Horario del grupo: " + grupo.nombre_grupo],
+            [],
+            ["HORA", ...columnasConfig.map(c => c.etiqueta)]
+        ];
+
+        // Usamos un índice (0, 1, 2...) para recorrer las posiciones de los arrays
+        // Asumiendo que todos los arrays de horarios tienen el mismo largo (ej. 14 posiciones)
+        const totalFilas = grupo.horario_lunes_grupo.length;
+
+        for (let i = 0; i < totalFilas; i++) {
+            // La "Hora" de referencia la sacamos de la constante global HORAS usando el mismo índice
+            const horaReferencia = HORAS[i] || ""; 
+            const fila = [horaReferencia];
+
+            // Para cada día, extraemos lo que haya en la posición 'i' del array de ese grupo
+            columnasConfig.forEach(col => {
+                const contenido = grupo[col.propiedad][i];
                 
-            // 2. Iterar el array estático de la clase Grupo
-            Grupo.lista_grupos_LAGE.forEach(grupo => {
-                
-                // Estructura base: Título y Encabezado de columnas
-                const datosHoja = [
-                    ["Horario del grupo: " + grupo.nombre_grupo], // Fila 1: Título
-                    [],                                           // Fila 2: Espacio en blanco
-                    ["HORA", ...DIAS.map(d => d.toUpperCase())]   // Fila 3: Cabecera (HORA, LUNES, MARTES...)
-                ];
-            
-                // 3. Generar las filas de horas
-                HORAS.forEach(hora => {
-                    // Creamos una fila que empieza con la hora y tiene celdas vacías para cada día
-                    const fila = [hora, ...DIAS.map(() => "")]; 
-                    datosHoja.push(fila);
-                });
-                
-                // 4. Convertir el Array de Arrays (AOA) a una hoja (Worksheet)
-                const worksheet = XLSX.utils.aoa_to_sheet(datosHoja);
-            
-                // 5. Configurar anchos de columna (Opcional, para que se vea bien)
-                // La columna A (Hora) más ancha, las demás estándar
-                worksheet['!cols'] = [{ wch: 15 }, ...DIAS.map(() => ({ wch: 12 }))];
-            
-                // 6. Limpiar el nombre de la hoja (Excel solo acepta 31 caracteres y sin caracteres especiales)
-                const nombreLimpio = grupo.nombre_grupo.toString()
-                    .replace(/[\\\/\?\*\[\]]/g, "") 
-                    .substring(0, 31);
-            
-                // 7. Añadir la hoja al libro
-                XLSX.utils.book_append_sheet(workbook, worksheet, nombreLimpio);
+                // Si el contenido es un número, significa que está vacía (solo es la hora)
+                // Si es un texto, es la materia con el docente.
+                if (typeof contenido === "number") {
+                    fila.push(""); // Dejamos vacío en el Excel si no hay materia
+                } else {
+                    fila.push(contenido); // Ponemos "MATEMATICAS - Alonzo..."
+                }
             });
-        
-            // 8. Descargar el archivo final
-            XLSX.writeFile(workbook, 'Horarios_Grupos_LAGE.xlsx');
+
+            datosHoja.push(fila);
         }
 
-        //Funcion de descarga del excel de los horarios de los docentes
-        function generar_excel_horarios_docentes(){
+        const worksheet = XLSX.utils.aoa_to_sheet(datosHoja);
 
+        // Configuración de anchos: La columna A es corta, las de materias son anchas
+        worksheet['!cols'] = [{ wch: 8 }, ...columnasConfig.map(() => ({ wch: 35 }))];
+
+        const nombreLimpio = grupo.nombre_grupo.toString().replace(/[\\\/\?\*\[\]]/g, "").substring(0, 31);
+        XLSX.utils.book_append_sheet(workbook, worksheet, nombreLimpio);
+    });
+
+    XLSX.writeFile(workbook, 'Horarios_Grupos_LAGE.xlsx');
+}
+
+        //Funcion de descarga del excel de los horarios de los docentes
+        function generar_excel_horarios_docentes() {
+            
         }
 
         //Funcion madre de descarga de documentos
