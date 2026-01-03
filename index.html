@@ -190,7 +190,29 @@
         let SEMINARIO_DE_LA_INNOVACION = new Materia("SEMINARIO DE LA INNOVACION", 5, 7, "VESPERTINO", "NA")
         let INGLES_VII = new Materia("INGLES VII", 5, 7, "VESPERTINO", "EFEP")
 
-        let lista_materias_LAGE_1ro = [
+        let lista_materias_LAGE_1ro_A = [
+            TUTORIA_1RO,
+            DESARROLLO_HUMANO_Y_VALORES,
+            FUNDAMENTOS_MATEMATICOS,
+            FUNDAMENTOS_DE_LA_ADMINISTRACION,
+            CONTABILIDAD_I,
+            MARCO_LEGAL_DE_LAS_ORGANIZACIONES,
+            COMUNICACION_Y_HABILIDADES_DIGITALES,
+            INGLES_I
+        ]
+
+        let lista_materias_LAGE_1ro_B = [
+            TUTORIA_1RO,
+            DESARROLLO_HUMANO_Y_VALORES,
+            FUNDAMENTOS_MATEMATICOS,
+            FUNDAMENTOS_DE_LA_ADMINISTRACION,
+            CONTABILIDAD_I,
+            MARCO_LEGAL_DE_LAS_ORGANIZACIONES,
+            COMUNICACION_Y_HABILIDADES_DIGITALES,
+            INGLES_I
+        ]
+
+        let lista_materias_LAGE_1ro_C = [
             TUTORIA_1RO,
             DESARROLLO_HUMANO_Y_VALORES,
             FUNDAMENTOS_MATEMATICOS,
@@ -287,9 +309,9 @@
         }
 
         //creamos los grupos de LAGE
-        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A", lista_materias_LAGE_1ro)
-        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B", lista_materias_LAGE_1ro)
-        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C", lista_materias_LAGE_1ro)
+        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A", lista_materias_LAGE_1ro_A)
+        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B", lista_materias_LAGE_1ro_B)
+        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C", lista_materias_LAGE_1ro_C)
 
         let LAGE_4to_GCH_A = new Grupo("LAGE_4to_GCH_A", lista_materias_LAGE_4to_GCH)
         
@@ -304,75 +326,94 @@
 
 
             // --- CLASE DOCENTE
-            class Docente {
-                static lista_docentes = []
-
-                constructor(nombre_docente, dispoinibilidad_lunes, dispoinibilidad_martes, dispoinibilidad_miercoles, dispoinibilidad_jueves, dispoinibilidad_viernes, dispoinibilidad_sabado, tipo_docente) {
-                    this.nombre_docente = nombre_docente
-
-                    this.dispoinibilidad_lunes = dispoinibilidad_lunes;
-                    this.horas_lunes = 0;
-                    this.lista_horas_lunes_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_lunes)
-
-                    this.dispoinibilidad_martes = dispoinibilidad_martes
-                    this.horas_martes = 0;
-                    this.lista_horas_martes_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_martes)
-
-                    this.dispoinibilidad_miercoles = dispoinibilidad_miercoles
-                    this.horas_miercoles = 0;
-                    this.lista_horas_miercoles_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_miercoles)
-
-                    this.dispoinibilidad_jueves = dispoinibilidad_jueves
-                    this.horas_jueves = 0;
-                    this.lista_horas_jueves_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_jueves)
-
-                    this.dispoinibilidad_viernes = dispoinibilidad_viernes
-                    this.horas_viernes = 0
-                    this.lista_horas_viernes_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_viernes)
-
-                    this.dispoinibilidad_sabado = dispoinibilidad_sabado
-                    this.horas_sabado = 0
-                    this.lista_horas_sabado_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_sabado)
-
-                    this.tipo_docente = tipo_docente //1 = Ingles, 2 = PA, 3 = PTC, 4 = administractivos
-                    this.horas_carga = 0
-                    this.horas_disponibilidad = 0
-                    this.cantidad_dias_disponibles = 0
-                    this.prioridad = 0
-                    this.materias_impartidas_docente = []
-
-                    Docente.lista_docentes.push(this)
-
-                }
-
-                //Funcion que crea las listas de horarios de los docentes (Con esto ya empezamos a considerar horarios)
-                generar_lista_disponibilidad_por_dia_docente(str){
-                    if (!str || str === "-") return [];
-        
-                        let horas = [];
-                        const grupos = str.split(" ");
-                                                            grupos.forEach(grupo => {
-                            const [inicio, fin] = grupo.split("-").map(Number);
-                            for (let i = inicio; i < fin; i++) {
-                                horas.push(i);
-                            }
-                        })
-                        return horas;
-                }
-                    
-                agregarMateria(materia) {
-                    // Verificamos si la instancia exacta ya está. 
-                    // Como cada materia clonada es un objeto nuevo, esto debería pasar siempre.
-                    if (!this.materias_impartidas_docente.includes(materia)) {
-                        this.materias_impartidas_docente.push(materia);
-                        this.horas_carga += materia.horas_materia;
-                    }
-                }
-            
+        class Docente {
+            static lista_docentes = []
+            constructor(nombre_docente, dispoinibilidad_lunes, dispoinibilidad_martes, dispoinibilidad_miercoles, dispoinibilidad_jueves, dispoinibilidad_viernes, dispoinibilidad_sabado, tipo_docente) {
+                this.nombre_docente = nombre_docente
+                this.dispoinibilidad_lunes = dispoinibilidad_lunes;
+                this.horas_lunes = 0;
+                this.lista_horas_lunes_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_lunes)
+                this.dispoinibilidad_martes = dispoinibilidad_martes
+                this.horas_martes = 0;
+                this.lista_horas_martes_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_martes)
+                this.dispoinibilidad_miercoles = dispoinibilidad_miercoles
+                this.horas_miercoles = 0;
+                this.lista_horas_miercoles_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_miercoles)
+                this.dispoinibilidad_jueves = dispoinibilidad_jueves
+                this.horas_jueves = 0;
+                this.lista_horas_jueves_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_jueves)
+                this.dispoinibilidad_viernes = dispoinibilidad_viernes
+                this.horas_viernes = 0
+                this.lista_horas_viernes_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_viernes)
+                this.dispoinibilidad_sabado = dispoinibilidad_sabado
+                this.horas_sabado = 0
+                this.lista_horas_sabado_docente = this.generar_lista_disponibilidad_por_dia_docente(dispoinibilidad_sabado)
+                this.tipo_docente = tipo_docente //1 = Ingles, 2 = PA, 3 = PTC, 4 = administractivos
+                this.horas_carga = 0
+                this.horas_disponibilidad = 0
+                this.cantidad_dias_disponibles = 0
+                this.prioridad = 0
+                this.materias_impartidas_docente = []
+                Docente.lista_docentes.push(this)
             }
+            //Funcion que crea las listas de horarios de los docentes (Con esto ya empezamos a considerar horarios)
+            generar_lista_disponibilidad_por_dia_docente(str){
+                if (!str || str === "-") return [];
+    
+                    let horas = [];
+                    const grupos = str.split(" ");
+                                                        grupos.forEach(grupo => {
+                        const [inicio, fin] = grupo.split("-").map(Number);
+                        for (let i = inicio; i < fin; i++) {
+                            horas.push(i);
+                        }
+                    })
+                    return horas;
+            }
+                
+            agregarMateria(materia) {
+                // Verificamos si la instancia exacta ya está. 
+                // Como cada materia clonada es un objeto nuevo, esto debería pasar siempre.
+                if (!this.materias_impartidas_docente.includes(materia)) {
+                    this.materias_impartidas_docente.push(materia);
+                    this.horas_carga += materia.horas_materia;
+                }
+            }
+        
+        }
 
-        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-13", "7-13", "7-13", "7-13", "-", "-", 4)
+        //declaramos los docentes ----
+        let Gabriela_Lazcano_Cortes = new Docente("Gabriela Lazcano Cortes", "13-21", "13-21", "13-17", "13-17", "12-15", "-", 3)
+        let Mariana_Santillan_Arroyo = new Docente("Mariana Santillan Arroyo", "12-17", "12-17", "13-21", "12-17", "12-17", "-", 3)
+        let Horacio_Sanchez_Hernandez = new Docente("Horacio_Sanchez_Hernandez", "10-15", "10-15", "7-11 - 14-15", "7-11 14-15", "14-16", "-", 3)
+        let Irma_Elizabeth_Bautista_Valencia = new Docente("Irma_Elizabeth_Bautista_Valencia", "13-21", "13-21", "9-11 13-17", "9-11 13-16", "9-11 13-16", "-", 3)
+
+        let Abner_Hesli_Rojas_Calva = new Docente("Abner Hesli Rojas Calva", "-", "12-14 16-21", "-", "17-21", "12-14", "-", 2)
+        let Carolina_Sosa_Alvarez = new Docente("Carolina_Sosa_Alvarez", "13-21", "13-19", "13-17", "13-17", "13-21", "-", 2)
+        let Marco_Antonio_Hernandez_Granados = new Docente("Marco Antonio Hernandez Granados", "10-21", "10-21", "14-21", "14-21", "14-21", "-", 2)
+        let Karla_Escalante_Alarcon = new Docente("Karla Escalante Alarcon", "7-21", "7-21", "7-21", "7-21", "7-21", "-", 2)
+        let Mitzi_Ailed_Rosario_Moreno_Ramirez = new Docente("Mitzi Ailed Rosario Moreno Ramirez", "7-17", "16-21", "13-15", "16-21", "7-17", "-", 2)
+        let Arturo_Martinez_Sandoval = new Docente("Arturo Martinez Sandoval", "15-21", "15-21", "15-21", "15-21", "15-21", "-", 2)
+        let Juan_Carlos_Rodriguez_Olmedo = new Docente("Juan Carlos Rodriguez Olmedo", "12-21", "12-21", "12-21", "12-21", "12-21", "-", 2)
+        let Guillermo_Nicolas_Martinez_Sanchez = new Docente("Guillermo Nicolas Martinez Sanchez", "10-18", "10-18", "7-15", "-", "-", "-", 2)
+        let Ivan_De_La_Selva_Hernandez = new Docente("Ivan De La Selva Hernandez", "12-14 16-21", "12-14 15-21", "12-14 16-21", "-", "-", "-", 2)
+        let Daniela_Placido_Soriano = new Docente("Daniela Placido Soriano", "10-16", "10-16", "9-11 12-16", "9-11 12-16", "9-11 12-16", "-", 2)
+        let Cristian_Arturo_Granados_Herrera = new Docente("Cristian Arturo Granados Herrera", "15-18", "14-19", "13-17", "14-19", "-", "-", 2)
+        let Gustavo_Eduardo_Perez_Villegas = new Docente("Gustavo Eduardo Perez Villegas", "-", "-", "-", "18-21", "18-21", "-", 2)
+        let Arturo_Islas_Islas = new Docente("Arturo Islas Islas", "-", "-", "-", "17-21", "17-21", "-", 2)
+        //Aqui iria Itzel Yazmin Reyes Aparicio pero como solo tiene horas de estadia no cuenta
+        let Ariadna_Itzel_Reyes_Aparicio = new Docente("Ariadna Itzel Reyes Aparicio", "10-12", "-", "-", "10-12", "7-10", "-", 2)
+
+        let Julio_Marquez_Rodriguez = new Docente("Julio Marquez Rodriguez", "9-17", "9-17", "9-17", "9-17", "9-17", "-", 4)
+        let Brenda_Garcia_Reyes = new Docente("Brenda Garcia Reyes", "9-17", "9-17", "9-17", "9-17", "9-17", "-", 4)
+        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-15", "7-15", "9-17", "9-17", "7-15", "-", 4)
         let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "7-15", "7-15", "7-15", "7-15", "7-15", "-", 4)
+
+        let Brayam_Mauricio_Guillermo = new Docente("Brayam Mauricio Guillermo", "7-10", "7-10", "11-14", "11-14", "11-14", "-", 1)
+        let Selene_Amellali_Torres = new Docente("Selene Amellali Torres", "7-10", "7-10", "11-14", "11-14", "11-14", "-", 1)
+        let Armando_Martinez_Acevedo = new Docente("Armando Martinez Acevedo", "7-10", "7-10", "11-14", "11-14", "11-14", "-", 1)
+        
+        
 
         //Funcion para calcular las horas disponibles de los docentes por dia
         function calcularHorasDisponibles(disponibilidad_cadena) {
@@ -413,9 +454,37 @@
 
 
         //Asignacion docente-materia-grupo
-        LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Alonzo_Lara_Flores)
-        LAGE_1ro_NA_A.asignarDocenteAMateria("TUTORIA 1RO", Alonzo_Lara_Flores)
-        LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Andres_Dimas_Espino)
+        //LAGE_1ro_NA_A
+        LAGE_1ro_NA_A.asignarDocenteAMateria("INGLES I", Brayam_Mauricio_Guillermo)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("TUTORIA 1RO", Horacio_Sanchez_Hernandez)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("DESARROLLO HUMANO Y VALORES", Karla_Escalante_Alarcon)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Irma_Elizabeth_Bautista_Valencia)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Marco_Antonio_Hernandez_Granados)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("CONTABILIDAD I", Horacio_Sanchez_Hernandez)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("MARCO LEGAL DE LAS ORGANIZACIONES", Guillermo_Nicolas_Martinez_Sanchez)
+        LAGE_1ro_NA_A.asignarDocenteAMateria("COMUNICACION Y HABILIDADES DIGITALES", Mitzi_Ailed_Rosario_Moreno_Ramirez)
+        
+
+        //LAGE_1ro_NA_B
+        LAGE_1ro_NA_B.asignarDocenteAMateria("INGLES I", Selene_Amellali_Torres)
+        LAGE_1ro_NA_B.asignarDocenteAMateria("TUTORIA 1RO", Andres_Dimas_Espino)
+        LAGE_1ro_NA_B.asignarDocenteAMateria("DESARROLLO HUMANO Y VALORES", Karla_Escalante_Alarcon)
+        LAGE_1ro_NA_B.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Ariadna_Itzel_Reyes_Aparicio)
+        LAGE_1ro_NA_B.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Andres_Dimas_Espino)
+        LAGE_1ro_NA_B.asignarDocenteAMateria("CONTABILIDAD I", Horacio_Sanchez_Hernandez)
+        LAGE_1ro_NA_B.asignarDocenteAMateria("MARCO LEGAL DE LAS ORGANIZACIONES", Guillermo_Nicolas_Martinez_Sanchez)
+        LAGE_1ro_NA_B.asignarDocenteAMateria("COMUNICACION Y HABILIDADES DIGITALES", Mitzi_Ailed_Rosario_Moreno_Ramirez)
+        
+
+        //LAGE_1ro_NA_C
+        LAGE_1ro_NA_C.asignarDocenteAMateria("INGLES I", Armando_Martinez_Acevedo)
+        LAGE_1ro_NA_C.asignarDocenteAMateria("TUTORIA 1RO", Alonzo_Lara_Flores)
+        LAGE_1ro_NA_C.asignarDocenteAMateria("DESARROLLO HUMANO Y VALORES", Karla_Escalante_Alarcon)
+        LAGE_1ro_NA_C.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Alonzo_Lara_Flores)
+        LAGE_1ro_NA_C.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Daniela_Placido_Soriano)
+        LAGE_1ro_NA_C.asignarDocenteAMateria("CONTABILIDAD I", Horacio_Sanchez_Hernandez)
+        LAGE_1ro_NA_C.asignarDocenteAMateria("MARCO LEGAL DE LAS ORGANIZACIONES", Guillermo_Nicolas_Martinez_Sanchez)
+        LAGE_1ro_NA_C.asignarDocenteAMateria("COMUNICACION Y HABILIDADES_DIGITALES", Mitzi_Ailed_Rosario_Moreno_Ramirez)
         
         
 
@@ -456,7 +525,7 @@
         //reacomodamos la lista de docentes segun su prioridad
         Docente.lista_docentes.sort((a, b) => a.prioridad - b.prioridad);
         Docente.lista_docentes.forEach((docente, index) => {
-            console.log(`${index + 1}. Docente: ${docente.nombre_docente} | Prioridad: ${docente.prioridad.toFixed(2)} | Carga: ${docente.horas_carga}`);
+            console.log(`${index + 1}. Docente: ${docente.nombre_docente} | Prioridad: ${docente.prioridad.toFixed(2)} | Carga: ${docente.horas_carga}`)
         })
 
         
@@ -474,6 +543,8 @@
                 return hora >= inicio && hora < fin;
             })
         }
+
+        console.log(Brayam_Mauricio_Guillermo.nombre_docente + Brayam_Mauricio_Guillermo.lista_horas_lunes_docente)
 
         //Apartir de este punto, todo lo de arriba se creo para la funcion que esta debajo
         //Funcion principal, para lo que se hizo todo esto pues----------------------------------------------------------------------------------------------------------------------------------------------
@@ -525,6 +596,7 @@
                     })
   
                 }
+                
                 //El condicional de abajo ayuda con los docentes por asignatura PAs, como ellos son de tipo 2, se les da prioridad por encima de los demas docentes, pero van despues de los docentes de ingles
                 else if (docente.tipo_docente === 2) {
                     // 1. Calculamos el ranking de días UNA SOLA VEZ para el docente
@@ -635,27 +707,6 @@
         }
         crear_horarios_grupos_y_docentes()
         
-        console.log("Horario Lunes Grupo " + LAGE_1ro_NA_A.nombre_grupo + LAGE_1ro_NA_A.horario_lunes_grupo )
-        console.log("Horario Lunes Docente " + Alonzo_Lara_Flores.nombre_docente + Alonzo_Lara_Flores.lista_horas_lunes_docente)
-        console.log("Horario Lunes Docente " + Andres_Dimas_Espino.nombre_docente + Andres_Dimas_Espino.lista_horas_lunes_docente)
-
-        console.log("Horario martes Grupo " + LAGE_1ro_NA_A.nombre_grupo + LAGE_1ro_NA_A.horario_martes_grupo )
-        console.log("Horario martes Docente " + Alonzo_Lara_Flores.nombre_docente + Alonzo_Lara_Flores.lista_horas_martes_docente)
-        console.log("Horario martes Docente " + Andres_Dimas_Espino.nombre_docente + Andres_Dimas_Espino.lista_horas_martes_docente)
-
-        console.log("Horario miercoles Grupo " + LAGE_1ro_NA_A.nombre_grupo + LAGE_1ro_NA_A.horario_miercoles_grupo )
-        console.log("Horario miercoles Docente " + Alonzo_Lara_Flores.nombre_docente + Alonzo_Lara_Flores.lista_horas_miercoles_docente)
-        console.log("Horario miercoles Docente " + Andres_Dimas_Espino.nombre_docente + Andres_Dimas_Espino.lista_horas_miercoles_docente)
-
-        console.log("Horario jueves Grupo " + LAGE_1ro_NA_A.nombre_grupo + LAGE_1ro_NA_A.horario_jueves_grupo )
-        console.log("Horario jueves Docente " + Alonzo_Lara_Flores.nombre_docente + Alonzo_Lara_Flores.lista_horas_jueves_docente)
-        console.log("Horario jueves Docente " + Andres_Dimas_Espino.nombre_docente + Andres_Dimas_Espino.lista_horas_miercoles_docente)
-
-        console.log("Horario viernes Grupo " + LAGE_1ro_NA_A.nombre_grupo + LAGE_1ro_NA_A.horario_viernes_grupo )
-        console.log("Horario viernes Docente " + Alonzo_Lara_Flores.nombre_docente + Alonzo_Lara_Flores.lista_horas_viernes_docente)
-        console.log("Horario miercoles Docente " + Andres_Dimas_Espino.nombre_docente + Andres_Dimas_Espino.lista_horas_miercoles_docente)
-        
-        
         //Funcion de impresion en el excel--------------------------------------------------------------------------------------------------------------------------------------------------------------------
         button_accion.addEventListener("click", descargar_documentos)
 
@@ -713,65 +764,121 @@
 
         //Funcion de descarga del excel de disponibilidades de los horarios de los grupos
         function generar_excel_horarios_grupos() {
-    const workbook = XLSX.utils.book_new();
-    
-    // Definimos el orden de las columnas y a qué propiedad del objeto pertenecen
-    const columnasConfig = [
-        { etiqueta: "LUNES", propiedad: "horario_lunes_grupo" },
-        { etiqueta: "MARTES", propiedad: "horario_martes_grupo" },
-        { etiqueta: "MIERCOLES", propiedad: "horario_miercoles_grupo" },
-        { etiqueta: "JUEVES", propiedad: "horario_jueves_grupo" },
-        { etiqueta: "VIERNES", propiedad: "horario_viernes_grupo" },
-        { etiqueta: "SABADO", propiedad: "horario_sabado_grupo" }
-    ];
+            const workbook = XLSX.utils.book_new();
 
-    Grupo.lista_grupos_LAGE.forEach(grupo => {
-        const datosHoja = [
-            ["Horario del grupo: " + grupo.nombre_grupo],
-            [],
-            ["HORA", ...columnasConfig.map(c => c.etiqueta)]
-        ];
+            // Definimos el orden de las columnas y a qué propiedad del objeto pertenecen
+            const columnasConfig = [
+                { etiqueta: "LUNES", propiedad: "horario_lunes_grupo" },
+                { etiqueta: "MARTES", propiedad: "horario_martes_grupo" },
+                { etiqueta: "MIERCOLES", propiedad: "horario_miercoles_grupo" },
+                { etiqueta: "JUEVES", propiedad: "horario_jueves_grupo" },
+                { etiqueta: "VIERNES", propiedad: "horario_viernes_grupo" },
+                { etiqueta: "SABADO", propiedad: "horario_sabado_grupo" }
+            ];
 
-        // Usamos un índice (0, 1, 2...) para recorrer las posiciones de los arrays
-        // Asumiendo que todos los arrays de horarios tienen el mismo largo (ej. 14 posiciones)
-        const totalFilas = grupo.horario_lunes_grupo.length;
-
-        for (let i = 0; i < totalFilas; i++) {
-            // La "Hora" de referencia la sacamos de la constante global HORAS usando el mismo índice
-            const horaReferencia = HORAS[i] || ""; 
-            const fila = [horaReferencia];
-
-            // Para cada día, extraemos lo que haya en la posición 'i' del array de ese grupo
-            columnasConfig.forEach(col => {
-                const contenido = grupo[col.propiedad][i];
+            Grupo.lista_grupos_LAGE.forEach(grupo => {
+                const datosHoja = [
+                    ["Horario del grupo: " + grupo.nombre_grupo],
+                    [],
+                    ["HORA", ...columnasConfig.map(c => c.etiqueta)]
+                ];
+            
+                // Usamos un índice (0, 1, 2...) para recorrer las posiciones de los arrays
+                // Asumiendo que todos los arrays de horarios tienen el mismo largo (ej. 14 posiciones)
+                const totalFilas = grupo.horario_lunes_grupo.length;
+            
+                for (let i = 0; i < totalFilas; i++) {
+                    // La "Hora" de referencia la sacamos de la constante global HORAS usando el mismo índice
+                    const horaReferencia = HORAS[i] || ""; 
+                    const fila = [horaReferencia];
                 
-                // Si el contenido es un número, significa que está vacía (solo es la hora)
-                // Si es un texto, es la materia con el docente.
-                if (typeof contenido === "number") {
-                    fila.push(""); // Dejamos vacío en el Excel si no hay materia
-                } else {
-                    fila.push(contenido); // Ponemos "MATEMATICAS - Alonzo..."
+                    // Para cada día, extraemos lo que haya en la posición 'i' del array de ese grupo
+                    columnasConfig.forEach(col => {
+                        const contenido = grupo[col.propiedad][i];
+
+                        // Si el contenido es un número, significa que está vacía (solo es la hora)
+                        // Si es un texto, es la materia con el docente.
+                        if (typeof contenido === "number") {
+                            fila.push(""); // Dejamos vacío en el Excel si no hay materia
+                        } else {
+                            fila.push(contenido); // Ponemos "MATEMATICAS - Alonzo..."
+                        }
+                    });
+                
+                    datosHoja.push(fila);
                 }
+            
+                const worksheet = XLSX.utils.aoa_to_sheet(datosHoja);
+            
+                // Configuración de anchos: La columna A es corta, las de materias son anchas
+                worksheet['!cols'] = [{ wch: 8 }, ...columnasConfig.map(() => ({ wch: 35 }))];
+            
+                const nombreLimpio = grupo.nombre_grupo.toString().replace(/[\\\/\?\*\[\]]/g, "").substring(0, 31);
+                XLSX.utils.book_append_sheet(workbook, worksheet, nombreLimpio);
             });
-
-            datosHoja.push(fila);
+        
+            XLSX.writeFile(workbook, 'Horarios_Grupos_LAGE.xlsx');
         }
-
-        const worksheet = XLSX.utils.aoa_to_sheet(datosHoja);
-
-        // Configuración de anchos: La columna A es corta, las de materias son anchas
-        worksheet['!cols'] = [{ wch: 8 }, ...columnasConfig.map(() => ({ wch: 35 }))];
-
-        const nombreLimpio = grupo.nombre_grupo.toString().replace(/[\\\/\?\*\[\]]/g, "").substring(0, 31);
-        XLSX.utils.book_append_sheet(workbook, worksheet, nombreLimpio);
-    });
-
-    XLSX.writeFile(workbook, 'Horarios_Grupos_LAGE.xlsx');
-}
 
         //Funcion de descarga del excel de los horarios de los docentes
         function generar_excel_horarios_docentes() {
+            const workbook = XLSX.utils.book_new();
+
+            const columnasConfig = [
+                { etiqueta: "LUNES", propiedad: "lista_horas_lunes_docente" },
+                { etiqueta: "MARTES", propiedad: "lista_horas_martes_docente" },
+                { etiqueta: "MIERCOLES", propiedad: "lista_horas_miercoles_docente" },
+                { etiqueta: "JUEVES", propiedad: "lista_horas_jueves_docente" },
+                { etiqueta: "VIERNES", propiedad: "lista_horas_viernes_docente" },
+                { etiqueta: "SABADO", propiedad: "lista_horas_sabado_docente" }
+            ];
+
+            Docente.lista_docentes.forEach(docente => {
+                // CORRECCIÓN: Usar el nombre de la instancia del docente
+                const nombreDocenteStr = docente.nombre_docente || "Sin Nombre";
             
+                const datosHoja = [
+                    ["Horario del docente: " + nombreDocenteStr],
+                    [],
+                    ["HORA", ...columnasConfig.map(c => c.etiqueta)]
+                ];
+            
+                // Obtenemos el largo del array de este docente específico
+                const totalFilas = docente.lista_horas_lunes_docente.length;
+            
+                for (let i = 0; i < totalFilas; i++) {
+                    const horaReferencia = HORAS[i] || ""; 
+                    const fila = [horaReferencia];
+                
+                    columnasConfig.forEach(col => {
+                        // CORRECCIÓN: Cambiar 'grupo' por 'docente'
+                        const contenido = docente[col.propiedad][i];
+
+                        // Lógica de impresión: si es número (hora vacía) queda en blanco,
+                        // si es texto (Materia - Grupo) se imprime.
+                        if (typeof contenido === "number") {
+                            fila.push(""); 
+                        } else {
+                            fila.push(contenido); 
+                        }
+                    });
+                
+                    datosHoja.push(fila);
+                }
+            
+                const worksheet = XLSX.utils.aoa_to_sheet(datosHoja);
+            
+                worksheet['!cols'] = [{ wch: 10 }, ...columnasConfig.map(() => ({ wch: 40 }))];
+            
+                // CORRECCIÓN: Limpiar el nombre usando la variable de la instancia
+                const nombreLimpio = nombreDocenteStr.toString()
+                    .replace(/[\\\/\?\*\[\]]/g, "")
+                    .substring(0, 31);
+            
+                XLSX.utils.book_append_sheet(workbook, worksheet, nombreLimpio);
+            });
+        
+            XLSX.writeFile(workbook, 'Horarios_Docentes_LAGE.xlsx');
         }
 
         //Funcion madre de descarga de documentos
