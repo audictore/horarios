@@ -258,69 +258,74 @@
 
         //creamos la clase Grupo
         class Grupo {
-            static lista_grupos_LAGE = []
+            static lista_grupos_LAGE = [];
 
+            // Definimos los horarios base como una referencia estática
+            static CONFIG_HORARIOS = {
+                matutino: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+                vespertino: [12, 13, 14, 15, 16, 17, 18, 19, 20]
+            };
+        
+            constructor(nombre_grupo, turno, listaMateriasPlantilla = []) {
+                this.nombre_grupo = nombre_grupo;
+                this.turno = turno.toLowerCase(); // Normalizamos a minúsculas
 
-            constructor(nombre_grupo, listaMateriasPlantilla = []) {
-                this.nombre_grupo = nombre_grupo
-                this.horario_lunes_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-                this.horario_martes_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-                this.horario_miercoles_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-                this.horario_jueves_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-                this.horario_viernes_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-                this.horario_sabado_grupo = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-                this.materias = []
-
-                // Si pasamos una lista al crear el grupo, las clonamos automáticamente
+                // Seleccionamos el horario base según el turno o un array vacío si no coincide
+                const horasBase = Grupo.CONFIG_HORARIOS[this.turno] || [];
+            
+                // Inicializamos los días. Usamos spread [...] para que cada día sea un array independiente
+                this.horario_lunes_grupo = [...horasBase];
+                this.horario_martes_grupo = [...horasBase];
+                this.horario_miercoles_grupo = [...horasBase];
+                this.horario_jueves_grupo = [...horasBase];
+                this.horario_viernes_grupo = [...horasBase];
+                this.horario_sabado_grupo = [...horasBase];
+            
+                this.materias = [];
+            
+                // Clonación de materias
                 listaMateriasPlantilla.forEach(materia => {
-                    this.agregarMateria(materia)
-                })
-
-                Grupo.lista_grupos_LAGE.push(this)
+                    this.agregarMateria(materia);
+                });
+            
+                Grupo.lista_grupos_LAGE.push(this);
             }
-
+        
             agregarMateria(materia) {
                 if (materia instanceof Materia) {
-                    // Creamos un nuevo objeto Materia con los mismos datos 
-                    // para que cada grupo tenga su propia instancia única
                     const materiaClonada = new Materia(
                         materia.nombre_materia,
                         materia.horas_materia,
                         materia.grado_materia,
                         materia.turno_materia,
                         materia.tsu_materia
-                    )
-                    // NUEVO: Vincular la materia clonada con este grupo específico
-                     materiaClonada.grupo = this
-                    this.materias.push(materiaClonada)
+                    );
+                    materiaClonada.grupo = this;
+                    this.materias.push(materiaClonada);
                 }
             }
-
+        
             asignarDocenteAMateria(nombreMateria, docente) {
-                // 1. Buscamos la materia específica dentro de este grupo
                 const materiaEncontrada = this.materias.find(m => m.nombre_materia === nombreMateria);
-
                 if (materiaEncontrada && docente instanceof Docente) {
-                    // 2. Llamamos al método asignarDocente de la CLASE MATERIA
                     materiaEncontrada.asignarDocente(docente);
                 }
             }
-
         }
 
         //creamos los grupos de LAGE
-        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A", lista_materias_LAGE_1ro_A)
-        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B", lista_materias_LAGE_1ro_B)
-        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C", lista_materias_LAGE_1ro_C)
+        let LAGE_1ro_NA_A = new Grupo("LAGE_1ro_NA_A", "matutino" , lista_materias_LAGE_1ro_A)
+        let LAGE_1ro_NA_B = new Grupo("LAGE_1ro_NA_B", "matutino", lista_materias_LAGE_1ro_B)
+        let LAGE_1ro_NA_C = new Grupo("LAGE_1ro_NA_C", "matutino", lista_materias_LAGE_1ro_C)
 
-        let LAGE_4to_GCH_A = new Grupo("LAGE_4to_GCH_A", lista_materias_LAGE_4to_GCH)
+        let LAGE_4to_GCH_A = new Grupo("LAGE_4to_GCH_A", "vespertino", lista_materias_LAGE_4to_GCH)
         
-        let LAGE_4to_EFEP_A = new Grupo("LAGE_4to_EFEP_A", lista_materias_LAGE_4to_EFEP)
-        let LAGE_4to_EFEP_B = new Grupo("LAGE_4to_EFEP_B", lista_materias_LAGE_4to_EFEP)
+        let LAGE_4to_EFEP_A = new Grupo("LAGE_4to_EFEP_A", "vespertino", lista_materias_LAGE_4to_EFEP)
+        let LAGE_4to_EFEP_B = new Grupo("LAGE_4to_EFEP_B", "vespertino", lista_materias_LAGE_4to_EFEP)
 
-        let LAGE_7mo_NA_A = new Grupo("LAGE_7mo_NA_A", lista_materias_LAGE_7mo)
-        let LAGE_7mo_NA_B = new Grupo("LAGE_7mo_NA_B", lista_materias_LAGE_7mo)
-        let LAGE_7mo_NA_C = new Grupo("LAGE_7mo_NA_C", lista_materias_LAGE_7mo)
+        let LAGE_7mo_NA_A = new Grupo("LAGE_7mo_NA_A", "vespertino", lista_materias_LAGE_7mo)
+        let LAGE_7mo_NA_B = new Grupo("LAGE_7mo_NA_B", "vespertino", lista_materias_LAGE_7mo)
+        let LAGE_7mo_NA_C = new Grupo("LAGE_7mo_NA_C", "vespertino", lista_materias_LAGE_7mo)
 
 
 
