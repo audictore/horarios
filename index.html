@@ -413,7 +413,7 @@
         let Abner_Hesli_Rojas_Calva = new Docente("Abner Hesli Rojas Calva", "-", "12-14 16-21", "-", "17-21", "12-14", "-", 2)
         let Carolina_Sosa_Alvarez = new Docente("Carolina Sosa Alvarez", "13-21", "13-19", "13-17", "13-17", "13-21", "-", 2)
         //let Marco_Antonio_Hernandez_Granados = new Docente("Marco Antonio Hernandez Granados", "10-21", "10-21", "14-21", "14-21", "14-21", "-", 2)
-        let Marco_Antonio_Hernandez_Granados = new Docente("Marco Antonio Hernandez Granados", "7-16", "7-16", "7-16", "7-16", "7-16", "-", 2)
+        let Marco_Antonio_Hernandez_Granados = new Docente("Marco Antonio Hernandez Granados", "7-17", "7-17", "7-17", "7-17", "7-17", "-", 2)
         //let Karla_Escalante_Alarcon = new Docente("Karla Escalante Alarcon", "7-21", "7-21", "7-21", "7-21", "7-21", "-", 2)
         let Karla_Escalante_Alarcon = new Docente("Karla Escalante Alarcon", "7-16", "7-16", "7-16", "7-16", "7-16", "-", 2)
         //let Mitzi_Ailed_Rosario_Moreno_Ramirez = new Docente("Mitzi Ailed Rosario Moreno Ramirez", "7-17", "16-21", "13-15", "16-21", "7-17", "-", 2)
@@ -423,7 +423,7 @@
         let Guillermo_Nicolas_Martinez_Sanchez = new Docente("Guillermo Nicolas Martinez Sanchez", "10-18", "10-18", "7-15", "-", "-", "-", 2)
         let Ivan_De_La_Selva_Hernandez = new Docente("Ivan De La Selva Hernandez", "12-14 16-21", "12-14 15-21", "12-14 16-21", "-", "-", "-", 2)
         //let Daniela_Placido_Soriano = new Docente("Daniela Placido Soriano", "10-16", "10-16", "9-11 12-16", "9-11 12-16", "9-11 12-16", "-", 2)
-        let Daniela_Placido_Soriano = new Docente("Daniela Placido Soriano", "7-16", "7-16", "7-16", "7-16", "7-16", "-", 2)
+        let Daniela_Placido_Soriano = new Docente("Daniela Placido Soriano", "7-17", "7-17", "7-17", "7-17", "7-17", "-", 2)
         let Cristian_Arturo_Granados_Herrera = new Docente("Cristian Arturo Granados Herrera", "15-18", "14-19", "13-17", "14-19", "-", "-", 2)
         let Gustavo_Eduardo_Perez_Villegas = new Docente("Gustavo Eduardo Perez Villegas", "-", "-", "-", "18-21", "18-21", "-", 2)
         let Arturo_Islas_Islas = new Docente("Arturo Islas Islas", "-", "-", "-", "17-21", "17-21", "-", 2)
@@ -432,8 +432,8 @@
 
         let Julio_Marquez_Rodriguez = new Docente("Julio Marquez Rodriguez", "9-17", "9-17", "9-17", "9-17", "9-17", "-", 4)
         let Brenda_Garcia_Reyes = new Docente("Brenda Garcia Reyes", "9-17", "9-17", "9-17", "9-17", "9-17", "-", 4)
-        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-16", "7-16", "7-16", "7-16", "7-16", "-", 4)
-        let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "7-16", "7-16", "7-16", "7-16", "7-16", "-", 4)
+        let Alonzo_Lara_Flores = new Docente("Alonzo Lara Flores", "7-17", "7-17", "7-17", "7-17", "7-17", "-", 4)
+        let Andres_Dimas_Espino = new Docente("Andres Dimas Espino", "7-17", "7-17", "7-17", "7-17", "7-17", "-", 4)
 
         let Brayam_Mauricio_Guillermo = new Docente("Brayam Mauricio Guillermo", "7-10", "7-10", "11-14", "11-14", "11-14", "-", 1)
         let Selene_Amellali_Torres = new Docente("Selene Amellali Torres", "7-10", "7-10", "11-14", "11-14", "11-14", "-", 1)
@@ -577,45 +577,32 @@
         function crear_horarios_grupos_y_docentes() {
     const diasSemana = ["lunes", "martes", "miercoles", "jueves", "viernes"];
 
-    // --- MEJORA: Búsqueda flexible de disponibilidad ---
-    const obtenerLibresReales = (grupo, docente, dia, esTutoria) => {
+    // --- FUNCIÓN INTERNA: OBTENER DISPONIBILIDAD REAL ---
+    const obtenerLibresReales = (grupo, docente, dia) => {
         const horarioG = grupo[`horario_${dia}_grupo`];
         const horarioD = docente[`lista_horas_${dia}_docente`];
-        
-        let disponibles = horarioG.filter(h => typeof h === 'number' && horarioD.includes(h));
-        
-        // Si es tutoría y no hay nada, intentamos buscar una hora extra (ej. 15:00 o 16:00) 
-        // siempre que el docente pueda.
-        if (esTutoria && disponibles.length === 0) {
-            const horasExtra = [14, 15, 16]; // Extensiones posibles
-            horasExtra.forEach(he => {
-                if (horarioD.includes(he)) disponibles.push(he);
-            });
-        }
-        return disponibles;
+        return horarioG.filter(h => typeof h === 'number' && horarioD.includes(h));
     };
 
+    // --- FUNCIÓN INTERNA: ASIGNACIÓN FÍSICA ---
     const asignarEspacio = (grupo, docente, dia, horas, materia) => {
         const pG = `horario_${dia}_grupo`;
         const pD = `lista_horas_${dia}_docente`;
-        
-        // Si la hora es una extensión (no existe en el array original), la agregamos
-        horas.forEach(h => {
-            if (!grupo[pG].includes(h)) grupo[pG].push(h);
-        });
-
         grupo[pG] = grupo[pG].map(h => horas.includes(h) ? `${materia.nombre_materia} - ${docente.nombre_docente}` : h);
         docente[pD] = docente[pD].map(h => horas.includes(h) ? `${materia.nombre_materia} - ${grupo.nombre_grupo}` : h);
     };
 
+    // 1. RECOLECTAR TODAS LAS MATERIAS
     let todasLasMaterias = [];
     Grupo.lista_grupos_LAGE.forEach(g => {
         g.materias.forEach(m => { if (m.docente) todasLasMaterias.push(m); });
     });
     
+    // Ordenar docentes por prioridad (0.00 va primero)
     todasLasMaterias.sort((a, b) => a.docente.prioridad - b.docente.prioridad);
 
-    const ejecutarAsignacionMateria = (materia, esTutoria = false) => {
+    // --- LÓGICA DE ASIGNACIÓN (ENCAPSULADA) ---
+    const procesarMateria = (materia) => {
         const docente = materia.docente;
         const grupo = materia.grupo;
         
@@ -624,6 +611,7 @@
             let h = materia.desglose_horas[`horas_clase_${i}`];
             if (h === undefined || h <= 0) continue;
             
+            // Regla de fragmentación: Máximo 2h (Excepto Inglés Tipo 1)
             if (h > 2 && (docente.tipo_docente !== 1 && docente.horas_carga > 10)) {
                 while (h > 0) {
                     let size = h >= 2 ? 2 : 1;
@@ -635,26 +623,30 @@
             }
         }
 
-        let diasOcupadosMateria = new Set();
+        let diasOcupadosEstaMateria = new Set();
 
-        sesiones.forEach(tamanoSesion => {
+        sesiones.forEach((tamanoSesion) => {
             let opcionesPosibles = [];
 
             diasSemana.forEach(dia => {
-                if (docente.tipo_docente !== 1 && diasOcupadosMateria.has(dia)) return;
+                // Una sesión por día (Excepto Inglés Tipo 1)
+                if (docente.tipo_docente !== 1 && diasOcupadosEstaMateria.has(dia)) return;
 
+                // Restricción días para Tipo 2
                 if (docente.tipo_docente === 2) {
                     if (!docente.diasActivos) {
                         docente.diasActivos = new Set();
                         docente.maxDiasPermitidos = docente.horas_carga <= 10 ? 2 : 3;
                     }
-                    if (!esTutoria && docente.diasActivos.size >= docente.maxDiasPermitidos && !docente.diasActivos.has(dia)) return;
+                    if (docente.diasActivos.size >= docente.maxDiasPermitidos && !docente.diasActivos.has(dia)) return;
                 }
 
-                const libres = obtenerLibresReales(grupo, docente, dia, esTutoria);
+                const libres = obtenerLibresReales(grupo, docente, dia);
+                
                 for (let i = 0; i <= libres.length - tamanoSesion; i++) {
                     let bloque = libres.slice(i, i + tamanoSesion);
-                    if (bloque.every((h, idx) => idx === 0 || h === bloque[idx - 1] + 1)) {
+                    let contiguo = bloque.every((h, idx) => idx === 0 || h === bloque[idx - 1] + 1);
+                    if (contiguo) {
                         opcionesPosibles.push({ dia, horas: bloque, horaInicio: bloque[0] });
                     }
                 }
@@ -665,24 +657,26 @@
             if (opcionesPosibles.length > 0) {
                 const mejor = opcionesPosibles[0];
                 asignarEspacio(grupo, docente, mejor.dia, mejor.horas, materia);
-                diasOcupadosMateria.add(mejor.dia);
+                diasOcupadosEstaMateria.add(mejor.dia);
                 if (docente.tipo_docente === 2) docente.diasActivos.add(mejor.dia);
-            } else {
-                console.error(`ERROR CRÍTICO: No hay espacio para ${materia.nombre_materia} de ${docente.nombre_docente}. El grupo ${grupo.nombre_grupo} está saturado.`);
             }
         });
     };
 
-    const normalizarTutoria = (n) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().includes("TUTORIA");
+    // --- EJECUCIÓN EN DOS FASES ---
 
-    // FASE 1: ACADÉMICAS
+    // FASE 1: Materias Académicas (Todo lo que NO es Tutoría)
     todasLasMaterias.forEach(m => {
-        if (!normalizarTutoria(m.nombre_materia)) ejecutarAsignacionMateria(m, false);
+        if (!m.nombre_materia.toUpperCase().includes("TUTORIA")) {
+            procesarMateria(m);
+        }
     });
 
-    // FASE 2: TUTORÍAS
+    // FASE 2: Tutorías (Se ejecutan al final de todo el proceso)
     todasLasMaterias.forEach(m => {
-        if (normalizarTutoria(m.nombre_materia)) ejecutarAsignacionMateria(m, true);
+        if (m.nombre_materia.toUpperCase().includes("TUTORIA")) {
+            procesarMateria(m);
+        }
     });
 }
         crear_horarios_grupos_y_docentes()
