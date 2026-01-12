@@ -84,86 +84,45 @@
         
         // --- CLASE MATERIA ---
         class Materia {
-            constructor(nombre_materia, horas_materia, grado_materia, turno_materia, tsu_materia) {
-                this.nombre_materia = nombre_materia;
-                this.horas_materia = horas_materia;
-                this.grado_materia = grado_materia;
-                this.turno_materia = turno_materia;
-                this.tsu_materia = tsu_materia;
-                this.docente = null; // Inicializa la referencia al docente
+    constructor(nombre_materia, horas_materia, grado_materia, turno_materia, tsu_materia) {
+        this.nombre_materia = nombre_materia;
+        this.horas_materia = horas_materia;
+        this.grado_materia = grado_materia;
+        this.turno_materia = turno_materia;
+        this.tsu_materia = tsu_materia;
+        this.docente = null;
+        this.grupo = null;
+        this.desglose_horas = {}; 
+        for (let i = 1; i <= 20; i++) this.desglose_horas[`horas_clase_${i}`] = 0;
+    }
 
-                this.desglose_horas = {
-                    horas_clase_1: 0,
-                    horas_clase_2: 0,
-                    horas_clase_3: 0,
-                    horas_clase_4: 0,
-                    horas_clase_5: 0,
-                    horas_clase_6: 0,
-                    horas_clase_7: 0,
-                    horas_clase_8: 0,
-                    horas_clase_9: 0,
-                    horas_clase_10: 0,
-                    horas_clase_11: 0,
-                    horas_clase_12: 0,
-                    horas_clase_13: 0,
-                    horas_clase_14: 0,
-                    horas_clase_15: 0,
-                    horas_clase_16: 0,
-                    horas_clase_17: 0,
-                    horas_clase_18: 0,
-                    horas_clase_19: 0,
-                    horas_clase_20: 0
-                }
-            }
+    determinar_horas_clase_por_materia() {
+        if (!this.docente) return;
+        const tipo = this.docente.tipo_docente;
+        const horas = this.horas_materia;
+        const d = this.desglose_horas;
+        Object.keys(d).forEach(k => d[k] = 0);
 
-            determinar_horas_clase_por_materia(){
-                const tipo = this.docente.tipo_docente;
-                const horas = this.horas_materia;
-                // Referencia corta para no escribir tanto
-                const d = this.desglose_horas; 
-
-                // Particion para Ingles (Tipo 1) esto se determina por el tipo de docnete
-                if (tipo === 1) {
-                    if (horas == 5) { d.horas_clase_1 = 1; d.horas_clase_2 = 1; d.horas_clase_3 = 1; d.horas_clase_4 = 1; d.horas_clase_5 = 1; }
-                    else if (horas == 6) { d.horas_clase_1 = 1; d.horas_clase_2 = 1; d.horas_clase_3 = 1; d.horas_clase_4 = 1; d.horas_clase_5 = 1; d.horas_clase_6 = 1; }
-                    else if (horas == 7) { d.horas_clase_1 = 1; d.horas_clase_2 = 1; d.horas_clase_3 = 1; d.horas_clase_4 = 1; d.horas_clase_5 = 1; d.horas_clase_6 = 1; d.horas_clase_7 = 1; }
-                    else if (horas == 8) { d.horas_clase_1 = 1; d.horas_clase_2 = 1; d.horas_clase_3 = 1; d.horas_clase_4 = 1; d.horas_clase_5 = 1; d.horas_clase_6 = 1; d.horas_clase_7 = 1; d.horas_clase_8 = 1; }
-                    else if (horas == 9) { d.horas_clase_1 = 1; d.horas_clase_2 = 1; d.horas_clase_3 = 1; d.horas_clase_4 = 1; d.horas_clase_5 = 1; d.horas_clase_6 = 1; d.horas_clase_7 = 1; d.horas_clase_8 = 1; d.horas_clase_9 = 1; }
-                    else if (horas == 10) { d.horas_clase_1 = 1; d.horas_clase_2 = 1; d.horas_clase_3 = 1; d.horas_clase_4 = 1; d.horas_clase_5 = 1; d.horas_clase_6 = 1; d.horas_clase_7 = 1; d.horas_clase_8 = 1; d.horas_clase_9 = 1; d.horas_clase_10 = 1; }
-                    else if (horas == 15) { d.horas_clase_1 = 1; d.horas_clase_2 = 1; d.horas_clase_3 = 1; d.horas_clase_4 = 1; d.horas_clase_5 = 1; d.horas_clase_6 = 1; d.horas_clase_7 = 1; d.horas_clase_8 = 1; d.horas_clase_9 = 1; d.horas_clase_10 = 1; d.horas_clase_11 = 1; d.horas_clase_12 = 1; d.horas_clase_13 = 1; d.horas_clase_14 = 1; d.horas_clase_15 = 1; }
-                    else if (horas == 20) { d.horas_clase_1 = 1; d.horas_clase_2 = 1; d.horas_clase_3 = 1; d.horas_clase_4 = 1; d.horas_clase_5 = 1; d.horas_clase_6 = 1; d.horas_clase_7 = 1; d.horas_clase_8 = 1; d.horas_clase_9 = 1; d.horas_clase_10 = 1; d.horas_clase_11 = 1; d.horas_clase_12 = 1; d.horas_clase_13 = 1; d.horas_clase_14 = 1; d.horas_clase_15 = 1; d.horas_clase_16 = 1; d.horas_clase_17 = 1; d.horas_clase_18 = 1; d.horas_clase_19 = 1; d.horas_clase_20 = 1;}
-                }
-                // Particion para PA
-                else if (tipo === 2) {
-                    if (horas == 1) { d.horas_clase_1 = 1 }
-                    else if (horas == 2) { d.horas_clase_1 = 2 }
-                    else if (horas == 3) { d.horas_clase_1 = 2; d.horas_clase_2 = 1 }
-                    else if (horas == 4) { d.horas_clase_1 = 2; d.horas_clase_2 = 2;}
-                    else if (horas == 5) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 1; }
-                    else if (horas == 6) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; }
-                    else if (horas == 7) { d.horas_clase_1 = 3; d.horas_clase_2 = 2; d.horas_clase_3 = 2 }
-                }
-                else if (tipo === 3 || tipo === 4) {
-                    if (horas == 1) { d.horas_clase_1 = 1 }
-                    else if (horas == 2) { d.horas_clase_1 = 1; d.horas_clase_2 = 1 }
-                    else if (horas == 3) { d.horas_clase_1 = 2; d.horas_clase_2 = 1 }
-                    else if (horas == 4) { d.horas_clase_1 = 2; d.horas_clase_2 = 2 }
-                    else if (horas == 5) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 1; }
-                    else if (horas == 6) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; }
-                    else if (horas == 7) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; d.horas_clase_4 = 1 }
-                }
-
-            }
-
-            asignarDocente(docente) {
-                if (docente instanceof Docente) {
-                    this.docente = docente;
-                    docente.agregarMateria(this); 
-                    // ¡Llamarlo aquí asegura que las horas se repartan en cuanto llega el docente!
-                    this.determinar_horas_clase_por_materia(); 
-                }
-            }
+        if (tipo === 1) { // Inglés siempre de 1h
+            for (let i = 1; i <= horas; i++) d[`horas_clase_${i}`] = 1;
+        } else {
+            // Desglose estándar evitando bloques de 3 horas (Máximo 2)
+            if (horas === 1) d.horas_clase_1 = 1;
+            else if (horas === 2) d.horas_clase_1 = 2;
+            else if (horas === 3) { d.horas_clase_1 = 2; d.horas_clase_2 = 1; }
+            else if (horas === 4) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; }
+            else if (horas === 5) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 1; }
+            else if (horas === 6) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; }
+            else if (horas === 7) { d.horas_clase_1 = 2; d.horas_clase_2 = 2; d.horas_clase_3 = 2; d.horas_clase_4 = 1; }
         }
+    }
+
+    asignarDocente(docente) {
+        this.docente = docente;
+        docente.agregarMateria(this);
+        this.determinar_horas_clase_por_materia();
+    }
+}
 
         const ejecutarAsignacionMateria = (materia) => {
             const docente = materia.docente;
@@ -497,11 +456,11 @@
         let Carolina_Sosa_Alvarez = new Docente("Carolina Sosa Alvarez", "12-21", "12-19", "12-17", "12-17", "12-21", "-", 2)
         let Marco_Antonio_Hernandez_Granados = new Docente("Marco Antonio Hernandez Granados", "10-21", "10-21", "14-21", "14-21", "14-21", "-", 2)
         let Karla_Escalante_Alarcon = new Docente("Karla Escalante Alarcon", "7-21", "7-21", "7-21", "7-21", "7-21", "-", 2)
-        let Mitzi_Ailed_Rosario_Moreno_Ramirez = new Docente("Mitzi Ailed Rosario Moreno Ramirez", "7-17", "16-21", "13-15", "16-21", "7-17", "-", 2)
+        let Mitzi_Ailed_Rosario_Moreno_Ramirez = new Docente("Mitzi Ailed Rosario Moreno Ramirez", "13-15", "17-21", "13-15", "17-21", "13-15", "-", 2)
         let Arturo_Martinez_Sandoval = new Docente("Arturo Martinez Sandoval", "15-21", "15-21", "15-21", "15-21", "15-21", "-", 2)
         let Juan_Carlos_Rodriguez_Olmedo = new Docente("Juan Carlos Rodriguez Olmedo", "12-21", "12-21", "12-21", "12-21", "12-21", "-", 2)
         let Guillermo_Nicolas_Martinez_Sanchez = new Docente("Guillermo Nicolas Martinez Sanchez", "10-18", "10-18", "7-15", "-", "-", "-", 2)
-        let Ivan_De_La_Selva_Hernandez = new Docente("Ivan De La Selva Hernandez", "12-14 16-19", "12-14 16-21", "12-14 16-19", "12-19", "-", "-", 2)
+        let Ivan_De_La_Selva_Hernandez = new Docente("Ivan De La Selva Hernandez", "12-14 16-19", "12-14 16-21", "12-14 16-19", "12-19", "12-19", "-", 2)
         let Daniela_Placido_Soriano = new Docente("Daniela Placido Soriano", "10-16", "10-16", "9-11 12-16", "9-11 12-16", "9-11 12-16", "-", 2)
         let Cristian_Arturo_Granados_Herrera = new Docente("Cristian Arturo Granados Herrera", "15-18", "14-19", "13-17", "14-19", "-", "-", 2)
         let Gustavo_Eduardo_Perez_Villegas = new Docente("Gustavo Eduardo Perez Villegas", "18-21", "18-21", "18-21", "18-21", "18-21", "-", 2)
@@ -521,9 +480,9 @@
         
         let Juan_Jesus_Marines_Hernandez = new Docente("Juan Jesus Marines Hernandez", "18-21", "-", "18-21", "-", "16-18", "-", 1)
         let Kenia_Mariso_Rivera = new Docente("Kenia Mariso Rivera", "18-21", "-", "18-21", "-", "16-18", "-", 1)
-        
         let Josue_Lucas_Lopez = new Docente("Josue Lucas Lopez", "18-21", "-", "18-21", "-", "16-18", "-", 1)
-        let Carolina_Juarez_Pintor = new Docente("Carolina Juarez Pintor", "16-21", "18-21", "16-21", "16-18", "16-18", "-", 4)
+
+        let Carolina_Juarez_Pintor = new Docente("Carolina Juarez Pintor", "16-21", "18-21", "16-21", "16-18", "16-18", "-", 3)
 
         //Funcion para calcular las horas disponibles de los docentes por dia
         function calcularHorasDisponibles(disponibilidad_cadena) {
@@ -566,37 +525,37 @@
         //Asignacion docente-materia-grupo
         //LAGE_1ro_NA_A
         LAGE_1ro_NA_A.asignarDocenteAMateria("INGLES I", Brayam_Mauricio_Guillermo)
-        LAGE_1ro_NA_A.asignarDocenteAMateria("DESARROLLO HUMANO Y VALORES", Karla_Escalante_Alarcon)
+        //LAGE_1ro_NA_A.asignarDocenteAMateria("DESARROLLO HUMANO Y VALORES", Karla_Escalante_Alarcon)
         LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Irma_Elizabeth_Bautista_Valencia)
         LAGE_1ro_NA_A.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Marco_Antonio_Hernandez_Granados)
         LAGE_1ro_NA_A.asignarDocenteAMateria("CONTABILIDAD I", Horacio_Sanchez_Hernandez)
         LAGE_1ro_NA_A.asignarDocenteAMateria("MARCO LEGAL DE LAS ORGANIZACIONES", Guillermo_Nicolas_Martinez_Sanchez)
-        LAGE_1ro_NA_A.asignarDocenteAMateria("COMUNICACION Y HABILIDADES DIGITALES", Mitzi_Ailed_Rosario_Moreno_Ramirez)
+        //LAGE_1ro_NA_A.asignarDocenteAMateria("COMUNICACION Y HABILIDADES DIGITALES", Mitzi_Ailed_Rosario_Moreno_Ramirez)
         LAGE_1ro_NA_A.asignarDocenteAMateria("TUTORIA 1RO", Horacio_Sanchez_Hernandez)
        
         //LAGE_1ro_NA_B
         LAGE_1ro_NA_B.asignarDocenteAMateria("INGLES I", Selene_Amellali_Torres)
-        LAGE_1ro_NA_B.asignarDocenteAMateria("DESARROLLO HUMANO Y VALORES", Karla_Escalante_Alarcon)
+        //LAGE_1ro_NA_B.asignarDocenteAMateria("DESARROLLO HUMANO Y VALORES", Karla_Escalante_Alarcon)
         LAGE_1ro_NA_B.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Ariadna_Itzel_Reyes_Aparicio)
         LAGE_1ro_NA_B.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Andres_Dimas_Espino)
         LAGE_1ro_NA_B.asignarDocenteAMateria("CONTABILIDAD I", Horacio_Sanchez_Hernandez)
         LAGE_1ro_NA_B.asignarDocenteAMateria("MARCO LEGAL DE LAS ORGANIZACIONES", Guillermo_Nicolas_Martinez_Sanchez)
-        LAGE_1ro_NA_B.asignarDocenteAMateria("COMUNICACION Y HABILIDADES DIGITALES", Mitzi_Ailed_Rosario_Moreno_Ramirez)
+        //LAGE_1ro_NA_B.asignarDocenteAMateria("COMUNICACION Y HABILIDADES DIGITALES", Mitzi_Ailed_Rosario_Moreno_Ramirez)
         LAGE_1ro_NA_B.asignarDocenteAMateria("TUTORIA 1RO", Andres_Dimas_Espino)
         
         //LAGE_1ro_NA_C
         LAGE_1ro_NA_C.asignarDocenteAMateria("INGLES I", Armando_Martinez_Acevedo)
-        LAGE_1ro_NA_C.asignarDocenteAMateria("DESARROLLO HUMANO Y VALORES", Karla_Escalante_Alarcon)
+        //LAGE_1ro_NA_C.asignarDocenteAMateria("DESARROLLO HUMANO Y VALORES", Karla_Escalante_Alarcon)
         LAGE_1ro_NA_C.asignarDocenteAMateria("FUNDAMENTOS MATEMATICOS", Alonzo_Lara_Flores)
         LAGE_1ro_NA_C.asignarDocenteAMateria("FUNDAMENTOS DE LA ADMINISTRACION", Daniela_Placido_Soriano)
         LAGE_1ro_NA_C.asignarDocenteAMateria("CONTABILIDAD I", Horacio_Sanchez_Hernandez)
         LAGE_1ro_NA_C.asignarDocenteAMateria("MARCO LEGAL DE LAS ORGANIZACIONES", Guillermo_Nicolas_Martinez_Sanchez)
-        LAGE_1ro_NA_C.asignarDocenteAMateria("COMUNICACION Y HABILIDADES DIGITALES", Mitzi_Ailed_Rosario_Moreno_Ramirez)
+        //LAGE_1ro_NA_C.asignarDocenteAMateria("COMUNICACION Y HABILIDADES DIGITALES", Mitzi_Ailed_Rosario_Moreno_Ramirez)
         LAGE_1ro_NA_C.asignarDocenteAMateria("TUTORIA 1RO", Alonzo_Lara_Flores)
         
         //LAGE_4to_GCH_A
         LAGE_4to_GCH_A.asignarDocenteAMateria("INGLES IV GCH", Juan_Jesus_Marines_Hernandez)
-        LAGE_4to_GCH_A.asignarDocenteAMateria("ETICA PROFESIONAL GCH", Karla_Escalante_Alarcon)
+        //LAGE_4to_GCH_A.asignarDocenteAMateria("ETICA PROFESIONAL GCH", Karla_Escalante_Alarcon)
         LAGE_4to_GCH_A.asignarDocenteAMateria("GESTION DEL CAPITAL HUMANO", Daniela_Placido_Soriano)
         LAGE_4to_GCH_A.asignarDocenteAMateria("INTEGRACION DEL CAPITAL HUMANO", Ivan_De_La_Selva_Hernandez)
         LAGE_4to_GCH_A.asignarDocenteAMateria("COMPORTAMIENTO ORGANIZACIONAL", Juan_Carlos_Rodriguez_Olmedo)
@@ -606,7 +565,7 @@
         
         //LAGE_4to_EFEP_A
         LAGE_4to_EFEP_A.asignarDocenteAMateria("INGLES IV EFEP", Kenia_Mariso_Rivera)
-        LAGE_4to_EFEP_A.asignarDocenteAMateria("ETICA PROFESIONAL EFEP", Karla_Escalante_Alarcon)
+        //LAGE_4to_EFEP_A.asignarDocenteAMateria("ETICA PROFESIONAL EFEP", Karla_Escalante_Alarcon)
         LAGE_4to_EFEP_A.asignarDocenteAMateria("INNOVACION Y EMPRENDIMIENTO", Gabriela_Lazcano_Cortes)
         LAGE_4to_EFEP_A.asignarDocenteAMateria("ESTUDIO DE MERCADO", Mitzi_Ailed_Rosario_Moreno_Ramirez)
         LAGE_4to_EFEP_A.asignarDocenteAMateria("ADMINISTRACIÓN DE PROYECTOS I", Juan_Carlos_Rodriguez_Olmedo)
@@ -616,7 +575,7 @@
 
         //LAGE_4to_EFEP_B
         LAGE_4to_EFEP_B.asignarDocenteAMateria("INGLES IV EFEP", Josue_Lucas_Lopez)
-        LAGE_4to_EFEP_B.asignarDocenteAMateria("ETICA PROFESIONAL EFEP", Karla_Escalante_Alarcon)
+        //LAGE_4to_EFEP_B.asignarDocenteAMateria("ETICA PROFESIONAL EFEP", Karla_Escalante_Alarcon)
         LAGE_4to_EFEP_B.asignarDocenteAMateria("INNOVACION Y EMPRENDIMIENTO", Gustavo_Eduardo_Perez_Villegas)
         LAGE_4to_EFEP_B.asignarDocenteAMateria("ESTUDIO DE MERCADO", Mitzi_Ailed_Rosario_Moreno_Ramirez)
         LAGE_4to_EFEP_B.asignarDocenteAMateria("ADMINISTRACIÓN DE PROYECTOS I", Juan_Carlos_Rodriguez_Olmedo)
@@ -716,208 +675,244 @@
 
         //Apartir de este punto, todo lo de arriba se creo para la funcion que esta debajo
         //Funcion principal, para lo que se hizo todo esto pues----------------------------------------------------------------------------------------------------------------------------------------------
-        function crear_horarios_grupos_y_docentes() {
+        // --- FUNCIÓN PRINCIPAL DE PROCESAMIENTO ---
+function crear_horarios_grupos_y_docentes() {
     const diasSemana = ["lunes", "martes", "miercoles", "jueves", "viernes"];
+    let sesionesFallidas = []; 
 
-    // 1. RESET DE ESTADOS Y RE-PARSEO
+    // 1. LIMPIEZA Y RE-PARSEO DE DISPONIBILIDAD
     Docente.lista_docentes.forEach(d => {
         d.diasActivosGlobal = new Set();
-        d.lista_horas_lunes_docente = d.generar_lista_disponibilidad_por_dia_docente(d.dispoinibilidad_lunes);
-        d.lista_horas_martes_docente = d.generar_lista_disponibilidad_por_dia_docente(d.dispoinibilidad_martes);
-        d.lista_horas_miercoles_docente = d.generar_lista_disponibilidad_por_dia_docente(d.dispoinibilidad_miercoles);
-        d.lista_horas_jueves_docente = d.generar_lista_disponibilidad_por_dia_docente(d.dispoinibilidad_jueves);
-        d.lista_horas_viernes_docente = d.generar_lista_disponibilidad_por_dia_docente(d.dispoinibilidad_viernes);
+        diasSemana.forEach(dia => {
+            // Re-generamos la disponibilidad desde los strings originales para empezar de cero
+            d[`lista_horas_${dia}_docente`] = d.generar_lista_disponibilidad_por_dia_docente(d[`dispoinibilidad_${dia}`]);
+        });
     });
 
-    const obtenerLibresReales = (grupo, docente, dia) => {
-        const horarioG = grupo[`horario_${dia}_grupo`];
-        const horarioD = docente[`lista_horas_${dia}_docente`];
-        if (!horarioD || !horarioG) return [];
-        return horarioG.filter(h => typeof h === 'number' && horarioD.includes(h));
-    };
-
-    const asignarEspacio = (grupo, docente, dia, horas, materia) => {
-        grupo[`horario_${dia}_grupo`] = grupo[`horario_${dia}_grupo`].map(h => 
-            horas.includes(h) ? `${materia.nombre_materia} - ${docente.nombre_docente}` : h
-        );
-        docente[`lista_horas_${dia}_docente`] = docente[`lista_horas_${dia}_docente`].filter(h => !horas.includes(h));
-    };
-
-    // 2. RECOLECCIÓN Y ORDENAMIENTO
+    // 2. RECOLECCIÓN DE TODAS LAS MATERIAS
     let todasLasMaterias = [];
     Grupo.lista_grupos_LAGE.forEach(g => {
-        g.materias.forEach(m => { if (m.docente) todasLasMaterias.push(m); });
+        g.materias.forEach(m => { 
+            if (m.docente) { 
+                m.grupo = g; 
+                todasLasMaterias.push(m); 
+            }
+        });
     });
 
-    // Prioridad: El valor más bajo primero (Abner suele estar aquí)
-    todasLasMaterias.sort((a, b) => a.docente.prioridad - b.docente.prioridad);
+    // 3. ORDENAMIENTO MAESTRO POR PRIORIDAD (Estrictamente Ascendente)
+    // El número más bajo (1, 2, 3...) elige primero.
+    todasLasMaterias.sort((a, b) => {
+        if (a.docente.prioridad !== b.docente.prioridad) {
+            return a.docente.prioridad - b.docente.prioridad;
+        }
+        // Si empatan en prioridad, va primero la materia con más horas carga
+        return b.horas_materia - a.horas_materia;
+    });
 
-    const ejecutarAsignacionMateria = (materia) => {
+    console.log("%c--- INICIANDO ASIGNACIÓN POR PRIORIDAD ---", "color: blue; font-weight: bold;");
+
+    // 4. CICLO DE ASIGNACIÓN
+    todasLasMaterias.forEach((materia) => {
         const docente = materia.docente;
         const grupo = materia.grupo;
-        const esVespertino = grupo.turno === "vespertino";
-
-        let sesiones = [];
+        
+        // Extraer las sesiones según el desglose de la materia
+        let colaSesiones = [];
         for (let i = 1; i <= 20; i++) {
             let h = materia.desglose_horas[`horas_clase_${i}`];
-            if (h > 0) sesiones.push(h);
+            if (h > 0) colaSesiones.push(h);
         }
-        sesiones.sort((a, b) => b - a); // Bloques grandes primero
+        // Intentar acomodar bloques largos primero
+        colaSesiones.sort((a, b) => b - a);
 
         let diasOcupadosEstaMateria = new Set();
 
-        sesiones.forEach((tamanoSesion) => {
+        while (colaSesiones.length > 0) {
+            let tamanoSesion = colaSesiones.shift();
+            let asignado = false;
             let opcionesPosibles = [];
 
-            diasSemana.forEach(dia => {
-                if (docente.tipo_docente !== 1 && diasOcupadosEstaMateria.has(dia)) return;
+            for (let dia of diasSemana) {
+                // REGLA: No repetir materia el mismo día
+                // EXCEPCIÓN: Docentes Tipo 1 (Inglés) SÍ pueden repetir sesión el mismo día
+                if (docente.tipo_docente !== 1 && diasOcupadosEstaMateria.has(dia)) continue;
 
-                // --- NUEVA REGLA DE 2 DÍAS (CARGA <= 9) ---
+                // REGLA TIPO 2: Restricción de días según carga horaria (PA)
                 if (docente.tipo_docente === 2) {
-                    let maxD;
-                    if (docente.horas_carga <= 9) {
-                        maxD = 2; // Ajuste solicitado
-                    } else if (docente.horas_carga >= 21) {
-                        maxD = 4;
-                    } else {
-                        maxD = 3;
-                    }
-                    
-                    // Si ya llegó al límite de días y el día actual no es uno de los activos, saltar.
-                    if (docente.diasActivosGlobal.size >= maxD && !docente.diasActivosGlobal.has(dia)) return;
+                    let maxD = (docente.horas_carga <= 9) ? 2 : (docente.horas_carga <= 20 ? 3 : 4);
+                    if (docente.diasActivosGlobal.size >= maxD && !docente.diasActivosGlobal.has(dia)) continue;
                 }
 
-                const libres = obtenerLibresReales(grupo, docente, dia);
+                // Filtrado de horas libres reales (Cruce de disponibilidad Grupo vs Docente)
+                const hG = grupo[`horario_${dia}_grupo`];
+                const hD = docente[`lista_horas_${dia}_docente`];
+                const libres = hG.filter(h => typeof h === 'number' && hD.includes(h));
+
+                // Buscar bloques contiguos de horas
                 for (let i = 0; i <= libres.length - tamanoSesion; i++) {
                     let bloque = libres.slice(i, i + tamanoSesion);
-                    let contiguo = bloque.every((h, idx) => idx === 0 || h === bloque[idx - 1] + 1);
-                    if (contiguo) {
-                        opcionesPosibles.push({ dia, horas: bloque, horaInicio: bloque[0], horaFin: bloque[bloque.length-1] });
+                    if (bloque.every((h, idx) => idx === 0 || h === bloque[idx - 1] + 1)) {
+                        opcionesPosibles.push({ dia, horas: bloque, hIni: bloque[0] });
                     }
                 }
-            });
+            }
 
             if (opcionesPosibles.length > 0) {
-                if (esVespertino) {
-                    opcionesPosibles.sort((a, b) => b.horaFin - a.horaFin);
+                // Estrategia de compactación (Matutino arriba, Vespertino abajo)
+                if (grupo.turno === "vespertino") {
+                    opcionesPosibles.sort((a, b) => b.hIni - a.hIni);
                 } else {
-                    opcionesPosibles.sort((a, b) => a.horaInicio - b.horaInicio);
+                    opcionesPosibles.sort((a, b) => a.hIni - b.hIni);
                 }
 
                 const mejor = opcionesPosibles[0];
-                asignarEspacio(grupo, docente, mejor.dia, mejor.horas, materia);
-                diasOcupadosEstaMateria.add(mejor.dia);
-                if (docente.tipo_docente === 2) docente.diasActivosGlobal.add(mejor.dia);
-            } else {
-                console.warn(`❌ No hubo espacio para ${materia.nombre_materia} (${tamanoSesion}h) de ${docente.nombre_docente}`);
-            }
-        });
-    };
+                
+                // --- EJECUTAR ASIGNACIÓN ---
+                // Registrar en el horario del Grupo
+                grupo[`horario_${mejor.dia}_grupo`] = grupo[`horario_${mejor.dia}_grupo`].map(h => 
+                    mejor.horas.includes(h) ? `${materia.nombre_materia} - ${docente.nombre_docente}` : h
+                );
 
-    todasLasMaterias.forEach(m => ejecutarAsignacionMateria(m));
+                // Registrar en el horario del Docente (como objeto para el Excel)
+                docente[`lista_horas_${mejor.dia}_docente`] = docente[`lista_horas_${mejor.dia}_docente`].map(h => {
+                    if (mejor.horas.includes(h)) {
+                        return { horaVal: h, texto: `${materia.nombre_materia} - ${grupo.nombre_grupo}` };
+                    }
+                    return h;
+                });
+
+                diasOcupadosEstaMateria.add(mejor.dia);
+                docente.diasActivosGlobal.add(mejor.dia);
+                asignado = true;
+            } 
+            
+            if (!asignado) {
+                if (tamanoSesion > 1) {
+                    // Fragmentación de emergencia: 2h -> 1h + 1h para intentar salvar las horas
+                    colaSesiones.push(1);
+                    colaSesiones.push(1);
+                    colaSesiones.sort((a, b) => b - a);
+                } else {
+                    // Reporte de fallo definitivo
+                    sesionesFallidas.push({
+                        docente: docente.nombre_docente,
+                        prioridad: docente.prioridad.toFixed(2),
+                        materia: materia.nombre_materia,
+                        grupo: grupo.nombre_grupo,
+                        error: "Sin espacio disponible en grupo o docente"
+                    });
+                }
+            }
+        }
+    });
+
+    // 5. REPORTE FINAL EN CONSOLA
+    if (sesionesFallidas.length > 0) {
+        console.warn("⚠️ ALERTA: Algunas sesiones no pudieron asignarse:");
+        console.table(sesionesFallidas);
+    } else {
+        console.log("%c✅ ÉXITO: Prioridad respetada y todas las materias asignadas correctamente.", "color: green; font-weight: bold;");
+    }
 }
         crear_horarios_grupos_y_docentes()
         
         //Funcion de impresion en el excel--------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        button_accion.addEventListener("click", descargar_documentos)
+        button_accion.addEventListener("click", descargar_documentos);
 
-        //Funcion de descarga del excel de disponibilidades de docentes
-        function generar_excel_disponibilidad_docentes() {
-            // 1. Crear un nuevo libro de trabajo (Workbook)
-            const workbook = XLSX.utils.book_new();
+// Función principal que coordina las descargas
+function descargar_documentos() {
+    console.log("Generando archivos Excel...");
+    generar_excel_disponibilidad_docentes();
+    generar_excel_horarios_grupos();
+    generar_excel_horarios_docentes();
+    console.log("Descargas iniciadas.");
+}
 
-            // 3. Iterar la lista y crear una hoja por cada docente
-            Docente.lista_docentes.forEach(docente => {
-                const filasDeHoras = HORAS.map(hora => [hora]);
-
-                const datosHoja = [
-                    ["Docente: " + docente.nombre_docente], // Fila 1 (A1)
-                    ["Disponbilidad total (horas): " + docente.horas_disponibilidad], // Fila 1 (A2)
-                    ["Horas carga (horas): " + docente.horas_carga], // Fila 3 (A3)
-                    ["DÍAS:", ...DIAS.map(d => d.toUpperCase())] // Fila 3 (A4) en diferentes columnas
-                    
-                ]
-
-                HORAS.forEach(hora => {
-                    // La primera columna es la hora
-                    const fila = [hora]; 
-
-                    // Recorremos cada día para ver si ponemos "X" o vacío
-                    DIAS.forEach(dia => {
-                        // Accedemos a la propiedad dinámica: docente.dispoinibilidad_lunes, etc.
-                        const dispDia = docente[`dispoinibilidad_${dia}`];
-                
-                        if (estaDisponible(hora, dispDia)) {
-                            fila.push("X"); // Marcamos con una X si está disponible
-                        } else {
-                            fila.push(""); // Vacío si no
-                        }
-                    })
-
-                    datosHoja.push(fila)
-                })
-                
-                
-                // Creamos una hoja de un array de impresion.
-                const worksheet = XLSX.utils.aoa_to_sheet(datosHoja)
-
-                // Limpiar nombre (máximo 31 caracteres y quitar caracteres prohibidos)
-                const nombreHoja = docente.nombre_docente.substring(0, 31)
-
-                // 4. Añadir la hoja al libro con el nombre del docente
-                XLSX.utils.book_append_sheet(workbook, worksheet, nombreHoja)
-            })
-
-            // 5. Generar y descargar el archivo
-            // Esta función en el navegador dispara la descarga automáticamente
-            XLSX.writeFile(workbook, 'Disponibilidad_docentes.xlsx');
-        }
-
-        //Funcion de descarga del excel de disponibilidades de los horarios de los grupos
-        function generar_excel_horarios_grupos() {
+// 2. Excel de Disponibilidad (El mapa de "X" de los docentes)
+function generar_excel_disponibilidad_docentes() {
     const workbook = XLSX.utils.book_new();
-    const columnasConfig = [
-        { etiqueta: "LUNES", propiedad: "horario_lunes_grupo" },
-        { etiqueta: "MARTES", propiedad: "horario_martes_grupo" },
-        { etiqueta: "MIERCOLES", propiedad: "horario_miercoles_grupo" },
-        { etiqueta: "JUEVES", propiedad: "horario_jueves_grupo" },
-        { etiqueta: "VIERNES", propiedad: "horario_viernes_grupo" },
-        { etiqueta: "SABADO", propiedad: "horario_sabado_grupo" }
-    ];
+    const DIAS_KEYS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+    const RANGO_HORAS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
-    Grupo.lista_grupos_LAGE.forEach(grupo => {
-        const horasReferenciaBase = Grupo.CONFIG_HORARIOS[grupo.turno] || [];
-        const datosHoja = [["Horario del grupo: " + grupo.nombre_grupo], [], ["HORA", ...columnasConfig.map(c => c.etiqueta)]];
+    Docente.lista_docentes.forEach(docente => {
+        const datosHoja = [
+            ["Docente: " + docente.nombre_docente],
+            ["Disponibilidad total (horas): " + docente.horas_disponibilidad],
+            ["Horas carga asignadas: " + docente.horas_carga],
+            [], // Espacio en blanco
+            ["HORA", ...DIAS_KEYS.map(d => d.toUpperCase())]
+        ];
 
-        horasReferenciaBase.forEach((horaReal, i) => {
-            const fila = [horaReal];
-            columnasConfig.forEach(col => {
-                const contenido = grupo[col.propiedad][i];
-                fila.push(typeof contenido === "number" ? "" : contenido);
+        RANGO_HORAS.forEach(hora => {
+            const fila = [hora];
+            DIAS_KEYS.forEach(dia => {
+                const dispCadena = docente[`dispoinibilidad_${dia}`];
+                // Usamos la función estaDisponible que ya tienes definida
+                fila.push(estaDisponible(hora, dispCadena) ? "X" : "");
             });
             datosHoja.push(fila);
         });
 
         const worksheet = XLSX.utils.aoa_to_sheet(datosHoja);
-        worksheet['!cols'] = [{ wch: 8 }, ...columnasConfig.map(() => ({ wch: 35 }))];
+        XLSX.utils.book_append_sheet(workbook, worksheet, docente.nombre_docente.substring(0, 31));
+    });
+
+    XLSX.writeFile(workbook, 'Disponibilidad_Original_Docentes.xlsx');
+}
+
+// 3. Excel de Horarios por Grupo (Vista para alumnos)
+function generar_excel_horarios_grupos() {
+    const workbook = XLSX.utils.book_new();
+    const columnasConfig = [
+        { etiqueta: "LUNES", prop: "horario_lunes_grupo" },
+        { etiqueta: "MARTES", prop: "horario_martes_grupo" },
+        { etiqueta: "MIERCOLES", prop: "horario_miercoles_grupo" },
+        { etiqueta: "JUEVES", prop: "horario_jueves_grupo" },
+        { etiqueta: "VIERNES", prop: "horario_viernes_grupo" },
+        { etiqueta: "SABADO", prop: "horario_sabado_grupo" }
+    ];
+
+    Grupo.lista_grupos_LAGE.forEach(grupo => {
+        const horasReferencia = Grupo.CONFIG_HORARIOS[grupo.turno] || [];
+        const datosHoja = [
+            ["Horario del grupo: " + grupo.nombre_grupo],
+            ["Turno: " + grupo.turno.toUpperCase()],
+            [],
+            ["HORA", ...columnasConfig.map(c => c.etiqueta)]
+        ];
+
+        horasReferencia.forEach((horaReal, i) => {
+            const fila = [horaReal];
+            columnasConfig.forEach(col => {
+                const contenido = grupo[col.prop] ? grupo[col.prop][i] : "";
+                // Si es un número, la hora está libre. Si es texto, es la materia.
+                fila.push(typeof contenido === "number" ? "" : (contenido || ""));
+            });
+            datosHoja.push(fila);
+        });
+
+        const worksheet = XLSX.utils.aoa_to_sheet(datosHoja);
+        // Ajuste de ancho de columnas
+        worksheet['!cols'] = [{ wch: 8 }, ...columnasConfig.map(() => ({ wch: 40 }))];
         XLSX.utils.book_append_sheet(workbook, worksheet, grupo.nombre_grupo.substring(0, 31));
     });
+
     XLSX.writeFile(workbook, 'Horarios_Grupos_LAGE.xlsx');
 }
 
-        //Funcion de descarga del excel de los horarios de los docentes
-        function generar_excel_horarios_docentes() {
+// 4. Excel de Horarios por Docente (Vista para profesores)
+function generar_excel_horarios_docentes() {
     const workbook = XLSX.utils.book_new();
-    const columnasConfig = [
-        { etiqueta: "LUNES", propiedad: "lista_horas_lunes_docente" },
-        { etiqueta: "MARTES", propiedad: "lista_horas_martes_docente" },
-        { etiqueta: "MIERCOLES", propiedad: "lista_horas_miercoles_docente" },
-        { etiqueta: "JUEVES", propiedad: "lista_horas_jueves_docente" },
-        { etiqueta: "VIERNES", propiedad: "lista_horas_viernes_docente" },
-        { etiqueta: "SABADO", propiedad: "lista_horas_sabado_docente" }
+    const diasConfig = [
+        { etiqueta: "LUNES", prop: "lista_horas_lunes_docente" },
+        { etiqueta: "MARTES", prop: "lista_horas_martes_docente" },
+        { etiqueta: "MIERCOLES", prop: "lista_horas_miercoles_docente" },
+        { etiqueta: "JUEVES", prop: "lista_horas_jueves_docente" },
+        { etiqueta: "VIERNES", prop: "lista_horas_viernes_docente" },
+        { etiqueta: "SABADO", prop: "lista_horas_sabado_docente" }
     ];
 
-    // Rango maestro para cubrir matutino y vespertino
     const rangoMaestro = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
     Docente.lista_docentes.forEach(docente => {
@@ -925,14 +920,14 @@
             ["Horario del docente: " + docente.nombre_docente],
             ["Carga total: " + docente.horas_carga + " hrs"],
             [],
-            ["HORA", ...columnasConfig.map(c => c.etiqueta)]
+            ["HORA", ...diasConfig.map(d => d.etiqueta)]
         ];
 
         rangoMaestro.forEach(hora => {
             const fila = [hora];
-            columnasConfig.forEach(col => {
-                const slotsDia = docente[col.propiedad];
-                // Buscamos si en los slots del docente hay un objeto que coincida con esta hora
+            diasConfig.forEach(dia => {
+                const slotsDia = docente[dia.prop] || [];
+                // Buscamos el objeto de asignación {horaVal, texto}
                 const asignacion = slotsDia.find(s => typeof s === "object" && s.horaVal === hora);
                 fila.push(asignacion ? asignacion.texto : "");
             });
@@ -940,19 +935,12 @@
         });
 
         const worksheet = XLSX.utils.aoa_to_sheet(datosHoja);
-        worksheet['!cols'] = [{ wch: 8 }, ...columnasConfig.map(() => ({ wch: 40 }))];
+        worksheet['!cols'] = [{ wch: 8 }, ...diasConfig.map(() => ({ wch: 45 }))];
         XLSX.utils.book_append_sheet(workbook, worksheet, docente.nombre_docente.substring(0, 31));
     });
+
     XLSX.writeFile(workbook, 'Horarios_Docentes_LAGE.xlsx');
 }
-
-        //Funcion madre de descarga de documentos
-        function descargar_documentos(){
-            generar_excel_disponibilidad_docentes()
-            generar_excel_horarios_grupos()
-            generar_excel_horarios_docentes()
-
-        }
 
 
 
