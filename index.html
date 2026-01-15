@@ -459,7 +459,7 @@
         //declaramos los docentes ----
         let Gabriela_Lazcano_Cortes = new Docente("Gabriela Lazcano Cortes", "12-21", "12-21", "12-17", "12-17", "12-15", "-", 3)
         let Mariana_Santillan_Arroyo = new Docente("Mariana Santillan Arroyo", "12-17", "12-17", "13-21", "12-17", "12-17", "-", 3)
-        let Horacio_Sanchez_Hernandez = new Docente("Horacio_Sanchez_Hernandez", "10-15", "10-15", "7-11 - 14-15", "7-11 14-15", "14-16", "-", 3)
+        let Horacio_Sanchez_Hernandez = new Docente("Horacio_Sanchez_Hernandez", "10-15", "10-15", "7-11 14-15", "7-11 14-15", "14-16", "-", 3)
         let Irma_Elizabeth_Bautista_Valencia = new Docente("Irma_Elizabeth_Bautista_Valencia", "13-21", "13-21", "9-11 13-17", "9-11 13-16", "9-11 13-16", "-", 3)
        
         let Abner_Hesli_Rojas_Calva = new Docente("Abner Hesli Rojas Calva", "-", "16-21", "-", "17-21", "12-14", "-", 2)
@@ -710,26 +710,41 @@ const asignarEspacio = (grupo, docente, dia, horas, materia) => {
 function crear_horarios_grupos_y_docentes() {
     const diasSemana = ["lunes", "martes", "miercoles", "jueves", "viernes"];
 
-    // 1. Recalcular desgloses con carga final
+    // 1. RECOLECTAR TODAS LAS MATERIAS
     let todasLasMaterias = [];
     Grupo.lista_grupos_LAGE.forEach(g => {
-        g.materias.forEach(m => {
+        g.materias.forEach(m => { 
             if (m.docente) {
                 m.determinar_horas_clase_por_materia();
-                todasLasMaterias.push(m);
+                todasLasMaterias.push(m); 
             }
         });
     });
-
-    todasLasMaterias.sort((a, b) => a.docente.prioridad - b.docente.prioridad);
+    
+    // 2. ORDENAMIENTO COMPUESTO:
+    // Primero por la prioridad del docente (0.00 va primero).
+    // Segundo: Si es el mismo docente, las materias académicas van ANTES que la Tutoría.
+    todasLasMaterias.sort((a, b) => {
+        if (a.docente.prioridad !== b.docente.prioridad) {
+            return a.docente.prioridad - b.docente.prioridad;
+        }
+        // Si es el mismo docente, ponemos la tutoria al final
+        const aEsTutoria = a.nombre_materia.toUpperCase().includes("TUTORIA");
+        const bEsTutoria = b.nombre_materia.toUpperCase().includes("TUTORIA");
+        return aEsTutoria - bEsTutoria; // false (0) va antes que true (1)
+    });
 
     const ejecutarAsignacionMateria = (materia) => {
         const docente = materia.docente;
         const grupo = materia.grupo;
         const esVespertino = grupo.turno === "vespertino";
+        const esTutoria = materia.nombre_materia.toUpperCase().includes("TUTORIA");
 
         let sesiones = Object.values(materia.desglose_horas).filter(h => h > 0);
-        sesiones.sort((a, b) => a - b); // Compactación
+        
+        // Compactación: Para académicas de menor a mayor.
+        // Para Tutoría la dejamos intacta (usualmente es un solo bloque).
+        if (!esTutoria) sesiones.sort((a, b) => a - b);
 
         let diasOcupadosEstaMateria = new Set();
 
@@ -737,31 +752,58 @@ function crear_horarios_grupos_y_docentes() {
             let opcionesPosibles = [];
 
             diasSemana.forEach(dia => {
+                // REGLA: Sesión única diaria (Excepto Inglés)
                 if (docente.tipo_docente !== 1 && diasOcupadosEstaMateria.has(dia)) return;
 
-                // Límite de días Tipo 2
+                // REGLA TIPO 2: Límite de días
                 if (docente.tipo_docente === 2) {
                     if (!docente.diasActivosGlobal) {
                         docente.diasActivosGlobal = new Set();
                         if (docente.horas_carga <= 9) docente.maxDiasGlobal = 2;
                         else if (docente.horas_carga >= 21) docente.maxDiasGlobal = 4;
-                        else docente.maxDiasGlobal = 3; // Rango 10-20
+                        else docente.maxDiasGlobal = 3;
                     }
-                    if (docente.diasActivosGlobal.size >= docente.maxDiasGlobal && 
-                        !docente.diasActivosGlobal.has(dia)) return;
+                    if (docente.diasActivosGlobal.size >= docente.maxDiasGlobal && !docente.diasActivosGlobal.has(dia)) return;
                 }
 
                 const libres = obtenerLibresReales(grupo, docente, dia);
                 for (let i = 0; i <= libres.length - tamanoSesion; i++) {
                     let bloque = libres.slice(i, i + tamanoSesion);
                     if (bloque.every((h, idx) => idx === 0 || h === bloque[idx - 1] + 1)) {
-                        opcionesPosibles.push({ dia, horas: bloque, hFin: bloque[bloque.length-1], hIni: bloque[0] });
+                        
+                        // --- CÁLCULO DE CERCANÍA (Para que la Tutoría pegue a sus clases) ---
+                        let pesoCercania = 0;
+                        const slotsDocente = docente[`lista_horas_${dia}_docente`];
+                        
+                        // Verificamos si hay clases del mismo docente justo antes o después del bloque
+                        const horaAntes = bloque[0] - 1;
+                        const horaDespues = bloque[bloque.length - 1] + 1;
+                        
+                        const tieneClaseCerca = slotsDocente.some(s => 
+                            typeof s === "object" && (s.horaVal === horaAntes || s.horaVal === horaDespues)
+                        );
+                        
+                        if (tieneClaseCerca) pesoCercania = 1;
+
+                        opcionesPosibles.push({ 
+                            dia, 
+                            horas: bloque, 
+                            hFin: bloque[bloque.length - 1], 
+                            hIni: bloque[0],
+                            cercano: pesoCercania
+                        });
                     }
                 }
             });
 
-            if (esVespertino) opcionesPosibles.sort((a, b) => b.hFin - a.hFin);
-            else opcionesPosibles.sort((a, b) => a.hIni - b.hIni);
+            // --- CRITERIO DE SELECCIÓN ---
+            opcionesPosibles.sort((a, b) => {
+                // Si es Tutoría, priorizamos bloques que estén pegados a sus otras clases (cercano = 1)
+                if (esTutoria && a.cercano !== b.cercano) return b.cercano - a.cercano;
+                
+                // Luego aplicamos la dirección del turno
+                return esVespertino ? b.hFin - a.hFin : a.hIni - b.hIni;
+            });
 
             if (opcionesPosibles.length > 0) {
                 const mejor = opcionesPosibles[0];
@@ -772,9 +814,8 @@ function crear_horarios_grupos_y_docentes() {
         });
     };
 
-    const esTutoria = (n) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().includes("TUTORIA");
-    todasLasMaterias.forEach(m => { if (!esTutoria(m.nombre_materia)) ejecutarAsignacionMateria(m); });
-    todasLasMaterias.forEach(m => { if (esTutoria(m.nombre_materia)) ejecutarAsignacionMateria(m); });
+    // Ahora ejecutamos en un solo barrido, ya que el .sort inicial se encarga del orden
+    todasLasMaterias.forEach(m => ejecutarAsignacionMateria(m));
 }
         crear_horarios_grupos_y_docentes()
         
