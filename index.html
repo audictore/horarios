@@ -735,13 +735,11 @@ const asignarEspacio = (grupo, docente, dia, horas, materia) => {
 function crear_horarios_grupos_y_docentes() {
     const diasSemana = ["lunes", "martes", "miercoles", "jueves", "viernes"];
 
-    // 1. OBTENER LISTA DE DOCENTES ÚNICOS ORDENADOS POR PRIORIDAD (Baja primero: 0.00, 0.15...)
+    // 1. RESPETAR PRIORIDAD: Ordenar docentes de menor a mayor margen de maniobra
     const docentesOrdenados = [...Docente.lista_docentes].sort((a, b) => a.prioridad - b.prioridad);
 
-    // 2. RECORRER DOCENTE POR DOCENTE (Garantiza que el más prioritario elija TODO primero)
     docentesOrdenados.forEach(docente => {
-        
-        // Obtenemos sus materias y las ordenamos: Académicas primero, Tutoría al final
+        // Ordenar materias: Académicas primero, Tutoría al final
         let materiasDelDocente = docente.materias_impartidas_docente.sort((a, b) => {
             const aEsTutoria = a.nombre_materia.toUpperCase().includes("TUTORIA");
             const bEsTutoria = b.nombre_materia.toUpperCase().includes("TUTORIA");
@@ -750,27 +748,29 @@ function crear_horarios_grupos_y_docentes() {
 
         materiasDelDocente.forEach(materia => {
             materia.determinar_horas_clase_por_materia();
+            // Flag de flexibilidad para tipos 2, 3 y 4
+            materia.permiteFraccionar = (docente.tipo_docente >= 2); 
+
             const grupo = materia.grupo;
             const esVespertino = grupo.turno === "vespertino";
             const esTutoria = materia.nombre_materia.toUpperCase().includes("TUTORIA");
 
-            // Convertimos desglose en lista de sesiones pendientes
             let sesionesPendientes = Object.entries(materia.desglose_horas)
                 .filter(([_, h]) => h > 0)
                 .map(([id, h]) => ({ id, tamano: h }));
 
             let diasOcupadosMateria = new Set();
 
-            // CASCADA DE AJUSTE: Intentar colocar las piezas de la materia
+            // Bucle de asignación por materia
             while (sesionesPendientes.length > 0) {
                 let mejoresOpcionesGlobales = [];
 
+                // BUSQUEDA INICIAL: Intentar colocar el bloque completo en algún día
                 diasSemana.forEach(dia => {
-                    // Regla: No repetir materia el mismo día (Excepto Tutoría con su materia académica)
-                    // Nota: Si es tutoria, el sistema permite repetir si la materia previa era diferente
+                    // Regla: No repetir materia el mismo día (salvo Inglés Tipo 1)
                     if (docente.tipo_docente !== 1 && diasOcupadosMateria.has(dia)) return;
 
-                    // Restricción Días Tipo 2 (Global por docente)
+                    // Restricción Días Activos para PA (Tipo 2)
                     if (docente.tipo_docente === 2) {
                         if (!docente.diasActivosGlobal) docente.diasActivosGlobal = new Set();
                         const limite = docente.horas_carga <= 9 ? 2 : (docente.horas_carga >= 21 ? 4 : 3);
@@ -780,28 +780,35 @@ function crear_horarios_grupos_y_docentes() {
                     const libres = obtenerLibresReales(grupo, docente, dia);
                     if (libres.length === 0) return;
 
-                    // Agrupar huecos contiguos
+                    // Identificar huecos contiguos
                     let huecos = [];
                     let hAct = [libres[0]];
                     for (let i = 1; i <= libres.length; i++) {
                         if (libres[i] === libres[i-1] + 1) hAct.push(libres[i]);
-                        else { huecos.push(hAct); if(libres[i]) hAct = [libres[i]]; }
+                        else { 
+                            huecos.push(hAct); 
+                            if(libres[i]) hAct = [libres[i]]; 
+                        }
                     }
 
                     huecos.forEach(espacio => {
-                        // Cascada: ¿Qué sesión de esta materia cabe aquí?
+                        // Filtrar sesiones que caben íntegras en este hueco
                         const queCaben = sesionesPendientes
                             .filter(s => s.tamano <= espacio.length)
                             .sort((a, b) => b.tamano - a.tamano);
 
                         if (queCaben.length > 0) {
                             const sElegida = queCaben[0];
-                            const bloqueFinal = esVespertino ? espacio.slice(-sElegida.tamano) : espacio.slice(0, sElegida.tamano);
+                            const bloqueFinal = esVespertino 
+                                ? espacio.slice(-sElegida.tamano) 
+                                : espacio.slice(0, sElegida.tamano);
 
-                            // Peso cercanía para Tutorías (Pegarlas a sus otras clases)
+                            // Evaluar cercanía para optimizar huecos (Tutorías)
                             let pesoC = 0;
                             const slotsD = docente[`lista_horas_${dia}_docente`];
-                            if (slotsD.some(s => typeof s === "object" && (s.horaVal === bloqueFinal[0]-1 || s.horaVal === bloqueFinal[bloqueFinal.length-1]+1))) pesoC = 1;
+                            if (slotsD.some(s => typeof s === "object" && (s.horaVal === bloqueFinal[0]-1 || s.horaVal === bloqueFinal[bloqueFinal.length-1]+1))) {
+                                pesoC = 1;
+                            }
 
                             mejoresOpcionesGlobales.push({
                                 dia, horas: bloqueFinal, tamano: sElegida.tamano, idS: sElegida.id,
@@ -811,11 +818,13 @@ function crear_horarios_grupos_y_docentes() {
                     });
                 });
 
+                // DECISIÓN:
                 if (mejoresOpcionesGlobales.length > 0) {
+                    // OPCIÓN A: Se encontró espacio para el bloque actual
                     mejoresOpcionesGlobales.sort((a, b) => {
-                        if (a.tamano !== b.tamano) return b.tamano - a.tamano; // Bloque más grande primero
-                        if (esTutoria && a.cercano !== b.cercano) return b.cercano - a.cercano; // Tutoría pegada
-                        return esVespertino ? b.hF - a.hF : a.hI - b.hI; // Inverso si es tarde
+                        if (a.tamano !== b.tamano) return b.tamano - a.tamano;
+                        if (esTutoria && a.cercano !== b.cercano) return b.cercano - a.cercano;
+                        return esVespertino ? b.hF - a.hF : a.hI - b.hI;
                     });
 
                     const mejor = mejoresOpcionesGlobales[0];
@@ -824,8 +833,27 @@ function crear_horarios_grupos_y_docentes() {
                     diasOcupadosMateria.add(mejor.dia);
                     if (docente.tipo_docente === 2) docente.diasActivosGlobal.add(mejor.dia);
                     sesionesPendientes = sesionesPendientes.filter(s => s.id !== mejor.idS);
-                } else {
-                    break; // No cabe nada más de esta materia
+                } 
+                else if (materia.permiteFraccionar && sesionesPendientes.some(s => s.tamano > 1)) {
+                    // OPCIÓN B (ÚLTIMA INSTANCIA): No cupo el bloque en ningún día, procedemos a partirlo
+                    let indexSesionDificil = sesionesPendientes.findIndex(s => s.tamano > 1);
+                    let sesionDificil = sesionesPendientes[indexSesionDificil];
+
+                    console.warn(`[FRACCIÓN] Materia ${materia.nombre_materia} no cupo como bloque de ${sesionDificil.tamano}h. Partiendo horas...`);
+
+                    const parte1 = Math.floor(sesionDificil.tamano / 2);
+                    const parte2 = Math.ceil(sesionDificil.tamano / 2);
+
+                    sesionesPendientes.splice(indexSesionDificil, 1);
+                    sesionesPendientes.push({ id: sesionDificil.id + "_p1", tamano: parte1 });
+                    sesionesPendientes.push({ id: sesionDificil.id + "_p2", tamano: parte2 });
+                    
+                    // El bucle 'while' reintentará colocar las piezas nuevas más pequeñas en la siguiente iteración
+                } 
+                else {
+                    // FALLO CRÍTICO: Ni fragmentando a 1h hubo espacio
+                    console.error(`❌ Sin espacio para ${materia.nombre_materia} del docente ${docente.nombre_docente} en el grupo ${grupo.nombre_grupo}`);
+                    break; 
                 }
             }
         });
