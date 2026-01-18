@@ -102,8 +102,20 @@
     const cargaTotal = this.docente.horas_carga;
     const d = this.desglose_horas = {};
 
-    if (tipo === 1) { // INGLÉS
-        for (let i = 1; i <= horas; i++) d[`h${i}`] = 1;
+    if (tipo === 1) { // INGLÉS o PLACAS
+        const nombreM = this.nombre_materia.toUpperCase()
+        if (nombreM.includes("INGLES I") || nombreM.includes("INGLES IV GCH") || nombreM.includes("INGLES IV EFEP") || nombreM.includes("INGLES VII")) {
+            for (let i = 1; i <= horas; i++) d[`h${i}`] = 1;
+        }
+        else{
+            if (horas === 7) { d.h1 = 3; d.h2 = 2; d.h3 = 2; }
+            else if(horas === 6) { d.h1 = 2; d.h2 = 2; d.h3 = 2; }
+            else if (horas === 5) { d.h1 = 2; d.h2 = 2; d.h3 = 1; }
+            else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
+            else if (horas === 3) { d.h1 = 2; d.h2 = 1; }
+            else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
+        }
+        
     } 
     else if (tipo === 2) { // PA
         if (cargaTotal <= 9) {
@@ -487,7 +499,7 @@
         let Horacio_Sanchez_Hernandez = new Docente("Horacio_Sanchez_Hernandez", "10-15", "10-15", "7-11 14-15", "7-11 14-15", "14-16", "-", 3)
         let Irma_Elizabeth_Bautista_Valencia = new Docente("Irma_Elizabeth_Bautista_Valencia", "12-21", "12-21", "9-11 12-17", "9-11 12-16", "9-11 12-16", "-", 3)
        
-        let Abner_Hesli_Rojas_Calva = new Docente("Abner Hesli Rojas Calva", "-", "16-21", "-", "17-21", "12-14", "-", 2)
+        let Abner_Hesli_Rojas_Calva = new Docente("Abner Hesli Rojas Calva", "-", "17-21", "-", "17-21", "12-14", "-", 1)
         let Carolina_Sosa_Alvarez = new Docente("Carolina Sosa Alvarez", "12-21", "12-19", "12-17", "12-17", "12-21", "-", 2)
         let Marco_Antonio_Hernandez_Granados = new Docente("Marco Antonio Hernandez Granados", "12-21", "12-21", "12-21", "12-21", "12-21", "-", 3)
         let Karla_Escalante_Alarcon = new Docente("Karla Escalante Alarcon", "7-21", "7-21", "7-21", "7-21", "7-21", "-", 2)
@@ -630,7 +642,7 @@
         //LAGE_7mo_NA_B
         LAGE_7mo_NA_B.asignarDocenteAMateria("INGLES VII", Carolina_Juarez_Pintor)
         LAGE_7mo_NA_B.asignarDocenteAMateria("COMERCIO INTERNACIONAL", Gabriela_Lazcano_Cortes)
-        LAGE_7mo_NA_B.asignarDocenteAMateria("SUSTENTABILIDAD", Arturo_Islas_Islas)
+        LAGE_7mo_NA_B.asignarDocenteAMateria("SUSTENTABILIDAD", Abner_Hesli_Rojas_Calva)
         LAGE_7mo_NA_B.asignarDocenteAMateria("CONTRIBUCIONES FISCALES", Arturo_Martinez_Sandoval)
         LAGE_7mo_NA_B.asignarDocenteAMateria("ADMINISTRACION DE LA PRODUCCION", Mariana_Santillan_Arroyo)
         LAGE_7mo_NA_B.asignarDocenteAMateria("TECNOLOGIAS DE LA INFORMACION APLICADA A LOS NEGOCIOS", Irma_Elizabeth_Bautista_Valencia)
@@ -640,7 +652,7 @@
         //LAGE_7mo_NA_C
         LAGE_7mo_NA_C.asignarDocenteAMateria("INGLES VII", Carolina_Juarez_Pintor)
         LAGE_7mo_NA_C.asignarDocenteAMateria("COMERCIO INTERNACIONAL", Gabriela_Lazcano_Cortes)
-        LAGE_7mo_NA_C.asignarDocenteAMateria("SUSTENTABILIDAD", Abner_Hesli_Rojas_Calva)
+        LAGE_7mo_NA_C.asignarDocenteAMateria("SUSTENTABILIDAD", Arturo_Islas_Islas)
         LAGE_7mo_NA_C.asignarDocenteAMateria("CONTRIBUCIONES FISCALES", Arturo_Martinez_Sandoval)
         LAGE_7mo_NA_C.asignarDocenteAMateria("ADMINISTRACION DE LA PRODUCCION", Mariana_Santillan_Arroyo)
         LAGE_7mo_NA_C.asignarDocenteAMateria("TECNOLOGIAS DE LA INFORMACION APLICADA A LOS NEGOCIOS", Irma_Elizabeth_Bautista_Valencia)
@@ -734,12 +746,9 @@ const asignarEspacio = (grupo, docente, dia, horas, materia) => {
         // --- FUNCIÓN PRINCIPAL DE PROCESAMIENTO ---
 function crear_horarios_grupos_y_docentes() {
     const diasSemana = ["lunes", "martes", "miercoles", "jueves", "viernes"];
-
-    // 1. RESPETAR PRIORIDAD: Ordenar docentes de menor a mayor margen de maniobra
     const docentesOrdenados = [...Docente.lista_docentes].sort((a, b) => a.prioridad - b.prioridad);
 
     docentesOrdenados.forEach(docente => {
-        // Ordenar materias: Académicas primero, Tutoría al final
         let materiasDelDocente = docente.materias_impartidas_docente.sort((a, b) => {
             const aEsTutoria = a.nombre_materia.toUpperCase().includes("TUTORIA");
             const bEsTutoria = b.nombre_materia.toUpperCase().includes("TUTORIA");
@@ -748,12 +757,15 @@ function crear_horarios_grupos_y_docentes() {
 
         materiasDelDocente.forEach(materia => {
             materia.determinar_horas_clase_por_materia();
-            // Flag de flexibilidad para tipos 2, 3 y 4
-            materia.permiteFraccionar = (docente.tipo_docente >= 2); 
-
             const grupo = materia.grupo;
             const esVespertino = grupo.turno === "vespertino";
             const esTutoria = materia.nombre_materia.toUpperCase().includes("TUTORIA");
+            const nombreM = materia.nombre_materia.toUpperCase();
+            
+            // Detectar si es inglés para las excepciones de repetición diaria
+            const esMateriaIngles = nombreM.includes("INGLES I") || 
+                                   nombreM.includes("INGLES IV") || 
+                                   nombreM.includes("INGLES VII");
 
             let sesionesPendientes = Object.entries(materia.desglose_horas)
                 .filter(([_, h]) => h > 0)
@@ -761,16 +773,17 @@ function crear_horarios_grupos_y_docentes() {
 
             let diasOcupadosMateria = new Set();
 
-            // Bucle de asignación por materia
             while (sesionesPendientes.length > 0) {
                 let mejoresOpcionesGlobales = [];
 
-                // BUSQUEDA INICIAL: Intentar colocar el bloque completo en algún día
                 diasSemana.forEach(dia => {
-                    // Regla: No repetir materia el mismo día (salvo Inglés Tipo 1)
-                    if (docente.tipo_docente !== 1 && diasOcupadosMateria.has(dia)) return;
+                    // --- NUEVA REGLA DE REPETICIÓN DIARIA ---
+                    // Si el día ya tiene esta materia, solo dejamos pasar si es Inglés (Tipo 1)
+                    if (diasOcupadosMateria.has(dia)) {
+                        if (!(docente.tipo_docente === 1 && esMateriaIngles)) return;
+                    }
 
-                    // Restricción Días Activos para PA (Tipo 2)
+                    // Restricción Días Tipo 2 (PA)
                     if (docente.tipo_docente === 2) {
                         if (!docente.diasActivosGlobal) docente.diasActivosGlobal = new Set();
                         const limite = docente.horas_carga <= 9 ? 2 : (docente.horas_carga >= 21 ? 4 : 3);
@@ -780,7 +793,6 @@ function crear_horarios_grupos_y_docentes() {
                     const libres = obtenerLibresReales(grupo, docente, dia);
                     if (libres.length === 0) return;
 
-                    // Identificar huecos contiguos
                     let huecos = [];
                     let hAct = [libres[0]];
                     for (let i = 1; i <= libres.length; i++) {
@@ -792,23 +804,17 @@ function crear_horarios_grupos_y_docentes() {
                     }
 
                     huecos.forEach(espacio => {
-                        // Filtrar sesiones que caben íntegras en este hueco
                         const queCaben = sesionesPendientes
                             .filter(s => s.tamano <= espacio.length)
                             .sort((a, b) => b.tamano - a.tamano);
 
                         if (queCaben.length > 0) {
                             const sElegida = queCaben[0];
-                            const bloqueFinal = esVespertino 
-                                ? espacio.slice(-sElegida.tamano) 
-                                : espacio.slice(0, sElegida.tamano);
-
-                            // Evaluar cercanía para optimizar huecos (Tutorías)
+                            const bloqueFinal = esVespertino ? espacio.slice(-sElegida.tamano) : espacio.slice(0, sElegida.tamano);
+                            
                             let pesoC = 0;
                             const slotsD = docente[`lista_horas_${dia}_docente`];
-                            if (slotsD.some(s => typeof s === "object" && (s.horaVal === bloqueFinal[0]-1 || s.horaVal === bloqueFinal[bloqueFinal.length-1]+1))) {
-                                pesoC = 1;
-                            }
+                            if (slotsD.some(s => typeof s === "object" && (s.horaVal === bloqueFinal[0]-1 || s.horaVal === bloqueFinal[bloqueFinal.length-1]+1))) pesoC = 1;
 
                             mejoresOpcionesGlobales.push({
                                 dia, horas: bloqueFinal, tamano: sElegida.tamano, idS: sElegida.id,
@@ -818,9 +824,7 @@ function crear_horarios_grupos_y_docentes() {
                     });
                 });
 
-                // DECISIÓN:
                 if (mejoresOpcionesGlobales.length > 0) {
-                    // OPCIÓN A: Se encontró espacio para el bloque actual
                     mejoresOpcionesGlobales.sort((a, b) => {
                         if (a.tamano !== b.tamano) return b.tamano - a.tamano;
                         if (esTutoria && a.cercano !== b.cercano) return b.cercano - a.cercano;
@@ -835,24 +839,16 @@ function crear_horarios_grupos_y_docentes() {
                     sesionesPendientes = sesionesPendientes.filter(s => s.id !== mejor.idS);
                 } 
                 else if (materia.permiteFraccionar && sesionesPendientes.some(s => s.tamano > 1)) {
-                    // OPCIÓN B (ÚLTIMA INSTANCIA): No cupo el bloque en ningún día, procedemos a partirlo
                     let indexSesionDificil = sesionesPendientes.findIndex(s => s.tamano > 1);
                     let sesionDificil = sesionesPendientes[indexSesionDificil];
-
-                    console.warn(`[FRACCIÓN] Materia ${materia.nombre_materia} no cupo como bloque de ${sesionDificil.tamano}h. Partiendo horas...`);
-
                     const parte1 = Math.floor(sesionDificil.tamano / 2);
                     const parte2 = Math.ceil(sesionDificil.tamano / 2);
-
                     sesionesPendientes.splice(indexSesionDificil, 1);
                     sesionesPendientes.push({ id: sesionDificil.id + "_p1", tamano: parte1 });
                     sesionesPendientes.push({ id: sesionDificil.id + "_p2", tamano: parte2 });
-                    
-                    // El bucle 'while' reintentará colocar las piezas nuevas más pequeñas en la siguiente iteración
                 } 
                 else {
-                    // FALLO CRÍTICO: Ni fragmentando a 1h hubo espacio
-                    console.error(`❌ Sin espacio para ${materia.nombre_materia} del docente ${docente.nombre_docente} en el grupo ${grupo.nombre_grupo}`);
+                    console.error(`❌ Sin espacio: ${materia.nombre_materia} (${docente.nombre_docente}) con el grupo (${grupo.nombre_grupo})`);
                     break; 
                 }
             }
