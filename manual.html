@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de usuario</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap');
+        :root{
+            --color-yellow: #FCB814;
+            --color-black: #221F20;
+            --font-roboto-mono: "Roboto Mono", monospace;
+            --font-size-lg : 10rem;
+            --font-size-md : 5rem;
+            --font-size-sm : 2rem;
+        }
+
+        body{
+            width: 100%;
+            height: 100dvh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 0;
+            margin: 0;
+        }
+
+        header{
+            width: 100%;
+            height: 8%;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            background-color: var(--color-black);
+            padding: 0;
+            margin: 0;
+        }
+
+        header nav{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--color-black);
+            padding: 0 2rem 0 2rem;
+            margin: 0;
+        }
+
+        header nav ul{
+            width: auto;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-direction: row;
+            background-color: var(--color-black);
+            padding: 0;
+            margin: 0;
+        }
+
+        header nav ul a{
+            width: auto;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-decoration: underline;
+            font-size: var(--font-size-sm);
+            color: var(--color-yellow);
+            font-family: var(--font-roboto-mono);
+            padding: 0;
+            margin: 0;
+        }
+
+        header nav ul a:nth-child(2){
+            width: auto;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            margin: 0 0 0 2rem;
+        }
+
+        header a img{
+            width: 3rem;
+            height: 3rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        main{
+            width: 100%;
+            height: 92%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--color-yellow);
+            padding: 0;
+            margin: 0;
+        }
+
+        
+
+    </style>
+
+</head>
+<body>
+
+    <header>
+        <nav>
+            <ul>
+                <a href="./index.html"><img src="./assets/ICON-BRUTO-FI-YELLOW.png" alt="LOGO"></a>
+            </ul>
+            <ul>
+                <a href="./index.html">Generador</a>
+                <a href="./manual.html">Manual</a>
+            </ul>
+        </nav>
+        
+    </header>
+
+    <main>
+        <section class="tipos_docentes">
+            <div>
+                <div>
+                    <h2>Tipos de docentes</h2>
+                </div>
+                <div>
+                    <p>
+                        <span>Docente de ingles/placa</span> <br>
+                        Este tipo de docente es el docente que pertenece a la coordinacion de ingles, alguna otra coordinacion o tiene una disponibibilidad de horario bastante reducida o justa.
+                    </p>
+                    <p>
+                        <span>Docente por asigntura (PA)</span> <br>
+                        Este tipo de docente es aquel que solo se encuentra en una unica coordinacion o en su defecto tiene una dispoinibilidad amplia que no afecte a la gestion del programa educativo y solo su principal funcion es cumplir con sus horas-clase.
+                    </p>
+                    <p>
+                        <span>Docente por tiempo completo (PTC)</span> <br>
+                        Este tipo de docente es aquel que solo se encuentra en una unica coordinacion toma horas-clase y demas actividades de gestion institucional en un horario laboral semi tradicional.
+                    </p>
+                    <p>
+                        <span>Administractivos</span> <br>
+                        Este tipo de docente es aquel que se le asigna pocas horas de clase, debido que su principal papel dentro de la universidad es su papel administractivo y no de docencia.
+                    </p>
+                </div>
+                
+            </div>
+        </section>
+    </main>
+    
+</body>
+</html>
