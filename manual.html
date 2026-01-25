@@ -14,28 +14,33 @@
             --font-size-lg : 10rem;
             --font-size-md : 5rem;
             --font-size-sm : 2rem;
+            --font-size-xsm : 1rem;
         }
 
         body{
             width: 100%;
-            height: 100dvh;
+            height: auto;
             display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
+            font-family: var(--font-roboto-mono);
             padding: 0;
             margin: 0;
+            box-sizing: border-box;
         }
 
         header{
             width: 100%;
-            height: 8%;
+            height: 8dvh;
             display: flex;
             justify-content: flex-start;
             align-items: center;
             background-color: var(--color-black);
+            position: static;
             padding: 0;
             margin: 0;
+            box-sizing: border-box;
         }
 
         header nav{
@@ -95,15 +100,222 @@
 
         main{
             width: 100%;
-            height: 92%;
+            height: auto;
             display: flex;
             justify-content: center;
             align-items: center;
+            flex-direction: column;
             background-color: var(--color-yellow);
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_docentes{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 2rem;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_docentes div.tipos_docentes_titulo{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
             padding: 0;
             margin: 0;
         }
 
+        main section.tipos_docentes div.tipos_docentes_titulo h2{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-size: var(--font-size-md);
+            padding: 0;
+            margin: 0rem 0 0rem 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_docentes div.tipos_docentes_cajas{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0;
+            margin: 2rem 0 2rem 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_docentes div.tipos_docentes_cajas div.tipos_docentes_cajas_textos{
+            width: 20%;
+            height: 50dvh;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-direction: column;
+            border: solid  3px var(--color-black);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_docentes div.tipos_docentes_cajas div.tipos_docentes_cajas_textos span.tipos_docentes_cajas_textos_span{
+            width: 100%;
+            height: 50%;
+            font-size: var(--font-size-sm);
+            font-weight: bold;
+        }
+
+        main section.tipos_docentes div.tipos_docentes_cajas div.tipos_docentes_cajas_textos p.tipos_docentes_cajas_textos_p{
+            width: 100%;
+            height: 50%;
+            font-size: var(--font-size-xsm);
+            text-align: justify;
+        }
+
+        main section.tipos_docentes_ejemplos{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 2rem;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_tutulo{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_tutulo h2{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-size: var(--font-size-md);
+            padding: 0;
+            margin: 0rem 0 2rem 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas{
+            width: 100%;
+            height: 120dvh;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            gap: 2rem;
+            padding: 0;
+            margin: 2rem 0 2rem 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas span.tipos_docentes_ejemplos_cajas_textos_span{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            grid-area: 1/1/2/9;
+            font-size: var(--font-size-sm);
+            font-weight: bold;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas p.tipos_docentes_ejemplos_cajas_textos_p_1{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            flex-direction: column;
+            grid-area: 2/1/5/5;
+            font-size: var(--font-size-xsm);
+            text-align: justify;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas p.tipos_docentes_ejemplos_cajas_textos_p_1 span{
+            font-weight: bold;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas table.tipos_docentes_ejemplos_cajas_textos_table_1{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            grid-area: 2/5/6/9;
+            gap: 0;
+            font-size: var(--font-size-xsm);
+            border: solid 3px var(--color-black);
+            border-radius: 1rem;
+            border-collapse: collapse;
+            padding: 2rem;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas table.tipos_docentes_ejemplos_cajas_textos_table_1 th{
+            font-weight: normal;
+            border: solid 1px var(--color-black);
+            border-radius: 0rem;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas p.tipos_docentes_ejemplos_cajas_textos_p_2{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            flex-direction: column;
+            grid-area: 5/1/10/5;
+            font-size: var(--font-size-xsm);
+            text-align: justify;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas p.tipos_docentes_ejemplos_cajas_textos_p_2 span{
+            font-weight: bold;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas table.tipos_docentes_ejemplos_cajas_textos_table_2{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            grid-area: 6/5/10/9;
+            gap: 0;
+            font-size: var(--font-size-xsm);
+            border: solid 3px var(--color-black);
+            border-radius: 1rem;
+            border-collapse: collapse;
+            padding: 2rem;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas table.tipos_docentes_ejemplos_cajas_textos_table_2 th{
+            font-weight: normal;
+            border: solid 1px var(--color-black);
+            border-radius: 0rem;
+        }
         
 
     </style>
@@ -126,30 +338,136 @@
 
     <main>
         <section class="tipos_docentes">
-            <div>
-                <div>
+                <div class="tipos_docentes_titulo">
                     <h2>Tipos de docentes</h2>
                 </div>
-                <div>
-                    <p>
-                        <span>Docente de ingles/placa</span> <br>
-                        Este tipo de docente es el docente que pertenece a la coordinacion de ingles, alguna otra coordinacion o tiene una disponibibilidad de horario bastante reducida o justa.
-                    </p>
-                    <p>
-                        <span>Docente por asigntura (PA)</span> <br>
-                        Este tipo de docente es aquel que solo se encuentra en una unica coordinacion o en su defecto tiene una dispoinibilidad amplia que no afecte a la gestion del programa educativo y solo su principal funcion es cumplir con sus horas-clase.
-                    </p>
-                    <p>
-                        <span>Docente por tiempo completo (PTC)</span> <br>
-                        Este tipo de docente es aquel que solo se encuentra en una unica coordinacion toma horas-clase y demas actividades de gestion institucional en un horario laboral semi tradicional.
-                    </p>
-                    <p>
-                        <span>Administractivos</span> <br>
-                        Este tipo de docente es aquel que se le asigna pocas horas de clase, debido que su principal papel dentro de la universidad es su papel administractivo y no de docencia.
-                    </p>
+                <div class="tipos_docentes_cajas">
+                    <div class="tipos_docentes_cajas_textos">
+                        <span class="tipos_docentes_cajas_textos_span">Tipo 1:<br> Docente de ingles o placa</span> 
+                        <p class="tipos_docentes_cajas_textos_p">Este tipo de docente es el docente que pertenece a la coordinacion de ingles, alguna otra coordinacion o tiene una disponibibilidad de horario bastante reducida o justa.</p>
+                    </div>
+                    <div class="tipos_docentes_cajas_textos">
+                        <span class="tipos_docentes_cajas_textos_span">Tipo 2:<br> Docente por asigntura (PA)</span>
+                        <p class="tipos_docentes_cajas_textos_p">Este tipo de docente es aquel que solo se encuentra en una unica coordinacion o en su defecto tiene una dispoinibilidad amplia que no afecte a la gestion del programa educativo y solo su principal funcion es cumplir con sus horas-clase.</p>
+                    </div>
+                    <div class="tipos_docentes_cajas_textos">
+                        <span class="tipos_docentes_cajas_textos_span">Tipo 3:<br> Docente por tiempo completo (PTC)</span> 
+                        <p class="tipos_docentes_cajas_textos_p">Este tipo de docente es aquel que solo se encuentra en una unica coordinacion toma horas-clase y demas actividades de gestion institucional en un horario laboral semi tradicional.</p>
+                    </div>
+                    <div class="tipos_docentes_cajas_textos">
+                        <span class="tipos_docentes_cajas_textos_span">Tipo 4:<br> Administractivos</span> 
+                        <p class="tipos_docentes_cajas_textos_p">Este tipo de docente es aquel que se le asigna pocas horas de clase, debido que su principal papel dentro de la universidad es su papel administractivo y sus horas-clase estan dentro de su horario tradicional.
+                    </div>
                 </div>
-                
+        </section>
+        <section class="tipos_docentes_ejemplos">
+            <div class="tipos_docentes_ejemplos_tutulo">
+                <h2>¿Como reconocer un tipo de docente?</h2>
             </div>
+            <div class="tipos_docentes_ejemplos_cajas">
+                <span class="tipos_docentes_ejemplos_cajas_textos_span">Tipo 1:<br> Docente de ingles o placa</span>
+                <p class="tipos_docentes_ejemplos_cajas_textos_p_1"><span>Caso 1: </span>Docentes de ingles que tienen una materia tipo placa (Esto aplica para las materias de ingles del nuevo modelo educativo 2024), con este tipo de docente se le debe de asignar una dispoinibilidad exacta, ya que los grupos del P.E. se mezclan a las horas de ingles por su nivel, por lo regular solo pueden tener una sola asignatura a un solo grupo.</p>
+                <table class="tipos_docentes_ejemplos_cajas_textos_table_1">
+                    <tr>
+                        <td colspan="7">Ejemplo de disponibibilidad docente de ingles con materias de ingles del modelo de estudios 2024</td>
+                    </tr>
+                    <tr>
+                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
+                    </tr>
+                    <tr>
+                        <th>7:00 - 8:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>8:00 - 9:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>9:00 - 10:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>10:00 - 11:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>11:00 - 12:00</th><th></th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>12:00 - 13:00</th><th></th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>13:00 - 14:00</th><th></th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>                        <tr>
+                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                </table>
+                <p class="tipos_docentes_ejemplos_cajas_textos_p_2"><span>Caso 2: </span>Docentes que tienen una disponibilidad bastante justa o exacta por lo cual los convierte en placas (Estos suelen ser compartido por otro P.E., pertenecen al sindicato de la universidad), por lo regular solo pueden tener una sola asignatura a un solo grupo.</p>
+                <table class="tipos_docentes_ejemplos_cajas_textos_table_2">
+                    <tr>
+                        <td colspan="7">Ejemplo de disponibibilidad de un docente que comparte P.E. y tiene una disponibilidad justa</td>
+                    </tr>
+                    <tr>
+                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
+                    </tr>
+                    <tr>
+                        <th>7:00 - 8:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>8:00 - 9:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>9:00 - 10:00</th><th></th><th></th><th></th><th>✓</th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>10:00 - 11:00</th><th>✓</th><th></th><th></th><th>✓</th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>11:00 - 12:00</th><th>✓</th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>12:00 - 13:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>13:00 - 14:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>                        <tr>
+                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                </table>
+            </div>
+
         </section>
     </main>
     
