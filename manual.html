@@ -10,6 +10,12 @@
         :root{
             --color-yellow: #FCB814;
             --color-black: #221F20;
+            --color-cerulean: #3D7B93;
+            --color-dim-gray: #636466;
+            --color-tomato: #F26649;
+            --color-celadon: #81C99C;
+            --color-gray-olive: #939598;
+            --color-soft-periwinkle: #8781BD;
             --font-roboto-mono: "Roboto Mono", monospace;
             --font-size-lg : 10rem;
             --font-size-md : 5rem;
@@ -106,7 +112,7 @@
             align-items: center;
             flex-direction: column;
             background-color: var(--color-yellow);
-            padding: 0;
+            padding: 4rem 10rem 4rem 10rem;
             margin: 0;
             box-sizing: border-box;
         }
@@ -115,11 +121,13 @@
             width: 100%;
             height: auto;
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
             flex-direction: column;
-            padding: 2rem;
+            background-color: var(--color-cerulean);
+            padding: 4rem;
             margin: 0;
+            border-radius: 1rem;
             box-sizing: border-box;
         }
 
@@ -141,7 +149,7 @@
             align-items: center;
             font-size: var(--font-size-md);
             padding: 0;
-            margin: 0rem 0 0rem 0;
+            margin: 0;
             box-sizing: border-box;
         }
 
@@ -150,7 +158,7 @@
             height: auto;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-end;
             padding: 0;
             margin: 2rem 0 2rem 0;
             box-sizing: border-box;
@@ -160,12 +168,10 @@
             width: 20%;
             height: 50dvh;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             flex-direction: column;
-            border: solid  3px var(--color-black);
-            border-radius: 1rem;
-            padding: 2rem;
+            padding: 0;
             margin: 0;
             box-sizing: border-box;
         }
@@ -191,8 +197,10 @@
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            padding: 2rem;
-            margin: 0;
+            background-color: var(--color-gray-olive);
+            padding: 4rem;
+            margin: 4rem 0 0 0;
+            border-radius: 1rem;
             box-sizing: border-box;
         }
 
@@ -220,10 +228,11 @@
 
         main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas{
             width: 100%;
-            height: 120dvh;
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            grid-template-rows: repeat(9, 1fr);
+            height: 150dvh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
             gap: 2rem;
             padding: 0;
             margin: 2rem 0 2rem 0;
