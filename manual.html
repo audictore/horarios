@@ -112,7 +112,7 @@
             align-items: center;
             flex-direction: column;
             background-color: var(--color-yellow);
-            padding: 4rem 10rem 4rem 10rem;
+            padding: 4rem 15% 4rem 15%;
             margin: 0;
             box-sizing: border-box;
         }
@@ -180,12 +180,13 @@
             width: 100%;
             height: 50%;
             font-size: var(--font-size-sm);
+            overflow-wrap: break-word;
             font-weight: bold;
         }
 
         main section.tipos_docentes div.tipos_docentes_cajas div.tipos_docentes_cajas_textos p.tipos_docentes_cajas_textos_p{
             width: 100%;
-            height: 50%;
+            height: 30%;
             font-size: var(--font-size-xsm);
             text-align: justify;
         }
@@ -228,7 +229,7 @@
 
         main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas{
             width: 100%;
-            height: 650dvh;
+            height: 750dvh;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -243,7 +244,6 @@
             width: 100%;
             height: 100%;
             display: flex;
-            grid-area: 1/1/2/9;
             font-size: var(--font-size-sm);
             font-weight: bold;
         }
@@ -255,7 +255,6 @@
             justify-content: center;
             align-items: flex-start;
             flex-direction: column;
-            grid-area: 2/1/5/5;
             font-size: var(--font-size-xsm);
             text-align: justify;
         }
@@ -270,7 +269,6 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            grid-area: 2/5/6/9;
             gap: 0;
             font-size: var(--font-size-xsm);
             border: solid 3px var(--color-black);
@@ -289,12 +287,11 @@
 
         main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas p.tipos_docentes_ejemplos_cajas_textos_p_2{
             width: 100%;
-            height: 100%;
+            height: 50%;
             display: flex;
             justify-content: center;
             align-items: flex-start;
             flex-direction: column;
-            grid-area: 5/1/10/5;
             font-size: var(--font-size-xsm);
             text-align: justify;
         }
@@ -309,7 +306,6 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            grid-area: 6/5/10/9;
             gap: 0;
             font-size: var(--font-size-xsm);
             border: solid 3px var(--color-black);
@@ -332,7 +328,6 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            grid-area: 6/5/10/9;
             gap: 0;
             font-size: var(--font-size-xsm);
             border: solid 3px var(--color-black);
@@ -858,6 +853,57 @@
                     </tr>                        
                     <tr>
                         <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                </table>
+                <p class="tipos_docentes_ejemplos_cajas_textos_p_1"><span>Caso 2: </span>Docentes Administractivos que cumplen una jornada de 40 horas a la semana, pero no necesariamente con el horario administractivo, en este perfil entra coordinadores y tecnicos academicos de los P.E.</p>
+                <table class="tipos_docentes_ejemplos_cajas_textos_table_1">
+                    <tr>
+                        <td colspan="7">Ejemplo de disponibibilidad de coordinador y/o tecnico academico de los P.E.</td>
+                    </tr>
+                    <tr>
+                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
+                    </tr>
+                    <tr>
+                        <th>7:00 - 8:00</th><th>✓</th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>8:00 - 9:00</th><th>✓</th><th></th><th></th><th></th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>9:00 - 10:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>10:00 - 11:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>11:00 - 12:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>12:00 - 13:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
+                    </tr>
+                    <tr>
+                        <th>13:00 - 14:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>14:00 - 15:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>15:00 - 16:00</th><th></th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>16:00 - 17:00</th><th></th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
+                    </tr>
+                    <tr>
+                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
+                    </tr>                        
+                    <tr>
+                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
                     </tr>
                 </table>
             </div>
