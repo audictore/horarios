@@ -112,6 +112,7 @@
             justify-content: center;
             align-items: center;
             background-color: var(--color-yellow);
+            text-decoration: none;
             font-family: var(--font-roboto-mono);
             font-size: var(--font-size-sm);
             color: var(--color-black);
@@ -140,6 +141,12 @@
             cursor: pointer;
             padding: 0;
             margin: 0;
+        }
+
+        main a{
+            text-decoration: none;
+            display: inline-block;
+            color: inherit;
         }
 
         main input{
@@ -208,9 +215,11 @@
     </header>
 
     <main>
-        <button class="button_plantilla" id="button_plantilla">Descargar plantilla</button>
+        <a href="./plantillaDatos.xlsx">
+            <button class="button_plantilla" id="button_plantilla">Descargar plantilla</button>
+        </a>
         <input class="input_excel" id="input_excel" type="file">
-        <label for="archivo" class="custom-button">
+        <label for="input_excel" class="custom-button">
             <span>Seleccionar archivo</span>
         </label>
         <button class="button_accion" id="button_accion">Generar horarios</button>
