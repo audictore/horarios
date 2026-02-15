@@ -301,62 +301,73 @@
         const esTutoria = (n) => n.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes("TUTORIA");
 
         class Materia {
-            constructor(nombre, horas, grado, turno, tsu) {
-                this.nombre_materia = nombre;
-                this.horas_materia = parseInt(horas);
-                this.grado_materia = grado;
-                this.turno_materia = turno;
-                this.tsu_materia = tsu;
-                this.docente = null;
-                this.grupo = null;
-                this.desglose_horas = {};
-            }
+    constructor(nombre, horas, grado, turno, tsu) {
+        this.nombre_materia = nombre;
+        this.horas_materia = parseInt(horas);
+        this.grado_materia = grado;
+        this.turno_materia = turno;
+        this.tsu_materia = tsu;
+        this.docente = null;
+        this.grupo = null;
+        this.desglose_horas = {};
+    }
 
-            determinar_horas_clase_por_materia() {
-                if (!this.docente) return;
-                const tipo = this.docente.tipo_docente;
-                const horas = this.horas_materia;
-                const cargaTotalReal = this.docente.horas_carga + this.docente.horas_extra_clase;
-                const d = this.desglose_horas = {};
-                const nombreM = this.nombre_materia.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    determinar_horas_clase_por_materia() {
+        if (!this.docente) return;
+        const tipo = this.docente.tipo_docente;
+        const horas = this.horas_materia;
+        const cargaTotalReal = this.docente.horas_carga + this.docente.horas_extra_clase;
+        const d = this.desglose_horas = {};
+        const nombreM = this.nombre_materia.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-                if (nombreM.includes("INGLES")) {
-                    for (let i = 1; i <= horas; i++) d[`h${i}`] = 1;
-                    return;
-                }
-
-                // REGLA A: Carga Media (Tipo 1 o Tipo 2 entre 10 y 19h) -> 3 Sesiones
-                if (tipo === 1 || (tipo === 2 && cargaTotalReal >= 10 && cargaTotalReal <= 19)) {
-                    if (horas === 7) { d.h1 = 3; d.h2 = 2; d.h3 = 2; }
-                    else if (horas === 6) { d.h1 = 2; d.h2 = 2; d.h3 = 2; }
-                    else if (horas === 5) { d.h1 = 2; d.h2 = 2; d.h3 = 1; }
-                    else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
-                    else if (horas === 3) { d.h1 = 2; d.h2 = 1; }
-                    else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
-                    else { d.h1 = 1; }
-                } 
-                // REGLA B: Carga Baja (Tipo 2 menos de 10h) -> 2 Sesiones (bloques largos)
-                else if (tipo === 2 && cargaTotalReal < 10) {
-                    if (horas === 7) { d.h1 = 4; d.h2 = 3; }
-                    else if (horas === 6) { d.h1 = 3; d.h2 = 3; }
-                    else if (horas === 5) { d.h1 = 3; d.h2 = 2; }
-                    else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
-                    else if (horas === 3) { d.h1 = 2; d.h2 = 1; }
-                    else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
-                    else { d.h1 = 1; }
-                } 
-                // REGLA C: Carga Alta o Otros (Tipo 2 >= 20h, Tipo 3, PTC) -> 4 Sesiones
-                else { 
-                    if (horas === 7) { d.h1 = 2; d.h2 = 2; d.h3 = 2; d.h4 = 1; }
-                    else if (horas === 6) { d.h1 = 2; d.h2 = 2; d.h3 = 2; }
-                    else if (horas === 5) { d.h1 = 2; d.h2 = 1; d.h3 = 1; d.h4 = 1; } // Repartido en 4
-                    else if (horas === 4) { d.h1 = 2; d.h2 = 1; d.h3 = 1; }
-                    else if (horas === 3) { d.h1 = 1; d.h2 = 1; d.h3 = 1; }
-                    else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
-                    else { d.h1 = 1; }
-                }
-            }
+        if (nombreM.includes("INGLES")) {
+            for (let i = 1; i <= horas; i++) d[`h${i}`] = 1;
+            return;
         }
+
+        // --- ORDEN CORREGIDO ---
+
+        // 1. TIPO 1 CON CARGA MUY BAJA (Máximo 2 sesiones para que no se parta tanto)
+        if (tipo === 1 && cargaTotalReal <= 6) {
+            if (horas === 6) { d.h1 = 3; d.h2 = 3; }
+            else if (horas === 5) { d.h1 = 3; d.h2 = 2; }
+            else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
+            else if (horas === 3) { d.h1 = 2; d.h2 = 1; }
+            else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
+            else { d.h1 = 1; }
+        }
+        // 2. TIPO 2 CON CARGA BAJA (< 10h) -> 2 Sesiones bloques largos
+        else if (tipo === 2 && cargaTotalReal < 10) {
+            if (horas === 7) { d.h1 = 4; d.h2 = 3; }
+            else if (horas === 6) { d.h1 = 3; d.h2 = 3; }
+            else if (horas === 5) { d.h1 = 3; d.h2 = 2; }
+            else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
+            else if (horas === 3) { d.h1 = 2; d.h2 = 1; }
+            else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
+            else { d.h1 = 1; }
+        }
+        // 3. TIPO 1 (Carga > 6) o TIPO 2 (Carga entre 10 y 19h) -> 3 Sesiones
+        else if (tipo === 1 || (tipo === 2 && cargaTotalReal >= 10 && cargaTotalReal <= 19)) {
+            if (horas === 7) { d.h1 = 3; d.h2 = 2; d.h3 = 2; }
+            else if (horas === 6) { d.h1 = 2; d.h2 = 2; d.h3 = 2; }
+            else if (horas === 5) { d.h1 = 2; d.h2 = 2; d.h3 = 1; }
+            else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
+            else if (horas === 3) { d.h1 = 2; d.h2 = 1; }
+            else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
+            else { d.h1 = 1; }
+        }
+        // 4. CARGA ALTA O OTROS (Tipo 2 >= 20h, Tipo 3, PTC) -> 4 Sesiones
+        else { 
+            if (horas === 7) { d.h1 = 2; d.h2 = 2; d.h3 = 2; d.h4 = 1; }
+            else if (horas === 6) { d.h1 = 2; d.h2 = 2; d.h3 = 2; }
+            else if (horas === 5) { d.h1 = 2; d.h2 = 1; d.h3 = 1; d.h4 = 1; }
+            else if (horas === 4) { d.h1 = 2; d.h2 = 1; d.h3 = 1; }
+            else if (horas === 3) { d.h1 = 1; d.h2 = 1; d.h3 = 1; }
+            else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
+            else { d.h1 = 1; }
+        }
+    }
+}
 
         class Docente {
             constructor(nombre, fila, tipo, horas_extra) {
@@ -569,7 +580,10 @@
                 XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), "D_" + d.nombre_docente.substring(0,25));
             });
             XLSX.writeFile(wb, "Horarios_LAGE.xlsx");
+
         });
+
+        console.log("Lista de Prioridad:", listaOrdenada);
     </script>
 </body>
 </html>
