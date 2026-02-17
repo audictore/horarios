@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador de horarios</title>
+    <title>From schedule</title>
     <link rel="icon" type="image/png" href="./assets/Schedule FI Yellow (1).png">
 
     <style>
@@ -128,6 +128,15 @@
             background-color: var(--color-yellow);
             padding: 0;
             margin: 0;
+        }
+
+        main img{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            grid-area: 2/2/3/7;
         }
 
         main button{
@@ -276,13 +285,39 @@
             box-sizing: border-box;
         }
 
-        footer img{
+        footer img.img_logo_FI{
             width: auto;
             height: 4dvh;
             display: flex;
             justify-content: center;
             align-items: center;
             grid-area: 9/2/10/4;
+        }
+
+        footer a.a_instagram{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            grid-area: 9/25/10/26;
+        }
+
+        footer a.a_mail{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            grid-area: 9/24/10/25;
+        }
+
+        footer a img{
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
     </style>
@@ -304,6 +339,7 @@
     </header>
 
     <main>
+
         <a href="./plantillaDatos.xlsx">
             <button class="button_plantilla" id="button_plantilla">Descargar plantilla</button>
         </a>
@@ -317,7 +353,9 @@
     </main>
 
     <footer>
-        <img src="./assets/LOGO-FI-BRUTO-YELLOW.png" alt="">
+        <img class="img_logo_FI" src="./assets/LOGO-FI-BRUTO-YELLOW.png" alt="">
+        <a class="a_instagram" href="https://www.instagram.com/fromindustries?igsh=MWRkNHZ6MWI5OWN0Yg=="><img class="img_instagram" src="./assets/logotipo-de-instagram.png" alt=""></a>
+        <a class="a_mail" href=""><img class="img_mail" src="./assets/correo-electronico.png" alt=""></a>
     </footer>
 
     <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
