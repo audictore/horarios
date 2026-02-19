@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manual de usuario</title>
-    <link rel="icon" type="image/png" href="./assets/Schedule FI Yellow (1).png">
+    <link rel="icon" type="image/svg+xml" href="./assets/Schedule FI BLACK.svg">
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap');
         :root{
             --color-yellow: #FCB814;
             --color-black: #221F20;
+            --color-ghost-white: #F3F7FF;
             --color-cerulean: #3D7B93;
             --color-dim-gray: #636466;
             --color-tomato: #F26649;
@@ -125,51 +126,6 @@
 
         main{
             width: 100%;
-            height: 93dvh;
-            display: grid;
-            grid-template-rows: repeat(10, 1fr);
-            grid-template-columns: repeat(13, 1fr);
-            background-color: var(--color-yellow);
-            padding: 0;
-            margin: 0;
-        }
-
-        main button{
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: var(--color-yellow);
-            text-decoration: none;
-            font-family: var(--font-roboto-mono);
-            font-size: var(--font-size-sm);
-            color: var(--color-black);
-            font-weight: bold;
-            border-radius: 1rem;
-            border: solid 5px var(--color-black);
-            cursor: pointer;
-            padding: 0;
-            margin: 0;
-        }
-
-
-        main button:hover{
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: var(--color-black);
-            font-family: var(--font-roboto-mono);
-            font-size: var(--font-size-sm);
-            color: var(--color-yellow);
-            font-weight: bold;
-            border-radius: 1rem;
-            border: solid 3px var(--color-black);
-            cursor: pointer;
-            padding: 0;
-            margin: 0;
-        }
-
-        main{
-            width: 100%;
             height: auto;
             display: flex;
             justify-content: center;
@@ -179,6 +135,62 @@
             padding: 4rem 15% 4rem 15%;
             margin: 0;
             box-sizing: border-box;
+        }
+
+        main section.from_schedule{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-direction: column;
+            background-color: var(--color-black);
+            color: var(--color-ghost-white);
+            padding: 4rem;
+            margin: 0 0 4rem 0;
+            border-radius: 1rem;
+            box-sizing: border-box;
+        }
+
+        main section.from_schedule h2{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-size: var(--font-size-md);
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.from_schedule div.from_schedule_cajas{
+            width: 100%;
+            height: 45dvh;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: var(--font-size-sm);
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.from_schedule div.from_schedule_cajas img{
+            width: 30%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        main section.from_schedule div.from_schedule_cajas span{
+            width: 60%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: justify;
         }
 
         main section.tipos_docentes{
@@ -417,7 +429,7 @@
     <header>
         <nav>
             <ul>
-                <a href="index.html"><img src="assets/ICON-BRUTO-FI-BLACK.png" alt="LOGO"></a>
+                <a href="index.html"><img src="assets/FI-LOGO-BRUTO-BLACK.svg" alt="LOGO"></a>
             </ul>
             <ul>
                 <a href="./index.html">Generador</a>
@@ -430,12 +442,11 @@
     <main>
         <section class="from_schedule">
             <div class="from_schedule_titulo">
-                <h2>¿Que es FROM SCHEDULE?</h2>
-                <span>Es una solución avanzada de From Industries diseñada para la gestión y optimización de la oferta académica universitaria. A través de algoritmos de asignación inteligente, permitimos a coordinadores y directivos generar estructuras de clases coherentes, eliminando conflictos de espacio y tiempo, y asegurando el cumplimiento de los planes de estudio con precisión técnica.</span>
+                <h2>¿Que es <br> FROM SCHEDULE?</h2>
             </div>
             <div class="from_schedule_cajas">
-                <span></span>
-                <p></p>
+                <img src="./assets/Schedule FI YELLOW.svg" alt="">
+                <span>Es una solución avanzada de FROM INDUSTRIES diseñada para la gestión y optimización de la oferta académica universitaria.</span>
             </div>
         </section>
         <section class="tipos_docentes">
