@@ -448,7 +448,7 @@
     ERRORES = [];
     MAPA_GRUPOS.forEach(g => g.reset());
     MAPA_DOCENTES.forEach(d => d.reset());
-    
+
     // 1. Prioridad de Docentes (Mantenemos tu fórmula de carga balanceada)
     const listaOrdenada = Array.from(MAPA_DOCENTES.values()).sort((a, b) => {
         const dA = diasSemana.reduce((s, d) => s + a[`lista_${d}`].length, 0);
@@ -463,7 +463,7 @@
     listaOrdenada.forEach(docente => {
         // Ordenar materias: normales primero, tutorías al final
         docente.materias_impartidas.sort((a,b) => esTutoria(a.nombre_materia) - esTutoria(b.nombre_materia));
-        
+
         docente.materias_impartidas.forEach(materia => {
             materia.determinar_horas_clase_por_materia();
             let horasRestantesMateria = materia.horas_materia;
@@ -475,10 +475,10 @@
                 let opciones = [];
                 const esVesp = materia.grupo.turno === "vespertino";
                 const cT = docente.horas_carga + docente.horas_extra_clase;
-                
+
                 // Meta de días del docente
                 let maxD = (docente.tipo_docente === 2) ? (cT <= 9 ? 2 : (cT <= 19 ? 3 : 4)) : 6;
-                
+
                 let tamBuscado = bloquesObjetivo.length > 0 ? bloquesObjetivo[0] : 1;
                 if (tamBuscado > horasRestantesMateria) tamBuscado = horasRestantesMateria;
 
@@ -537,10 +537,10 @@
                     // Ordenamos: 1º por penalidad (Balance/Reglas), 2º por tamaño, 3º por hora de inicio
                     opciones.sort((a, b) => a.penalty - b.penalty || b.tamReal - a.tamReal || (esVesp ? b.hI - a.hI : a.hI - b.hI));
                     const m = opciones[0];
-                    
+
                     materia.grupo[`horario_${m.dia}`] = materia.grupo[`horario_${m.dia}`].map(h => m.horas.includes(h) ? `${materia.nombre_materia} (${docente.nombre_docente})` : h);
                     docente[`lista_${m.dia}`] = docente[`lista_${m.dia}`].map(h => m.horas.includes(h) ? { hv: h, txt: `${materia.nombre_materia} [${materia.grupo.nombre_grupo}]` } : h);
-                    
+
                     diasMatLocal.add(m.dia); 
                     docente.diasActivosGlobal.add(m.dia);
 
