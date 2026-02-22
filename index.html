@@ -382,7 +382,7 @@
 
             if (nm.includes("INGLES")) { for (let i = 1; i <= horas; i++) d[`h${i}`] = 1; return; }
 
-            if (tipo === 1 && cT <= 6) {
+            if (tipo === 1 && cT <= 6 && cT > 1) {
                 if (horas === 6) { d.h1 = 3; d.h2 = 3; }
                 else if (horas === 5) { d.h1 = 3; d.h2 = 2; }
                 else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
@@ -459,14 +459,17 @@
     MAPA_DOCENTES.forEach(d => d.reset());
 
     const listaOrdenada = Array.from(MAPA_DOCENTES.values()).sort((a, b) => {
-        const dA = diasSemana.reduce((s, d) => s + a[`lista_${d}`].length, 0);
-        const dB = diasSemana.reduce((s, d) => s + b[`lista_${d}`].length, 0);
-        const cA = a.horas_carga + a.horas_extra_clase;
-        const cB = b.horas_carga + b.horas_extra_clase;
-        const sA = (dA / Math.pow(cA || 1, 1.2)) * a.tipo_docente;
-        const sB = (dB / Math.pow(cB || 1, 1.2)) * b.tipo_docente;
-        return sA - sB;
-    });
+    const dA = diasSemana.reduce((s, d) => s + a[`lista_${d}`].length, 0);
+    const dB = diasSemana.reduce((s, d) => s + b[`lista_${d}`].length, 0);
+    
+    // El que tiene MENOS horas disponibles en total va PRIMERO
+    if (dA !== dB) return dA - dB;
+    
+    // Si empatan, el de mayor carga va primero
+    const cA = a.horas_carga + a.horas_extra_clase;
+    const cB = b.horas_carga + b.horas_extra_clase;
+    return cB - cA;
+});
 
     listaOrdenada.forEach(docente => {
         docente.materias_impartidas.sort((a,b) => esTutoria(a.nombre_materia) - esTutoria(b.nombre_materia));
