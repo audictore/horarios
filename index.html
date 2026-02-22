@@ -389,13 +389,14 @@
                 else if (horas === 3) { d.h1 = 2; d.h2 = 1; }
                 else if (horas === 2) { d.h1 = 1; d.h2 = 1; } 
                 
-            } else if (tipo === 2 && cT < 10) {
-                if (horas === 7) { d.h1 = 4; d.h2 = 3; }
+            } else if ( (tipo === 1 && cT < 10) || (tipo === 2 && cT < 10)) {
+                if (horas === 7) { d.h1 = 3; d.h2 = 2; d.h3 = 2;}
                 else if (horas === 6) { d.h1 = 3; d.h2 = 3; }
                 else if (horas === 5) { d.h1 = 3; d.h2 = 2; }
+                else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
                 else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
                 else { d.h1 = 2; d.h2 = horas-2 || 1; }
-            } else if (tipo === 1 || (tipo === 2 && cT <= 19)) {
+            } else if ((tipo === 1 && cT <= 19 )|| (tipo === 2 && cT <= 19)) {
                 if (horas === 7) { d.h1 = 3; d.h2 = 2; d.h3 = 2; }
                 else if (horas === 6) { d.h1 = 2; d.h2 = 2; d.h3 = 2; }
                 else if (horas === 5) { d.h1 = 2; d.h2 = 2; d.h3 = 1; }
@@ -403,7 +404,8 @@
             } else { 
                 if (horas === 7) { d.h1 = 2; d.h2 = 2; d.h3 = 2; d.h4 = 1; }
                 else if (horas === 6) { d.h1 = 2; d.h2 = 2; d.h3 = 2; }
-                else if (horas === 5) { d.h1 = 2; d.h2 = 1; d.h3 = 1; d.h4 = 1; }
+                else if (horas === 5) { d.h1 = 2; d.h2 = 2; d.h3 = 1;}
+                else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
                 else { d.h1 = 2; d.h2 = 1; d.h3 = horas-3 > 0 ? horas-3 : 1; }
             }
         }
