@@ -137,6 +137,81 @@
             box-sizing: border-box;
         }
 
+        main section.introduccion{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-direction: column;
+            background-color: var(--color-celadon);
+            color: var(--color-black);
+            padding: 4rem;
+            margin: 0 0 4rem 0;
+            border-radius: 1rem;
+            box-sizing: border-box;
+        }
+
+        main section.introduccion h2{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-size: var(--font-size-md);
+            padding: 0;
+            margin: 0 0 2rem 0;
+            box-sizing: border-box;
+        }
+
+        main section.introduccion div.introduccion_cajas{
+            width: 100%;
+            height: 120dvh;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-direction: column;
+            font-size: var(--font-size-sm);
+            padding: 0;
+            margin: 2rem 0 2rem 0;
+            box-sizing: border-box;
+        }
+
+        main section.introduccion div.introduccion_cajas_textos{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-direction: column;
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.introduccion div.introduccion_cajas_textos p{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            flex-direction: column;
+            font-size: var(--font-size-xsm);
+            text-align: justify;
+        }
+
+        main section.introduccion div.introduccion_cajas_textos span{
+            width: auto;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            text-align: justify;
+            font-weight: bold;
+        }
+
+        
+
         main section.from_schedule{
             width: 100%;
             height: auto;
@@ -447,6 +522,28 @@
             <div class="from_schedule_cajas">
                 <img src="./assets/Schedule FI YELLOW.svg" alt="">
                 <span>Es una solución avanzada de FROM INDUSTRIES diseñada para la gestión y optimización de la oferta académica universitaria.</span>
+            </div>
+        </section>
+        <section class="introduccion">
+            <div class="introduccion_titulo">
+                <h2>Conoce tu pagina</h2>
+            </div>
+            <div class="introduccion_cajas">
+                <div class="introduccion_cajas_textos">
+                    <span>Panel de Control y Carga</span>
+                    <p>Ubicada en la parte superior, permite el acceso rápido a las funciones principales.</p>
+                    <p><span>Descargar Plantilla:</span> Botón que permite obtener el archivo Excel pre-configurado. Es vital usar este formato para asegurar que el algoritmo reconozca correctamente a los docentes, grupos y materias.</p>
+                    <p><span>Seleccionar Archivo:</span> Espacio para cargar tu base de datos personalizada (Excel). El sistema validará la información de disponibilidad y carga horaria al instante.</p>
+                    <p><span>Generar Horarios:</span> El botón de acción principal. Al presionarlo, se ejecuta el algoritmo de optimización que respeta las prioridades de docentes (Tipo 1, 2, 3 y 4), la distribución horizontal y las reglas específicas de materias como Inglés y Tutorías.</p>
+                </div>
+                <div class="introduccion_cajas_textos">
+                    <span>Monitor de Estado y Errores</span>
+                    <p>Ubicada en la parte superior, permite el acceso rápido a las funciones principales.</p>
+                    <p><span>Confirmación de Carga:</span> Te indicará si el archivo fue leído correctamente.</p>
+                    <p><span>Reporte de Asignación:</span> En caso de que alguna materia no pueda ser acomodada por falta de espacio o choques de disponibilidad, aquí se desplegará un mensaje detallado indicando el Docente, Grupo y Materia afectado para que puedas realizar los ajustes manuales necesarios en tu Excel</p>
+                    
+                </div>
+                
             </div>
         </section>
         <section class="tipos_docentes">
