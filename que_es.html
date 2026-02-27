@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>From schedule</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap');
+        :root{
+            --color-yellow: #FCB814;
+            --color-black: #221F20;
+            --color-ghost-white: #F3F7FF;
+            --color-cerulean: #3D7B93;
+            --color-dim-gray: #636466;
+            --color-tomato: #F26649;
+            --color-celadon: #81C99C;
+            --color-gray-olive: #939598;
+            --color-soft-periwinkle: #8781BD;
+            --font-roboto-mono: "Roboto Mono", monospace;
+            --font-size-lg : 10rem;
+            --font-size-md : 5rem;
+            --font-size-sm : 2rem;
+            --font-size-xsm : 1rem;
+        }
+
+        body{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            font-family: var(--font-roboto-mono);
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        header{
+            width: 100%;
+            height: 7dvh;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background-color: var(--color-yellow);
+            border: solid 1px;
+            border-color: none none var(--color-black) none;
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        header nav{
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem 0 2rem;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        header nav ul{
+            width: auto;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-direction: row;
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        header nav ul a{
+            text-decoration: none;
+            width: 5dvw;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: var(--font-size-xsm);
+            color: var(--color-black);
+            font-family: var(--font-roboto-mono);
+            font-weight: bolder;
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        header nav ul:last-child a:first-child{
+            width: 5dvw;
+            height: 100%;
+            
+        }
+
+        header nav ul:last-child a:last-child{
+            width: 5dvw;
+            height: 100%;
+            box-shadow: inset 0 -5px 0 0 var(--color-black);
+            background-color: transparent;
+        }
+
+        header nav ul a:nth-child(2){
+            width: auto;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            margin: 0 0 0 2rem;
+        }
+
+        header a img{
+            width: auto;
+            height: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        main{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background-color: var(--color-yellow);
+            padding: 4rem 15% 4rem 15%;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.from_schedule{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-direction: column;
+            background-color: var(--color-black);
+            color: var(--color-ghost-white);
+            padding: 4rem;
+            margin: 0 0 4rem 0;
+            border-radius: 1rem;
+            box-sizing: border-box;
+        }
+
+        main section.from_schedule h2{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-size: var(--font-size-md);
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.from_schedule div.from_schedule_cajas{
+            width: 100%;
+            height: 45dvh;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: var(--font-size-sm);
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.from_schedule div.from_schedule_cajas img{
+            width: 30%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        main section.from_schedule div.from_schedule_cajas span{
+            width: 60%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: justify;
+        }
+        
+        
+
+    </style>
+
+</head>
+<body>
+
+    <header>
+        <nav>
+            <ul>
+                <a href="index.html"><img src="assets/FI-LOGO-BRUTO-BLACK.svg" alt="LOGO"></a>
+            </ul>
+            <ul>
+                <a href="./index.html">Generador</a>
+                <a href="./manual.html">Manual</a>
+            </ul>
+        </nav>
+        
+    </header>
+
+    <main>
+        <section class="from_schedule">
+            <div class="from_schedule_titulo">
+                <h2>¿Que es <br> FROM SCHEDULE?</h2>
+            </div>
+            <div class="from_schedule_cajas">
+                <img src="./assets/Schedule FI YELLOW.svg" alt="">
+                <span>Es una solución avanzada de FROM INDUSTRIES diseñada para la gestión y optimización de la oferta académica universitaria.</span>
+            </div>
+        </section>
+
+</body>
+</html>
