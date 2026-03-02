@@ -47,8 +47,7 @@
             position: sticky;
             top: 0;
             background-color: var(--color-yellow);
-            border: solid 1px;
-            border-color: none none var(--color-black) none;
+            
             padding: 0;
             margin: 0;
             box-sizing: border-box;
@@ -131,13 +130,13 @@
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            background-color: var(--color-yellow);
+            background-color: var(--color-ghost-white);
             padding: 4rem 15% 4rem 15%;
             margin: 0;
             box-sizing: border-box;
         }
 
-        main section.introduccion{
+        main section.descargar_plantilla{
             width: 100%;
             height: auto;
             display: flex;
@@ -152,7 +151,7 @@
             box-sizing: border-box;
         }
 
-        main section.introduccion h2{
+        main section.descargar_plantilla h2{
             width: 100%;
             height: auto;
             display: flex;
@@ -164,9 +163,9 @@
             box-sizing: border-box;
         }
 
-        main section.introduccion div.introduccion_cajas{
+        main section.descargar_plantilla div.descargar_plantilla_cajas{
             width: 100%;
-            height: 120dvh;
+            height: 90dvh;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -177,7 +176,7 @@
             box-sizing: border-box;
         }
 
-        main section.introduccion div.introduccion_cajas_textos{
+        main section.descargar_plantilla div.descargar_plantilla_cajas_textos{
             width: 100%;
             height: auto;
             display: flex;
@@ -189,7 +188,7 @@
             box-sizing: border-box;
         }
 
-        main section.introduccion div.introduccion_cajas_textos p{
+        main section.descargar_plantilla div.descargar_plantilla_cajas_textos p{
             width: 100%;
             height: auto;
             display: flex;
@@ -200,7 +199,7 @@
             text-align: justify;
         }
 
-        main section.introduccion div.introduccion_cajas_textos span{
+        main section.descargar_plantilla div.descargar_plantilla_cajas_textos span{
             width: auto;
             height: auto;
             display: flex;
@@ -457,24 +456,17 @@
     </header>
 
     <main>
-        <section class="introduccion">
-            <div class="introduccion_titulo">
-                <h2>Conoce tu pagina</h2>
+        <section class="descargar_plantilla">
+            <div class="descargar_plantilla_titulo">
+                <h2>Descarga tu plantilla</h2>
             </div>
-            <div class="introduccion_cajas">
-                <div class="introduccion_cajas_textos">
-                    <span>Panel de Control y Carga</span>
-                    <p>Ubicada en la parte superior, permite el acceso rápido a las funciones principales.</p>
-                    <p><span>Descargar Plantilla:</span> Botón que permite obtener el archivo Excel pre-configurado. Es vital usar este formato para asegurar que el algoritmo reconozca correctamente a los docentes, grupos y materias.</p>
-                    <p><span>Seleccionar Archivo:</span> Espacio para cargar tu base de datos personalizada (Excel). El sistema validará la información de disponibilidad y carga horaria al instante.</p>
-                    <p><span>Generar Horarios:</span> El botón de acción principal. Al presionarlo, se ejecuta el algoritmo de optimización que respeta las prioridades de docentes (Tipo 1, 2, 3 y 4), la distribución horizontal y las reglas específicas de materias como Inglés y Tutorías.</p>
-                </div>
-                <div class="introduccion_cajas_textos">
-                    <span>Monitor de Estado y Errores</span>
-                    <p>Ubicada en la parte superior, permite el acceso rápido a las funciones principales.</p>
-                    <p><span>Confirmación de Carga:</span> Te indicará si el archivo fue leído correctamente.</p>
-                    <p><span>Reporte de Asignación:</span> En caso de que alguna materia no pueda ser acomodada por falta de espacio o choques de disponibilidad, aquí se desplegará un mensaje detallado indicando el Docente, Grupo y Materia afectado para que puedas realizar los ajustes manuales necesarios en tu Excel o en su defecto si ha sido un exito.</p>
-                    
+            <div class="descargar_plantilla_cajas">
+                <div class="descargar_plantilla_cajas_textos">
+                    <span>Boton de descarga de pantilla</span>
+                    <p>La plantilla es la base de generacion de horarios, en esta se crearan, docentes, grupos y materias, y a su vez se realizan cada una de ellas</p>
+                    <p>Se descargara en un archivo excel tradicional llamado "plantillaDatos", se recomienda el uso de versiones modernas de excel como el Office 2021 o superior, Libre Office 26 o superior, o Googles Sheets (tambien se puede usar con versiones anteriores de los programas antes mencionados aunque no se recomienda el uso de los mismos).</p>
+                    <br>
+                    <img src="/assets/descarga_tu_plantilla.svg" alt="">
                 </div>
                 
             </div>
@@ -484,7 +476,10 @@
                 <h2>¿Como llenar tu plantilla?</h2>
             </div>
             <div class="plantilla_cajas_textos">
-                
+                <span>Primera hoja (Docentes)</span>
+                <p>Esta primera hoja cuenta con los datos necesarios para crear el horario de los docentes.</p>
+                <p><span>Nombre: </span>En este apartado se pondra el nombre el nombre (Se puede considerar igual su titulo dentro del mismo)</p>
+                <img src="/assets/hoja_docentes.svg" alt="">
             </div>
 
         </section>
