@@ -209,6 +209,81 @@
             font-weight: bold;
         }
 
+        main section.plantilla{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-direction: column;
+            background-color: var(--color-celadon);
+            color: var(--color-black);
+            padding: 4rem;
+            margin: 0 0 4rem 0;
+            border-radius: 1rem;
+            box-sizing: border-box;
+        }
+
+        main section.plantilla h2{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-size: var(--font-size-md);
+            padding: 0;
+            margin: 0 0 2rem 0;
+            box-sizing: border-box;
+        }
+
+        main section.plantilla div.plantilla_cajas{
+            width: 100%;
+            height: 90dvh;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-direction: column;
+            font-size: var(--font-size-sm);
+            padding: 0;
+            margin: 2rem 0 2rem 0;
+            box-sizing: border-box;
+        }
+
+        main section.plantilla div.plantilla_cajas_textos{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-direction: column;
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.plantilla div.plantilla_cajas_textos p{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            flex-direction: column;
+            font-size: var(--font-size-xsm);
+            text-align: justify;
+        }
+
+        main section.plantilla div.plantilla_cajas_textos span{
+            width: auto;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            text-align: justify;
+            font-weight: bold;
+        }
+
+
+
         main section.tipos_docentes{
             width: 100%;
             height: auto;
@@ -466,7 +541,7 @@
                     <p>La plantilla es la base de generacion de horarios, en esta se crearan, docentes, grupos y materias, y a su vez se realizan cada una de ellas</p>
                     <p>Se descargara en un archivo excel tradicional llamado "plantillaDatos", se recomienda el uso de versiones modernas de excel como el Office 2021 o superior, Libre Office 26 o superior, o Googles Sheets (tambien se puede usar con versiones anteriores de los programas antes mencionados aunque no se recomienda el uso de los mismos).</p>
                     <br>
-                    <img src="./assets/descarga_tu_plantilla.svg" alt="">
+                    <img src="assets/descarga_tu_plantilla.svg" alt="">
                 </div>
                 
             </div>
@@ -479,7 +554,11 @@
                 <span>Primera hoja (Docentes)</span>
                 <p>Esta primera hoja cuenta con los datos necesarios para crear el horario de los docentes.</p>
                 <p><span>Nombre: </span>En este apartado se pondra el nombre el nombre (Se puede considerar igual su titulo dentro del mismo)</p>
-                <img src="./assets/hoja_docentes.svg" alt="">
+                <p><span>Dispoinibilidad de horario por dia: </span>En este apartado se pondra la dispoinibilidad de horarios de los docentes de la siguiente forma, si el docente tiene una dispoinibilidad de 7am a 4pm se escribira en su celda correspondiente como; "7-16", pero si el docente tiene una disponibibilidad de 7am a 12pm y en el mismo dia tiene una dispoinibilidad de 3pm a 9pm, se escribira como "7-12 15-21", y si el docente no tiene ninguna dispoinibilidad para ese dia solo se escribira "-" (ninguna dispoinibilidad debera de quedar vacia).</p>
+                <p><span>Horas extra clase: </span>En este apartado se escribira las horas ajenas a la docencia o tutorias, tales como asesorias por reforzamiento academico, gestion institucional, investigacion, etc.</p>
+                <p><span>Tipo: </span>En este apartado se pondra el tipo de docente al que pertenece (mas adelante se explica los tipos de docente y el como reconocerlos)</p>
+                <br>
+                <img src="assets/hoja_docentes.svg" alt="">
             </div>
 
         </section>
