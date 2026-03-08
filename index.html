@@ -372,7 +372,45 @@
         const diasSemana = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
         let MAPA_DOCENTES = new Map(), MAPA_GRUPOS = new Map(), PLANTILLAS_MATERIAS = [], ERRORES = [];
 
+        // ─── FRANJA HORARIA CANÓNICA del docente ───────────────────────────────────
+        // Devuelve la hora de inicio más frecuente (o más temprana) en sus asignaciones
+        // ya hechas, para que los bloques nuevos intenten alinearse a esa franja.
+        function franjaCanonica(docente) {
+            const conteo = {};
+            diasSemana.forEach(dia => {
+                const asig = docente[`asignado_${dia}`];
+                if (asig.length > 0) {
+                    const inicio = Math.min(...asig.map(x => x.h));
+                    conteo[inicio] = (conteo[inicio] || 0) + 1;
+                }
+            });
+            const claves = Object.keys(conteo);
+            if (claves.length === 0) return null;
+            // La hora de inicio más frecuente
+            return parseInt(claves.reduce((a, b) => conteo[a] >= conteo[b] ? a : b));
+        }
+
         const esTutoria = (n) => n.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes("TUTORIA");
+        const esInglesNombre = (n) => n.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes("INGLES");
+
+        // ─── UTILIDAD: huecos internos en el horario de un día ──────────────────────
+        function calcularHuecosInternos(horarioDia) {
+            const asignadas = horarioDia.map((v, i) => ({ v, i })).filter(x => typeof x.v === 'string');
+            if (asignadas.length < 2) return 0;
+            const minAsig = asignadas[0].i, maxAsig = asignadas[asignadas.length - 1].i;
+            return horarioDia.slice(minAsig + 1, maxAsig).filter(v => typeof v === 'number').length;
+        }
+
+        // ─── UTILIDAD: huecos que GENERARÍA colocar un bloque ──────────────────────
+        function calcularHuecosConBloque(horarioDia, horasAColocar) {
+            const simulado = horarioDia.map(v => (typeof v === 'number' && horasAColocar.includes(v)) ? "X" : v);
+            return calcularHuecosInternos(simulado);
+        }
+
+        // ─── UTILIDAD: ¿el día ya tiene una sesión de esta materia asignada? ────────
+        function diaYaTieneMateria(horarioDia, nombreMateria) {
+            return horarioDia.some(v => typeof v === 'string' && v.startsWith(nombreMateria));
+        }
 
         class Materia {
             constructor(nombre, horas, grado, turno) {
@@ -390,14 +428,15 @@
                 const nm = this.nombre_materia.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
                 if (nm.includes("INGLES")) { for (let i = 1; i <= horas; i++) d[`h${i}`] = 1; return; }
+                if (nm.includes("TUTORIA")) { d.h1 = 1; d.h2 = 1; return; }
 
                 if (tipo === 1 && cT <= 6) {
                     if (horas === 6) { d.h1 = 3; d.h2 = 3; }
                     else if (horas === 5) { d.h1 = 3; d.h2 = 2; }
                     else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
                     else if (horas === 3) { d.h1 = 2; d.h2 = 1; }
-                    else if (horas === 2) { d.h1 = 1; d.h2 = 1; } 
-                    
+                    else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
+
                 } else if (tipo === 2 && cT < 10) {
                     if (horas === 7) { d.h1 = 4; d.h2 = 3; }
                     else if (horas === 6) { d.h1 = 3; d.h2 = 3; }
@@ -413,9 +452,9 @@
                     else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
                     else if (horas === 3) { d.h1 = 2; d.h2 = 1; }
                     else if (horas === 2) { d.h1 = 1; d.h2 = 1; }
-                    
-                } else if ((tipo === 2 && cT > 19) || tipo === 3 || tipo === 4){ 
-                    if (horas === 7) { d.h1 = 2; d.h2 = 2; d.h3 = 2; d.h4 = 1;}
+
+                } else if ((tipo === 2 && cT > 19) || tipo === 3 || tipo === 4) {
+                    if (horas === 7) { d.h1 = 2; d.h2 = 2; d.h3 = 2; d.h4 = 1; }
                     else if (horas === 6) { d.h1 = 2; d.h2 = 2; d.h3 = 2; }
                     else if (horas === 5) { d.h1 = 2; d.h2 = 2; d.h3 = 1; }
                     else if (horas === 4) { d.h1 = 2; d.h2 = 2; }
@@ -474,6 +513,54 @@
             }; reader.readAsArrayBuffer(e.target.files[0]);
         };
 
+        // ─── FUNCIÓN DE PENALIDAD ─────────────────────────────────────────────────
+        // Prioridades (mayor peso = más importante):
+        //   1. (×1 000 000) Evitar dos sesiones de la misma materia en el mismo día
+        //   2. (×10 000)    Minimizar huecos internos en el grupo para ese día
+        //   3. (×1 000)     Alinear hora de inicio con la franja canónica del docente (relleno horizontal)
+        //   4. (×100)       Pegar el bloque a clases ya existentes en el día
+        //   5. (×500)       Penalizar abrir un día nuevo cuando ya hay días activos
+        //   6. (×10)        Posición en el día (inicio matutino / final vespertino)
+        function calcularPenaltySlot(grupo, dia, horasAColocar, docente, nombreMateria) {
+            const horarioDia = grupo[`horario_${dia}`];
+
+            // 1. Bloquear mismo-día misma-materia
+            // Inglés: sin límite | Tutoría: máximo 2 sesiones por día | Resto: máximo 1
+            const esTutoriaSlot = esTutoria(nombreMateria);
+            const sesionesHoy = horarioDia.filter(v => typeof v === 'string' && v.startsWith(nombreMateria)).length;
+            const penaltyRepeticion = (!esInglesNombre(nombreMateria) && !esTutoriaSlot && sesionesHoy >= 1) ? 1_000_000
+                : (esTutoriaSlot && sesionesHoy >= 2) ? 1_000_000 : 0;
+
+            // 2. Huecos internos resultantes
+            const huecosResultantes = calcularHuecosConBloque(horarioDia, horasAColocar) * 10_000;
+
+            // 3. Alineación horizontal: diferencia al inicio canónico del docente
+            const franja = franjaCanonica(docente);
+            const inicioBloque = Math.min(...horasAColocar);
+            const penaltyHorizontal = franja !== null ? Math.abs(inicioBloque - franja) * 1_000 : 0;
+
+            // 4. Adyacencia a clases existentes en el día
+            const asignadasEnDia = horarioDia.filter(v => typeof v === 'string');
+            let penaltyAdyacencia = 0;
+            if (asignadasEnDia.length > 0) {
+                const idxAsig = horarioDia.map((v, i) => typeof v === 'string' ? i : -1).filter(i => i >= 0);
+                const minA = idxAsig[0], maxA = idxAsig[idxAsig.length - 1];
+                const idxB = horarioDia.map((v, i) => (typeof v === 'number' && horasAColocar.includes(v)) ? i : -1).filter(i => i >= 0);
+                const minB = idxB[0], maxB = idxB[idxB.length - 1];
+                penaltyAdyacencia = Math.max(0, minB - maxA - 1, minA - maxB - 1) * 100;
+            }
+
+            // 5. Penalizar abrir día vacío cuando ya hay días activos
+            const diasConClase = diasSemana.filter(d => grupo[`horario_${d}`].some(v => typeof v === 'string')).length;
+            const penaltyDiaNuevo = (asignadasEnDia.length === 0 && diasConClase > 0) ? 500 : 0;
+
+            // 6. Posición en el día
+            const maxBloque = Math.max(...horasAColocar);
+            const penaltyPosicion = (grupo.turno === "vespertino") ? (21 - maxBloque) * 10 : inicioBloque * 10;
+
+            return penaltyRepeticion + huecosResultantes + penaltyHorizontal + penaltyAdyacencia + penaltyDiaNuevo + penaltyPosicion;
+        }
+
         function algoritmoGenerar() {
             ERRORES = [];
             MAPA_GRUPOS.forEach(g => g.reset());
@@ -492,37 +579,85 @@
             console.table(listaOrdenada.map((d, i) => ({ "Orden": i+1, "Docente": d.nombre_docente, "Tipo": d.tipo_docente, "Carga": d.horas_carga+"h", "Flexibilidad": d.flexibilidad+"h" })));
 
             listaOrdenada.forEach(docente => {
-                docente.materias_impartidas.sort((a, b) => esTutoria(a.nombre_materia) - esTutoria(b.nombre_materia));
+                // ── ORDENAR MATERIAS ─────────────────────────────────────────────────────
+                // Regla 1: tutorías siempre al final
+                // Regla 2: misma materia, varios grupos → el grupo con MENOS slots compatibles
+                //          va PRIMERO (más difícil de colocar resuelto antes que haya más libertad)
+                // Regla 3: materias distintas → más horas primero (establece franja canónica)
+
+                const calcularDificultad = (materia) => {
+                    // Clona desglose sin modificar el estado real
+                    const tmpDesglose = {};
+                    const tipo = docente.tipo_docente;
+                    const horas = materia.horas_materia;
+                    const cT = docente.horas_carga + docente.horas_extra_clase;
+                    const nm = materia.nombre_materia.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    if (nm.includes("INGLES")) { for (let i = 1; i <= horas; i++) tmpDesglose[`h${i}`] = 1; }
+                    else if (nm.includes("TUTORIA")) { tmpDesglose.h1 = 1; tmpDesglose.h2 = 1; }
+                    else if (tipo === 1 && cT <= 6) {
+                        if (horas >= 4) { tmpDesglose.h1 = 2; tmpDesglose.h2 = 2; }
+                        else { tmpDesglose.h1 = Math.ceil(horas/2); tmpDesglose.h2 = Math.floor(horas/2); }
+                    } else {
+                        tmpDesglose.h1 = 2;
+                    }
+                    const tamBloque = Math.max(...Object.values(tmpDesglose), 1);
+
+                    let slotsDisponibles = 0;
+                    diasSemana.forEach(dia => {
+                        const hG = materia.grupo[`horario_${dia}`];
+                        const hD = docente[`lista_${dia}`];
+                        const libres = hG.filter(h => typeof h === 'number' && hD.includes(h));
+                        for (let i = 0; i <= libres.length - tamBloque; i++) {
+                            const hSel = libres.slice(i, i + tamBloque);
+                            if (hSel[tamBloque - 1] === hSel[0] + tamBloque - 1) slotsDisponibles++;
+                        }
+                    });
+                    return slotsDisponibles; // menor = más difícil
+                };
+
+                docente.materias_impartidas.sort((a, b) => {
+                    // Tutorías siempre al final
+                    if (esTutoria(a.nombre_materia) !== esTutoria(b.nombre_materia))
+                        return esTutoria(a.nombre_materia) ? 1 : -1;
+
+                    // Misma materia (distintos grupos) → más difícil primero
+                    if (a.nombre_materia === b.nombre_materia) {
+                        return calcularDificultad(a) - calcularDificultad(b);
+                    }
+
+                    // Materias distintas → más horas primero
+                    return b.horas_materia - a.horas_materia;
+                });
+
                 docente.materias_impartidas.forEach(materia => {
                     materia.determinar_horas_clase_por_materia();
                     let horasRestantesMateria = materia.horas_materia;
                     let bloquesObjetivo = Object.values(materia.desglose_horas);
-                    const esIngles = materia.nombre_materia.toUpperCase().includes("INGLES");
+                    const esIngles = esInglesNombre(materia.nombre_materia);
 
                     while (horasRestantesMateria > 0) {
                         let opciones = [];
                         let maxD = (docente.tipo_docente === 1) ? 6 : (docente.tipo_docente === 2 && docente.horas_carga >= 20 ? 4 : 6);
-
                         let tamBuscado = bloquesObjetivo.length > 0 ? bloquesObjetivo[0] : 1;
                         if (tamBuscado > horasRestantesMateria) tamBuscado = horasRestantesMateria;
 
                         diasSemana.forEach(dia => {
                             const hG = materia.grupo[`horario_${dia}`], hD = docente[`lista_${dia}`];
                             if (!docente.diasActivosGlobal.has(dia) && docente.diasActivosGlobal.size >= maxD) return;
-                            
-                            // FLEXIBILIDAD TIPO 3 Y 4: 
-                            // Si el docente es Tipo 3 o 4 y estamos buscando horas sueltas (tamBuscado=1), 
-                            // permitimos que repita día para no dejar horas fuera.
-                            const puedeRepetirDia = esIngles || ((docente.tipo_docente === 3 || docente.tipo_docente === 4) && tamBuscado === 1);
-                            if (!puedeRepetirDia && hG.some(h => typeof h === 'string' && h.includes(materia.nombre_materia))) return;
+
+                            // ── REGLA HORIZONTAL: máximo 1 sesión por materia por día
+                            // Excepciones: inglés y tutoría (tutoría permite hasta 2 sesiones en el mismo día)
+                            const esTutoriaMateria = esTutoria(materia.nombre_materia);
+                            const sesionesEnDia = hG.filter(v => typeof v === 'string' && v.startsWith(materia.nombre_materia)).length;
+                            if (!esIngles && !esTutoriaMateria && sesionesEnDia >= 1) return;
+                            if (esTutoriaMateria && sesionesEnDia >= 2) return;
 
                             const libres = hG.filter(h => typeof h === 'number' && hD.includes(h));
                             for (let i = 0; i <= libres.length - tamBuscado; i++) {
                                 const hSel = libres.slice(i, i + tamBuscado);
-                                if (hSel[tamBuscado-1] === hSel[0] + tamBuscado - 1) {
-                                    let penalty = (hG.filter(h => typeof h === 'string').length) * 1000;
-                                    penalty += (materia.grupo.turno === "vespertino") ? (21 - hSel[tamBuscado-1]) * 10 : hSel[0];
-                                    opciones.push({ dia, horas: hSel, penalty, tam: tamBuscado, idxB: 0 });
+                                if (hSel[tamBuscado - 1] === hSel[0] + tamBuscado - 1) {
+                                    const penalty = calcularPenaltySlot(materia.grupo, dia, hSel, docente, materia.nombre_materia);
+                                    opciones.push({ dia, horas: hSel, penalty, tam: tamBuscado });
                                 }
                             }
                         });
@@ -540,27 +675,116 @@
                                 else bloquesObjetivo[0] -= m.tam;
                             }
                         } else {
-                            // FRAGMENTACIÓN AUTOMÁTICA (Prioridad para Tipo 3 y 4)
                             if (bloquesObjetivo.length > 0 && bloquesObjetivo[0] > 1) {
                                 let t = bloquesObjetivo.shift();
                                 bloquesObjetivo.unshift(1, t - 1);
-                                bloquesObjetivo.sort((a,b) => b-a);
-                            } else { 
-                                // REPORTE DETALLADO DE ERROR
+                                bloquesObjetivo.sort((a, b) => b - a);
+                            } else {
                                 const msgError = `D: ${docente.nombre_docente} | G: ${materia.grupo.nombre_grupo} | M: ${materia.nombre_materia}`;
-                                ERRORES.push(msgError); 
-                                horasRestantesMateria = 0; 
+                                ERRORES.push(msgError);
+                                horasRestantesMateria = 0;
                             }
                         }
                     }
                 });
             });
+
+            // ── POST-PROCESO: compactar huecos reordenando bloques dentro de cada día ──
+            // Para cada grupo y cada día, si hay huecos internos, intentar "empujar" los bloques
+            // que están después del hueco hacia adelante, sin violar disponibilidad del docente.
+            MAPA_GRUPOS.forEach(grupo => {
+                diasSemana.forEach(dia => {
+                    let horario = grupo[`horario_${dia}`];
+                    let cambio = true;
+
+                    while (cambio) {
+                        cambio = false;
+                        // Buscar primer hueco interno
+                        const asigIdx = horario.map((v, i) => typeof v === 'string' ? i : -1).filter(i => i >= 0);
+                        if (asigIdx.length < 2) break;
+
+                        const minA = asigIdx[0], maxA = asigIdx[asigIdx.length - 1];
+                        // Buscar posiciones libres (numéricas) entre min y max
+                        const huecos = [];
+                        for (let i = minA + 1; i < maxA; i++) {
+                            if (typeof horario[i] === 'number') huecos.push(i);
+                        }
+                        if (huecos.length === 0) break;
+
+                        // Intentar mover el PRIMER bloque que esté DESPUÉS del primer hueco
+                        // al lugar del hueco, si el docente tiene disponibilidad en esa hora
+                        const primerHueco = huecos[0];
+                        const horaLibre = horario[primerHueco]; // valor numérico (la hora real)
+
+                        // Buscar el primer bloque asignado después del hueco
+                        let movido = false;
+                        for (let i = primerHueco + 1; i <= maxA; i++) {
+                            if (typeof horario[i] === 'string') {
+                                const celda = horario[i]; // "Materia (Docente)"
+                                // Extraer nombre del docente de la celda
+                                const match = celda.match(/\((.+)\)$/);
+                                if (!match) continue;
+                                const nombreDocente = match[1].trim();
+                                const docente = MAPA_DOCENTES.get(nombreDocente);
+                                if (!docente) continue;
+
+                                // Ver si el docente tiene libre la hora del hueco
+                                const horaDestino = horario[primerHueco]; // número
+                                const horaOrigen = horario.find((v, idx) => idx === i && typeof v === 'string') ? /* hora real */ (() => {
+                                    // La hora real es el valor numérico en el array BASE para ese índice
+                                    const base = (grupo.turno === "matutino") ? [7,8,9,10,11,12,13,14,15,16,17] : [11,12,13,14,15,16,17,18,19,20];
+                                    return base[i];
+                                })() : null;
+
+                                if (horaOrigen === null) continue;
+
+                                const docenteLibreEnDestino = docente[`lista_${dia}`].includes(horaDestino) ||
+                                    docente[`asignado_${dia}`].some(x => x.h === horaOrigen); // ya usó esa hora para este grupo
+
+                                // Verificar que el docente tiene disponible la hora destino
+                                // (puede que ya la haya usado en otro grupo → chequear asignado)
+                                const yaUsadaPorDocente = docente[`asignado_${dia}`].some(x => x.h === horaDestino);
+                                if (yaUsadaPorDocente) continue;
+
+                                // Verificar disponibilidad original del docente en la hora destino
+                                const dispOriginal = docente.parseDisp(docente.fila[dia]);
+                                if (!dispOriginal.includes(horaDestino)) continue;
+
+                                // ✅ Podemos mover: intercambiar posiciones en el horario del grupo
+                                horario[primerHueco] = horario[i];
+                                horario[i] = horaDestino;
+
+                                // Actualizar lista de asignados del docente
+                                const entradaDoc = docente[`asignado_${dia}`].find(x => x.h === horaOrigen);
+                                if (entradaDoc) entradaDoc.h = horaDestino;
+
+                                cambio = true;
+                                movido = true;
+                                break;
+                            }
+                        }
+                        if (!movido) break; // No se pudo mover nada, salir para evitar loop infinito
+                    }
+                });
+            });
+
+            // ── REPORTE FINAL ──
             const errorDiv = document.getElementById("span_error");
-            if (ERRORES.length > 0) {
-                errorDiv.innerText = "⚠ No asignados:\n" + [...new Set(ERRORES)].join("\n");
+            const erroresUnicos = [...new Set(ERRORES)];
+
+            // Calcular estadística de huecos para diagnóstico
+            let totalHuecos = 0;
+            MAPA_GRUPOS.forEach(g => {
+                diasSemana.forEach(dia => {
+                    totalHuecos += calcularHuecosInternos(g[`horario_${dia}`]);
+                });
+            });
+
+            if (erroresUnicos.length > 0) {
+                errorDiv.innerText = `⚠ No asignados:\n${erroresUnicos.join("\n")}\n\nHuecos internos totales: ${totalHuecos}`;
                 errorDiv.style.color = "#F26649";
             } else {
-                errorDiv.innerText = "✔ Horarios generados con éxito.";
+                errorDiv.innerText = `✔ Horarios generados con éxito.\nHuecos internos totales: ${totalHuecos}`;
                 errorDiv.style.color = "green";
             }
         }
