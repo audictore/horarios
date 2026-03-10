@@ -800,7 +800,7 @@
                     const wb=XLSX.utils.book_new();
                     MAPA_GRUPOS.forEach(g=>{
                         const rows=[["HORA","LUNES","MARTES","MIERCOLES","JUEVES","VIERNES","SABADO"]];
-                        const base=(g.turno==="matutino")?[7,8,9,10,11,12,13,14,15,16,17]:[11,12,13,14,15,16,17,18,19,20];
+                        const base=(g.turno==="matutino")?[7,8,9,10,11,12,13,14,15,16]:[12,13,14,15,16,17,18,19,20];
                         base.forEach((h,i)=>{ const r=[h]; diasSemana.forEach(d=>{ const v=g[`horario_${d}`][i]; r.push(typeof v==='string'?v:""); }); rows.push(r); });
                         XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"G_"+g.nombre_grupo.substring(0,25));
                     });
