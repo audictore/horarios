@@ -747,6 +747,81 @@
             border: solid 1px var(--color-black);
             border-radius: 0rem;
         }
+
+        main section.tipos_grupos{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-direction: column;
+            background-color: var(--color-soft-periwinkle);
+            padding: 4rem;
+            margin: 0;
+            border-radius: 1rem;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_grupos div.tipos_grupos_titulo{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        main section.tipos_grupos div.tipos_grupos_titulo h2{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            font-size: var(--font-size-md);
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_grupos div.tipos_grupos_cajas{
+            width: 100%;
+            height: auto;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            padding: 0;
+            margin: 2rem 0 2rem 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_grupos div.tipos_grupos_cajas div.tipos_grupos_cajas_textos{
+            width: 25%;
+            height: 50dvh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        main section.tipos_grupos div.tipos_grupos_cajas div.tipos_grupos_cajas_textos span.tipos_grupos_cajas_textos_span{
+            width: 100%;
+            height: 50%;
+            font-size: var(--font-size-sm);
+            text-align: justify;
+            overflow-wrap: break-word;
+            font-weight: bold;
+        }
+
+        main section.tipos_grupos div.tipos_grupos_cajas div.tipos_grupos_cajas_textos p.tipos_grupos_cajas_textos_p{
+            width: 100%;
+            height: 30%;
+            font-size: var(--font-size-xsm);
+            text-align: justify;
+        }
         
 
     </style>
@@ -1409,7 +1484,6 @@
             </div>
 
         </section>
-
         <section class="tipos_materias">
                 <div class="tipos_materias_titulo">
                     <h2>Tipos de materias</h2>
@@ -1747,6 +1821,37 @@
                 </table>
                 
 
+        </section>
+        <section class="tipos_grupos">
+                <div class="tipos_grupos_titulo">
+                    <h2>Tipos de grupos</h2>
+                </div>
+                <div class="tipos_grupos_cajas">
+                    <div class="tipos_grupos_cajas_textos">
+                        <span class="tipos_grupos_cajas_textos_span">Matutinos:</span> 
+                        <p class="tipos_grupos_cajas_textos_p">Grupos que toman clases por las mañanas, a partir de 7am hasta la tarde (esta hora puede variar segun la cantidad de horas-carga que se tenga en la semana y cuantos dias de la semana se consideren).</p>
+                    </div>
+                    <div class="tipos_grupos_cajas_textos">
+                        <span class="tipos_grupos_cajas_textos_span">Vespertinos:</span> 
+                        <p class="tipos_grupos_cajas_textos_p">Grupos que toman clases por las tardes, a terminando hasta las 9pm y empiezan clases por el media dia (esta hora puede variar segun la cantidad de horas-carga que se tenga en la semana y cuantos dias de la semana se consideren).</p>
+                    </div>
+                    
+                </div>
+        </section>
+        <section class="cargar_plantilla">
+            <div class="cargar_plantilla_titulo">
+                <h2>Carga tu plantilla</h2>
+            </div>
+            <div class="cargar_plantilla_cajas">
+                <div class="cargar_plantilla_cajas_textos">
+                    <span>Boton de carga de pantilla</span>
+                    <p>Ya que llenaste tu plantilla con sus docentes, materias, grupos y asignaciones (Sin dejar ninguna sola celda vacia), es hora de cargarla al sistema.</p>
+                    <p>Se cargara desde un boton tradicional llamado "Seleccionar plantilla", no importa como se llame el archivo de carga pero siempre se debera de subir con extension .xlsx, se recomienda el uso de versiones modernas de excel como el Office 2021 o superior, Libre Office 26 o superior, o Googles Sheets (tambien se puede usar con versiones anteriores de los programas antes mencionados aunque no se recomienda el uso de los mismos).</p>
+                    <br>
+                    <img src="assets/carga_tu_plantilla.svg" alt="">
+                </div>
+                
+            </div>
         </section>
     </main>
     
