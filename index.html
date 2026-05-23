@@ -394,15 +394,13 @@ class Docente {
         diasSemana.forEach(d => { this.asignado[d] = {}; });
     }
     calcularMaxDias() {
-        if (this.tipo_docente === 2) {
+        if (this.tipo_docente === 2) { // PA
             let total = this.horas_carga + this.horas_extra_clase;
-            if (total <= 12) return 2;
+            if (total <= 8)  return 2;
             if (total <= 20) return 3;
-            if (total <= 24) return 4;
-            if (total <= 28) return 5;
-            return 6;
+            return 4;
         }
-        return 6;
+        return 6; // PTC u otro
     }
 }
 
@@ -410,7 +408,7 @@ class Grupo {
     constructor(n, t) { this.nombre_grupo = n.trim(); this.turno = t.toLowerCase(); this.bloques = []; this.reset(); }
     reset() {
         this.horario = {}; this.sesionesDia = {};
-        this.baseHoras = (this.turno === "matutino") ? [7,8,9,10,11,12,13,14,15] : [11,12,13,14,15,16,17,18,19,20];
+        this.baseHoras = (this.turno === "matutino") ? [7,8,9,10,11,12,13,14,15] : [12,13,14,15,16,17,18,19,20];
         diasSemana.forEach(d => {
             this.horario[d] = {};
             this.sesionesDia[d] = {};
@@ -771,26 +769,27 @@ function intentarAsignar(bloque, relajarSesiones, relajarDiasMax, relajarContigu
                 let costo = penalizacionDia;
                 costo += horasFueraDisp * 50000;
 
+                // --- Distribución pareja: minimizar varianza de horas por día ---
                 let horasEnEsteDia = horasAsignadasEnDia(grupo, dia);
                 let nuevasHoras = horasEnEsteDia + bloque.duracion;
 
-                if (nuevasHoras <= 6) costo -= (bloque.duracion * 1000);
-                else costo += (nuevasHoras - 6) * 500;
-
-                let horaAntes = hInicio - 1;
-                let horaDespues = hInicio + bloque.duracion;
-                let juntaGrupo = (grupo.horario[dia][horaAntes] !== undefined && grupo.horario[dia][horaAntes] !== null) ||
-                                 (grupo.horario[dia][horaDespues] !== undefined && grupo.horario[dia][horaDespues] !== null);
-
-                if (horasEnEsteDia > 0 && !juntaGrupo) costo += 5000;
-
-                if (activaNuevoDia) costo += 3000;
-                else if (horasDocenteHoy < 3) costo -= 1500;
-
-                if (!tieneClasesHoy) {
-                    if (grupo.turno === "matutino") costo += hInicio * 10;
-                    else costo += (20 - hInicio) * 10;
+                // Simular el estado después de la asignación y calcular varianza
+                let horasDespuesPorDia = diasSemana.map(d =>
+                    horasAsignadasEnDia(grupo, d) + (d === dia ? bloque.duracion : 0)
+                ).filter(h => h > 0);
+                if (horasDespuesPorDia.length > 0) {
+                    let media = horasDespuesPorDia.reduce((a, b) => a + b, 0) / horasDespuesPorDia.length;
+                    let varianza = horasDespuesPorDia.reduce((s, h) => s + (h - media) ** 2, 0) / horasDespuesPorDia.length;
+                    costo += varianza * 300;
                 }
+
+                // Preferir primer slot del turno al abrir un día nuevo
+                if (!tieneClasesHoy) {
+                    costo += (hInicio - grupo.baseHoras[0]) * 10;
+                }
+
+                // Pequeña penalización por activar un día nuevo en el docente
+                if (activaNuevoDia) costo += 500;
 
                 if (costo < mejorCosto) {
                     mejorCosto = costo;
@@ -865,10 +864,32 @@ function intentarSwapDeHorarios(bloquePendiente, queue) {
             }
 
             if (todosReubicables) {
+                // Aplicar swap
                 for (let r of reubicaciones) quitarAsignacion(grupo, r.bloque, r.diaOrigen, r.hOrigen);
                 aplicarAsignacion(grupo, bloquePendiente, diaP, hP);
                 for (let r of reubicaciones) aplicarAsignacion(grupo, r.bloque, r.diaDest, r.hDest);
-                return true;
+
+                // Verificar que no se crearon huecos
+                let creoHueco = false;
+                for (let d of diasSemana) {
+                    let first = -1, last = -1;
+                    for (let h of grupo.baseHoras) {
+                        if (grupo.horario[d][h]) { if (first === -1) first = h; last = h; }
+                    }
+                    if (first !== -1) {
+                        for (let h = first; h <= last; h++) {
+                            if (grupo.baseHoras.includes(h) && !grupo.horario[d][h]) { creoHueco = true; break; }
+                        }
+                    }
+                    if (creoHueco) break;
+                }
+
+                if (!creoHueco) return true;
+
+                // Deshacer swap si creó huecos
+                for (let r of reubicaciones) quitarAsignacion(grupo, r.bloque, r.diaDest, r.hDest);
+                quitarAsignacion(grupo, bloquePendiente, diaP, hP);
+                for (let r of reubicaciones) aplicarAsignacion(grupo, r.bloque, r.diaOrigen, r.hOrigen);
             }
         }
     }
@@ -888,17 +909,39 @@ function construccionVorazCascada() {
 
     MAPA_GRUPOS.forEach(g => { TODOS_LOS_BLOQUES.push(...g.bloques); });
 
+    // Calcular flexibilidad efectiva por par docente-grupo:
+    // cuántos slots del grupo coinciden con disponibilidad del docente, menos el total de horas que debe dar en ese grupo
+    let docGrupoFlex = new Map();
+    TODOS_LOS_BLOQUES.forEach(b => {
+        let key = b.docente.nombre_docente + '|' + b.grupo.nombre_grupo;
+        if (!docGrupoFlex.has(key)) {
+            let slotsEfectivos = 0;
+            diasSemana.forEach(dia => {
+                b.grupo.baseHoras.forEach(h => { if (b.docente.disponibilidad[dia].has(h)) slotsEfectivos++; });
+            });
+            let totalHorasEnGrupo = b.grupo.bloques
+                .filter(bl => bl.docente === b.docente)
+                .reduce((sum, bl) => sum + bl.duracion, 0);
+            docGrupoFlex.set(key, slotsEfectivos - totalHorasEnGrupo);
+        }
+        b.flexibilidadEfectiva = docGrupoFlex.get(key);
+    });
+
     TODOS_LOS_BLOQUES.sort((a, b) => {
+        // Primero: margen efectivo en el grupo (menos margen = más urgente)
+        if (a.flexibilidadEfectiva !== b.flexibilidadEfectiva) return a.flexibilidadEfectiva - b.flexibilidadEfectiva;
+
+        // Luego: docentes con múltiples turnos o tipo PTC primero
         let placaA = (a.materia.tsu || a.docente.tipo_docente === 1 || a.docente.flexibilidad <= 0) ? 1 : 0;
         let placaB = (b.materia.tsu || b.docente.tipo_docente === 1 || b.docente.flexibilidad <= 0) ? 1 : 0;
-        if (placaA !== placaB) return placaB - placaA; 
+        if (placaA !== placaB) return placaB - placaA;
 
         let turnosA = a.docente.turnosAsignados.size;
         let turnosB = b.docente.turnosAsignados.size;
         if (turnosA !== turnosB) return turnosB - turnosA;
 
         if (a.docente.flexibilidad !== b.docente.flexibilidad) return a.docente.flexibilidad - b.docente.flexibilidad;
-        return b.duracion - a.duracion; 
+        return b.duracion - a.duracion;
     });
 
     let queue = [...TODOS_LOS_BLOQUES];
@@ -906,22 +949,22 @@ function construccionVorazCascada() {
     while(queue.length > 0) {
         let bloque = queue.shift();
 
-        if (intentarAsignar(bloque, false, false, false, false)) continue;
-        if (intentarAsignar(bloque, true, false, false, false)) continue;
-        if (intentarAsignar(bloque, false, false, true, false)) continue;
-        if (intentarAsignar(bloque, true, false, true, false)) continue;
-        if (intentarAsignar(bloque, true, true, true, false)) continue;
+        // Contiguidad NUNCA se relaja — regla dura de cero huecos
+        if (intentarAsignar(bloque, false, false, false, false)) continue; // estricto
+        if (intentarAsignar(bloque, true,  false, false, false)) continue; // relajar sesiones
+        if (intentarAsignar(bloque, true,  true,  false, false)) continue; // relajar sesiones + maxDias
 
+        // Si el bloque es multi-hora y no cabe contiguo, partirlo en horas sueltas
         if (bloque.duracion > 1) {
             let dur = bloque.duracion;
-            for(let k=0; k<dur; k++) { queue.unshift({...bloque, duracion: 1}); }
+            for (let k = 0; k < dur; k++) { queue.unshift({...bloque, duracion: 1}); }
             continue;
         }
 
         if (intentarSwapDeHorarios(bloque, queue)) continue;
 
-        // Último recurso: colocar fuera de disponibilidad, eligiendo el slot menos malo
-        if (intentarAsignar(bloque, true, true, true, true)) continue;
+        // Último recurso: colocar fuera de disponibilidad, pero SIN relajar contiguidad
+        if (intentarAsignar(bloque, true, true, false, true)) continue;
 
         noAsignados.push(`${bloque.nombreStr} - G: ${bloque.grupo.nombre_grupo}`);
     }
@@ -932,61 +975,83 @@ function construccionVorazCascada() {
     return noAsignados;
 }
 
+function enBorde(grupo, dia, h) {
+    // Devuelve true si h está en el borde (inicio o fin) del bloque del día — quitarlo no crea hueco
+    let base = grupo.baseHoras;
+    let idx = base.indexOf(h);
+    let prevOcup = idx > 0 && grupo.horario[dia][base[idx - 1]] !== null;
+    let nextOcup = idx < base.length - 1 && grupo.horario[dia][base[idx + 1]] !== null;
+    return !(prevOcup && nextOcup); // en el medio → false
+}
+
+function esAdyacenteOVacio(grupo, dia, h) {
+    // Devuelve true si h está vacío y es adyacente a clases existentes (o el día está vacío)
+    if (grupo.horario[dia][h] !== null) return false;
+    let base = grupo.baseHoras;
+    let tieneClases = base.some(hx => grupo.horario[dia][hx] !== null);
+    if (!tieneClases) return true; // día vacío: cualquier slot es válido
+    let idx = base.indexOf(h);
+    let adjPrev = idx > 0 && grupo.horario[dia][base[idx - 1]] !== null;
+    let adjNext = idx < base.length - 1 && grupo.horario[dia][base[idx + 1]] !== null;
+    return adjPrev || adjNext;
+}
+
 function repararViolacionesDisponibilidad() {
-    for (let iter = 0; iter < 50; iter++) {
-        let reparadoEnIter = false;
+    // Una reparación por iteración — usar break explícito para evitar movimientos múltiples
+    // que se interfieran entre sí creando huecos
+    for (let iter = 0; iter < 100; iter++) {
+        let reparado = false;
 
-        MAPA_GRUPOS.forEach((grupo) => {
-            diasSemana.forEach(dia => {
-                grupo.baseHoras.forEach(h => {
+        grupoLoop: for (let [, grupo] of MAPA_GRUPOS) {
+            for (let dia of diasSemana) {
+                for (let h of grupo.baseHoras) {
                     let bV = grupo.horario[dia][h];
-                    if (!bV || bV.docente.disponibilidad[dia].has(h)) return;
+                    if (!bV || bV.docente.disponibilidad[dia].has(h)) continue;
+                    if (!enBorde(grupo, dia, h)) continue; // no se puede mover sin crear hueco
 
-                    // Intentar mover a un slot vacío donde sí tenga disponibilidad
+                    // Mover a slot vacío adyacente donde tenga disponibilidad
                     for (let diaB of diasSemana) {
                         for (let hB of grupo.baseHoras) {
-                            if (grupo.horario[diaB][hB] !== null) continue;
+                            if (!esAdyacenteOVacio(grupo, diaB, hB)) continue;
                             if (!bV.docente.disponibilidad[diaB].has(hB)) continue;
                             if (bV.docente.asignado[diaB][hB]) continue;
                             quitarAsignacion(grupo, bV, dia, h);
                             aplicarAsignacion(grupo, bV, diaB, hB);
-                            reparadoEnIter = true;
-                            return;
+                            reparado = true;
+                            break grupoLoop;
                         }
                     }
 
-                    // Intentar swap con otro bloque del mismo grupo
+                    // Swap con otro bloque del mismo grupo (ambos de 1hr)
+                    if (reparado) break;
                     for (let diaB of diasSemana) {
                         for (let hB of grupo.baseHoras) {
                             let bO = grupo.horario[diaB][hB];
                             if (!bO || bO === bV || bO.duracion !== 1 || bV.duracion !== 1) continue;
-
                             if (!bV.docente.disponibilidad[diaB].has(hB)) continue;
                             if (bV.docente.asignado[diaB][hB] && bV.docente.asignado[diaB][hB] !== bV) continue;
                             if (!bO.docente.disponibilidad[dia].has(h)) continue;
                             if (bO.docente.asignado[dia][h] && bO.docente.asignado[dia][h] !== bO) continue;
-
                             let conf = false;
-                            MAPA_GRUPOS.forEach((otroG) => {
-                                if (otroG === grupo) return;
-                                if (otroG.horario[diaB] && otroG.horario[diaB][hB] && otroG.horario[diaB][hB].docente === bV.docente) conf = true;
-                                if (otroG.horario[dia] && otroG.horario[dia][h] && otroG.horario[dia][h].docente === bO.docente) conf = true;
-                            });
+                            for (let [, otroG] of MAPA_GRUPOS) {
+                                if (otroG === grupo) continue;
+                                if (otroG.horario[diaB]?.[hB]?.docente === bV.docente) conf = true;
+                                if (otroG.horario[dia]?.[h]?.docente === bO.docente) conf = true;
+                            }
                             if (conf) continue;
-
                             quitarAsignacion(grupo, bV, dia, h);
                             quitarAsignacion(grupo, bO, diaB, hB);
                             aplicarAsignacion(grupo, bV, diaB, hB);
                             aplicarAsignacion(grupo, bO, dia, h);
-                            reparadoEnIter = true;
-                            return;
+                            reparado = true;
+                            break grupoLoop;
                         }
                     }
-                });
-            });
-        });
+                }
+            }
+        }
 
-        if (!reparadoEnIter) break;
+        if (!reparado) break;
     }
 }
 
