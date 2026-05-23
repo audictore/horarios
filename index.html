@@ -616,6 +616,33 @@ function parsearTodo() {
         let asignacionesExitosas = parsearCargaAcademica(wbCarga);
         let docentesConDisp = parsearDisponibilidades(wbDisp);
 
+        // Ajustar maxDias: si los mejores maxDias días no tienen suficientes
+        // slots para cubrir la carga, añadir 1 día (si hay disponibilidad).
+        MAPA_DOCENTES.forEach(d => {
+            if (d.horas_carga === 0) return;
+
+            // Slots efectivos por día: horas únicas dentro del turno de sus grupos
+            // en que el docente está disponible (un docente ocupa 1 slot/hora máx.)
+            let slotsPorDia = diasSemana.map(dia => {
+                let hrs = new Set();
+                MAPA_GRUPOS.forEach(grupo => {
+                    if (!grupo.bloques.some(b => b.docente === d)) return;
+                    grupo.baseHoras.forEach(h => {
+                        if (d.disponibilidad[dia].has(h)) hrs.add(h);
+                    });
+                });
+                return hrs.size;
+            }).sort((a, b) => b - a); // mejores días primero
+
+            let diasDisponibles = slotsPorDia.filter(s => s > 0).length;
+            let sumTopDias = slotsPorDia.slice(0, d.maxDias).reduce((a, b) => a + b, 0);
+
+            // Si los mejores días no alcanzan y hay un día más con disponibilidad
+            if (sumTopDias < d.horas_carga && diasDisponibles > d.maxDias) {
+                d.maxDias++;
+            }
+        });
+
         let advertencias = [];
 
         MAPA_DOCENTES.forEach((d, nombre) => {
