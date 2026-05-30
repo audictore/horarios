@@ -233,6 +233,17 @@
             grid-area: 5/10/7/13;
         }
 
+        #button_reset_aprendizaje{
+            grid-area: 7/10/8/13;
+            font-size: 0.75rem;
+            background-color: var(--color-dim-gray);
+            color: white;
+        }
+        #button_reset_aprendizaje:hover{
+            background-color: var(--color-tomato);
+            color: white;
+        }
+
         .span_error{
             width: 100%;
             height: 100%;
@@ -415,6 +426,7 @@
             <span>Disponibilidades</span>
         </label>
         <button class="button_accion" id="button_accion">Generar horarios</button>
+        <button id="button_reset_aprendizaje" disabled style="opacity:0.4">Sin aprendizaje</button>
         
         <div class="span_error" id="span_error"></div>
     </main>
@@ -440,6 +452,24 @@ let MAPA_DOCENTES = new Map(), MAPA_GRUPOS = new Map(), PLANTILLAS_MATERIAS = []
 let LOG_CAMBIOS = [];
 let wbCarga = null, wbDisp = null;
 let AG_BLOQUES_SORTED = [];
+
+// ── Aprendizaje entre ejecuciones ─────────────────────────────────────────────
+let eliteOrden           = null;   // Array<bloque> — orden del mejor arranque greedy
+let eliteFallosCount     = Infinity;
+let sinMejoraConsecutiva = 0;
+let _ultimoOrden         = [];     // escrito por construccionVorazCascada al terminar
+const ELITE_EMPIEZA_EN   = 5;     // primer arranque donde se usa el élite
+const ELITE_RESET_TRAS   = 6;     // arranques sin mejora → resetear élite
+let freqMap              = new Map(); // EDA: bloque → Map<"dia|hora", count>
+let freqTotalRuns        = 0;         // ejecuciones acumuladas en freqMap
+let globalBestFallos     = Infinity;  // mejor resultado histórico (para filtrar acumulación)
+const FREQ_BONUS         = 100000;   // bonus máximo para slot con freq = 1.0
+const NEAR_BEST_TOL      = 1;        // acumular si fallos <= globalBest + esta tolerancia
+const RESET_SALTO        = 2;        // reiniciar freqMap si la mejora supera este salto
+let bloquesRecurrentesFallidos = new Set(); // bloques que fallaron en la última ejecución → prioridad absoluta
+let mejorSnapGlobal            = null;      // mejor snapshot persistente entre ejecuciones (warm start)
+let mejorFallosGlobal          = [];        // bloques fallidos del mejor snapshot global
+let _edaBloqueado              = false;     // true en arranques libres (sin sesgo EDA ni recurrentes)
 
 /** Devuelve true si el bloque corresponde a una materia de inglés. */
 function esIngles(b) {
@@ -498,9 +528,10 @@ class Materia {
 }
 
 class Docente {
-    constructor(n, t, e) {
+    constructor(n, t, e, cat) {
         this.nombre_docente = n.trim();
         this.tipo_docente = parseInt(t);
+        this.categoria = cat || (parseInt(t) === 2 ? 'PA' : 'PTC');
         this.horas_extra_clase = parseInt(e) || 0;
         this.horas_carga = 0;
         this.disponibilidad = {};
@@ -613,7 +644,7 @@ function parsearCargaAcademica(wb) {
         let tipo = (categoria === 'PA') ? 2 : 1;
 
         if (!MAPA_DOCENTES.has(nombre)) {
-            MAPA_DOCENTES.set(nombre, new Docente(nombre, tipo, 0));
+            MAPA_DOCENTES.set(nombre, new Docente(nombre, tipo, 0, categoria));
         }
         let docente = MAPA_DOCENTES.get(nombre);
 
@@ -669,7 +700,7 @@ function parsearCargaAcademica(wb) {
 
         // Inglés y tutoría siempre en bloques de 1h (para poder sincronizar por cuatrimestre)
         if (nm.includes("INGLES") || nm.includes("TUTORIA") || c.tsu) {
-            if (nm.includes("INGLES")) d.esDocenteIngles = true; // pueden ir toda la semana
+            if (nm.includes("INGLES")) d.esDocenteIngles = true; // todos los inglés → días ilimitados
             for (let i = 0; i < h; i++) desglose.push(1);
         } else {
             // Regla de partición: 1→[1], 2→[2], 3→[2,1], 4→[2,2], 5→[2,2,1], 6→[2,2,2], 7→[2,2,2,1]
@@ -751,6 +782,7 @@ function actualizarEstado() {
 
 function parsearTodo() {
     try {
+        resetearAprendizaje();
         MAPA_DOCENTES.clear(); MAPA_GRUPOS.clear(); PLANTILLAS_MATERIAS = [];
 
         let asignacionesExitosas = parsearCargaAcademica(wbCarga);
@@ -787,8 +819,7 @@ function parsearTodo() {
             }
         });
 
-        // Docentes de inglés: pueden asistir toda la semana sin importar su carga.
-        // (enseñan 1h/día a grupos diferentes → necesitan un día distinto por grupo)
+        // Docentes de inglés (cualquier cuatrimestre): pueden asistir todos sus días disponibles
         MAPA_DOCENTES.forEach(d => {
             if (d.esDocenteIngles) d.maxDias = diasSemana.length;
         });
@@ -893,7 +924,7 @@ function mostrarDesglose() {
         </tr>`;
 
         asigs.forEach(({ materia, docente, horas }) => {
-            let cat   = docente.tipo_docente === 2 ? 'PA' : 'PTC';
+            let cat   = docente.tipo_docente === 2 ? 'PA' : (docente.categoria || 'PTC');
             let badge = docente.tipo_docente === 2 ? 'badge-pa' : 'badge-ptc';
             // Clave materia+grupo → mismo color que la celda del Excel del grupo
             const hex = colorParaMateria(materia + ' [' + nombre + ']');
@@ -1077,8 +1108,9 @@ function intentarAsignar(bloque, relajarSesiones, relajarDiasMax, relajarContigu
                     costo += (hInicio - grupo.baseHoras[0]) * 10;
                 }
 
-                // Pequeña penalización por activar un día nuevo en el docente
-                if (activaNuevoDia) costo += 500;
+                // Solo PAs pagan penalización por abrir un día nuevo
+                // (PTC, TA, Director pueden usar todos sus días disponibles)
+                if (activaNuevoDia && docente.tipo_docente === 2) costo += 500;
 
                 // --- Sincronización de inglés (fallback greedy) ---
                 // Para bloques de inglés que no pudieron pre-asignarse: bono si coincide con
@@ -1127,6 +1159,15 @@ function intentarAsignar(bloque, relajarSesiones, relajarDiasMax, relajarContigu
                     }
                     if (sincroniza)   costo -= 150000; // bono fuerte por coincidir
                     if (desincroniza) costo +=  10000; // penalización leve por divergir
+                }
+
+                // Bonus EDA: preferir slots que funcionaron bien en ejecuciones anteriores
+                if (freqTotalRuns > 0) {
+                    const bm = freqMap.get(bloque);
+                    if (bm) {
+                        const cnt = bm.get(dia + '|' + hInicio) || 0;
+                        if (cnt > 0) costo -= (cnt / freqTotalRuns) * FREQ_BONUS;
+                    }
                 }
 
                 if (costo < mejorCosto) {
@@ -2281,7 +2322,7 @@ async function rescateBacktracking(bloquesFallidos, progFn = null) {
     return mejorFallidos;
 }
 
-async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = null, invertirOrden = false) {
+async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = null, invertirOrden = false, eliteBase = null) {
     let noAsignados = [];
     let TODOS_LOS_BLOQUES = [];
     LOG_CAMBIOS = [];
@@ -2296,12 +2337,24 @@ async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = nu
     MAPA_DOCENTES.forEach(d => {
         let dispTotal = 0;
         diasSemana.forEach(dia => dispTotal += d.disponibilidad[dia].size);
-        d.flexibilidad = dispTotal - d.horas_carga;
+        d.flexibilidad    = dispTotal - d.horas_carga;
+        d.constraintRatio = d.horas_carga / Math.max(1, dispTotal); // mayor → más restringido
     });
 
     if (cromosoma !== null) {
         // Modo AG: reordenar bloques según el cromosoma (permutación de índices en AG_BLOQUES_SORTED)
         TODOS_LOS_BLOQUES = cromosoma.map(i => AG_BLOQUES_SORTED[i]);
+    } else if (eliteBase !== null) {
+        // Modo élite: partir del mejor orden conocido y aplicar ruido encima
+        TODOS_LOS_BLOQUES = [...eliteBase];
+        if (ruido > 0) {
+            const sep    = TODOS_LOS_BLOQUES.findIndex(b => !esIngles(b));
+            const offset = sep < 0 ? TODOS_LOS_BLOQUES.length : sep;
+            const resto  = TODOS_LOS_BLOQUES.splice(offset);
+            if (ruido >= 1.0) shuffleArray(resto);
+            else              shuffleConRuido(resto, ruido);
+            TODOS_LOS_BLOQUES.push(...resto);
+        }
     } else {
         // Modo normal: construir y ordenar con heurística greedy
         MAPA_GRUPOS.forEach(g => { TODOS_LOS_BLOQUES.push(...g.bloques); });
@@ -2328,29 +2381,23 @@ async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = nu
         });
 
         TODOS_LOS_BLOQUES.sort((a, b) => {
-            // 0. Inglés siempre primero — el resto del horario gira alrededor de él
-            let aI = esIngles(a) ? 1 : 0, bI = esIngles(b) ? 1 : 0;
+            // 0. Inglés siempre primero
+            const aI = esIngles(a) ? 1 : 0, bI = esIngles(b) ? 1 : 0;
             if (aI !== bI) return bI - aI;
 
-            // Con invertirOrden: menos restringidos primero (deja espacio libre para los urgentes al final)
             const signo = invertirOrden ? -1 : 1;
 
-            // 1. Margen efectivo en el grupo (menos margen = más urgente en modo normal)
+            // 1. Docente con mayor ratio carga/disponibilidad primero
+            //    (más carga y menos disponibilidad → más urgente)
+            if (a.docente.constraintRatio !== b.docente.constraintRatio)
+                return signo * (b.docente.constraintRatio - a.docente.constraintRatio);
+
+            // 2. Margen local en el grupo (días útiles disponibles − sesiones a dar)
             if (a.flexibilidadEfectiva !== b.flexibilidadEfectiva)
                 return signo * (a.flexibilidadEfectiva - b.flexibilidadEfectiva);
 
-            // 2. Docentes con múltiples turnos o tipo PTC
-            let placaA = (a.materia.tsu || a.docente.tipo_docente === 1 || a.docente.flexibilidad <= 0) ? 1 : 0;
-            let placaB = (b.materia.tsu || b.docente.tipo_docente === 1 || b.docente.flexibilidad <= 0) ? 1 : 0;
-            if (placaA !== placaB) return signo * (placaB - placaA);
-
-            let turnosA = a.docente.turnosAsignados.size;
-            let turnosB = b.docente.turnosAsignados.size;
-            if (turnosA !== turnosB) return signo * (turnosB - turnosA);
-
-            if (a.docente.flexibilidad !== b.docente.flexibilidad)
-                return signo * (a.docente.flexibilidad - b.docente.flexibilidad);
-            return b.duracion - a.duracion;
+            // 3. Bloques más largos primero (más difíciles de ubicar)
+            return signo * (b.duracion - a.duracion);
         });
 
         // Multi-start: ruido > 0 mezcla la parte no-inglés del orden
@@ -2364,6 +2411,7 @@ async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = nu
             TODOS_LOS_BLOQUES.push(...resto);
         }
     }
+    _ultimoOrden = [...TODOS_LOS_BLOQUES];
 
     // Pre-asignar inglés sincronizado (cuatrimestres 1-7 por turno, 8+ por cuatrimestre).
     // Los bloques ya colocados se excluyen de la cola del algoritmo principal.
@@ -2383,11 +2431,12 @@ async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = nu
         b => !inglesPreAsignados.has(b) && !paPreAsignados.has(b)
     );
 
-    // REGLA INSTITUCIONAL: inglés siempre primero.
-    // El resto del horario se construye ALREDEDOR de las sesiones de inglés y PAs.
+    // Orden de cola: 1) inglés  2) recurrentes (solo en arranques con sesgo)  3) resto
+    const conSesgo = !_edaBloqueado && bloquesRecurrentesFallidos.size > 0;
     let queue = [
         ...restantes.filter(b =>  esIngles(b)),
-        ...restantes.filter(b => !esIngles(b))
+        ...(conSesgo ? restantes.filter(b => !esIngles(b) &&  bloquesRecurrentesFallidos.has(b)) : []),
+        ...restantes.filter(b => !esIngles(b) && (!conSesgo || !bloquesRecurrentesFallidos.has(b)))
     ];
 
     let bloquesFallidos = [];
@@ -2676,6 +2725,9 @@ async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null) 
     const ALPHA     = 0.99997;  // enfriamiento muy lento (≈ 115 k iters hasta T_MIN)
     let lastYield   = Date.now();
     let iter = 0, aceptados = 0, mejoras = 0;
+    let itersDesdeUltimaMejora = 0;
+    const KICK_CADA   = 8000;  // kick cada N iters sin mejorar el mejor global
+    const KICK_FRAC   = 0.20;  // fracción de bloques colocados a remover en el kick
 
     // ── Estado mutable ─────────────────────────────────────────────────────────
     let fallidosSet = new Set(bloquesFallidos);  // bloques actualmente sin colocar
@@ -2767,6 +2819,42 @@ async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null) 
             lastYield = Date.now();
         }
 
+        // ── Kick: perturbación aleatoria cuando SA lleva KICK_CADA iters estancado ──
+        if (itersDesdeUltimaMejora >= KICK_CADA && fallidosSet.size > 0) {
+            restaurarSnapshot(mejorSnap);
+            fallidosSet   = new Set(mejorFallos);
+            energiaActual = fallidosSet.size;
+
+            const colocados = getColocados();
+            const nKick = Math.max(1, Math.floor(colocados.length * KICK_FRAC));
+            shuffleArray(colocados);
+
+            for (const b of colocados.slice(0, nKick)) {
+                const pos = encontrarPosicionBloque(b);
+                if (pos) quitarAsignacion(b.grupo, b, pos.dia, pos.hInicio);
+            }
+
+            const colaKick = [...fallidosSet,
+                              ...colocados.slice(0, nKick).filter(b => !fallidosSet.has(b))];
+            const nuevosF = new Set(fallidosSet);
+            for (const b of colaKick) {
+                if (intentarAsignar(b, false, false, false, false) ||
+                    intentarAsignar(b, false, true,  false, false))
+                    nuevosF.delete(b);
+                else
+                    nuevosF.add(b);
+            }
+            fallidosSet   = nuevosF;
+            energiaActual = fallidosSet.size;
+
+            if (fallidosSet.size < mejorFallos.length) {
+                mejoras++;
+                mejorFallos = [...fallidosSet];
+                mejorSnap   = tomarSnapshot();
+            }
+            itersDesdeUltimaMejora = 0;
+        }
+
         // ── Elegir tipo de movimiento (60% Tipo B dirigido, 40% Tipo A general) ─
         const usarDirigido = fallidosSet.size > 0 && Math.random() < 0.60;
 
@@ -2856,6 +2944,10 @@ async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null) 
             restaurarSnapshot(snap);
             fallidosSet = fallosAntes;
         }
+
+        // Rastrear estancamiento para el kick
+        if (fallidosSet.size < mejorFallos.length) itersDesdeUltimaMejora = 0;
+        else itersDesdeUltimaMejora++;
 
         T *= ALPHA;
     }
@@ -3464,10 +3556,324 @@ async function paseForzadoCruzado(bloquesFallidos, progFn = null, maxIter = 3) {
     return restantes;
 }
 
+/**
+ * ─── SOLVER EXACTO (Backtracking con MCV + Forward-Checking) ─────────────────
+ *
+ * Cuando quedan ≤12 bloques sin ubicar, el subproblema es pequeño y se puede
+ * resolver con backtracking exhaustivo: prueba todas las combinaciones posibles
+ * de (bloque → slot) respetando restricciones duras, y conserva la mejor
+ * solución parcial encontrada dentro del límite de tiempo.
+ *
+ * Usa MCV (Minimum Constraining Variable): en cada nodo elige el bloque con
+ * MENOS slots válidos disponibles, maximizando la poda.
+ */
+async function solverExacto(bloquesFallidos, tiempoLimiteMs, progFn = null) {
+    if (bloquesFallidos.length === 0) return [];
+    if (bloquesFallidos.length > 12) return bloquesFallidos;
+
+    if (progFn) {
+        progFn(Math.round(tiempoLimiteMs / 1000),
+            `🔬 Solver exacto — ${bloquesFallidos.length} bloques · buscando óptimo...`);
+        await cederControlUI();
+    }
+
+    const endTime = Date.now() + tiempoLimiteMs;
+    let mejorN    = 0;
+    let mejorSnap = tomarSnapshot();
+    let nodos     = 0;
+
+    function slotsValidos(b) {
+        const g = b.grupo, d = b.docente, dur = b.duracion;
+        const res = [];
+        for (const dia of diasSemana) {
+            if (dia === 'sabado' && !d.disponibilidad.sabado.size) continue;
+            if ((g.sesionesDia[dia][b.materia.nombre_materia] || 0) >= 1) continue;
+            if (d.tipo_docente === 2 && !d.diasActivos.has(dia) &&
+                d.diasActivos.size >= d.maxDias) continue;
+            for (let i = 0; i <= g.baseHoras.length - dur; i++) {
+                const h = g.baseHoras[i];
+                let ok = true;
+                for (let o = 0; o < dur && ok; o++) {
+                    if (g.horario[dia][h + o] !== null)       ok = false;
+                    if (d.asignado[dia][h + o])               ok = false;
+                    if (!d.disponibilidad[dia].has(h + o))    ok = false;
+                }
+                if (ok) res.push({ dia, hInicio: h });
+            }
+        }
+        return res;
+    }
+
+    function bt(restantes, n) {
+        nodos++;
+        if (Date.now() >= endTime) return;
+        if (n > mejorN) { mejorN = n; mejorSnap = tomarSnapshot(); }
+        if (mejorN === bloquesFallidos.length || restantes.length === 0) return;
+
+        // MCV: elegir el bloque con menos slots válidos (más difícil de colocar)
+        let elegido = 0, elegidoSlots = [];
+        let minS = Infinity;
+        for (let i = 0; i < restantes.length; i++) {
+            const s = slotsValidos(restantes[i]);
+            if (s.length < minS) { minS = s.length; elegido = i; elegidoSlots = s; }
+        }
+
+        const b    = restantes[elegido];
+        const rest = restantes.filter((_, i) => i !== elegido);
+
+        // Rama 1: colocar en cada slot válido
+        for (const { dia, hInicio } of elegidoSlots) {
+            if (Date.now() >= endTime) return;
+            aplicarAsignacion(b.grupo, b, dia, hInicio);
+            bt(rest, n + 1);
+            if (mejorN === bloquesFallidos.length) return;
+            quitarAsignacion(b.grupo, b, dia, hInicio);
+        }
+
+        // Rama 2: saltar este bloque (buscar mejor solución parcial)
+        bt(rest, n);
+    }
+
+    bt([...bloquesFallidos], 0);
+
+    restaurarSnapshot(mejorSnap);
+
+    if (progFn) {
+        progFn(0, `🔬 Solver exacto — ${mejorN}/${bloquesFallidos.length} colocados · ${nodos} nodos`);
+        await cederControlUI();
+    }
+
+    return bloquesFallidos.filter(b => !encontrarPosicionBloque(b));
+}
+
+/**
+ * ─── LNS: BÚSQUEDA DE VECINO GRANDE (Ruin & Recreate) ────────────────────────
+ *
+ * Para cada bloque fallido: destruye un "vecindario" relacionado (todos los
+ * bloques del mismo docente, del mismo grupo, o ambos), y lo reconstruye con
+ * el greedy priorizando los bloques que fallaron. Si el resultado es mejor
+ * (menos fallos), lo conserva; si no, restaura el mejor estado anterior.
+ *
+ * A diferencia del SA que mueve UN bloque a la vez, el LNS puede reorganizar
+ * decenas de asignaciones en un solo paso, escapando mínimos locales profundos.
+ */
+async function busquedaVecinoGrande(bloquesFallidos, tiempoLimiteMs, progFn = null) {
+    if (bloquesFallidos.length === 0) return [];
+
+    const endTime   = Date.now() + tiempoLimiteMs;
+    let fallidosSet = new Set(bloquesFallidos);
+    let mejorFallos = [...fallidosSet];
+    let mejorSnap   = tomarSnapshot();
+    let lastYield   = Date.now();
+    let iter = 0, mejoras = 0;
+
+    // Intenta colocar un bloque con todas las técnicas disponibles
+    function colocarBloque(b) {
+        return intentarAsignar(b, false, false, false, false)
+            || intentarAsignar(b, false, true,  false, false)
+            || intentarSwapDeHorarios(b, [])
+            || intentarCadenaSwap(b)
+            || intentarReestructuracionCruzada(b)
+            || intentarCadenaSwap(b, 2, new Set([b]))
+            || intentarCadenaAumentanteGlobal(b);
+    }
+
+    // Vecindad A: todos los bloques del mismo docente
+    function vecinoDocente(b) {
+        const v = [];
+        MAPA_GRUPOS.forEach(g =>
+            g.bloques.forEach(bl => {
+                if (bl.docente === b.docente && !bl.preAsignado) v.push(bl);
+            })
+        );
+        return v;
+    }
+
+    // Vecindad B: todos los bloques del mismo grupo
+    function vecinoGrupo(b) {
+        return b.grupo.bloques.filter(bl => !bl.preAsignado);
+    }
+
+    // Vecindad C: grupo del fallido + bloques del docente en otros grupos
+    function vecinoGrupoMasDocente(b) {
+        const v = new Set(vecinoGrupo(b));
+        MAPA_GRUPOS.forEach(g =>
+            g.bloques.forEach(bl => {
+                if (bl.docente === b.docente && !bl.preAsignado) v.add(bl);
+            })
+        );
+        return [...v];
+    }
+
+    const estrategias = [vecinoDocente, vecinoGrupo, vecinoGrupoMasDocente];
+
+    while (Date.now() < endTime && mejorFallos.length > 0) {
+        iter++;
+
+        const ahora = Date.now();
+        if (ahora - lastYield >= 400) {
+            if (progFn) {
+                const s = Math.max(0, Math.ceil((endTime - ahora) / 1000));
+                progFn(s,
+                    `🔍 LNS iter ${iter} · ${mejorFallos.length} sin ubicar` +
+                    ` · mejoras: ${mejoras} · ${s}s rest.`);
+            }
+            await cederControlUI();
+            lastYield = Date.now();
+        }
+
+        // Partir siempre del mejor estado conocido
+        restaurarSnapshot(mejorSnap);
+        fallidosSet = new Set(mejorFallos);
+
+        // Elegir bloque fallido y estrategia de vecindad (rotar entre las 3)
+        const fallidosArr = [...fallidosSet];
+        const bFallido    = fallidosArr[Math.floor(Math.random() * fallidosArr.length)];
+        const vecindad    = estrategias[iter % estrategias.length](bFallido);
+
+        if (vecindad.length <= 1) continue;
+
+        // Ruin: quitar vecindad del horario (solo los ya colocados)
+        const removidos = [];
+        for (const b of vecindad) {
+            if (fallidosSet.has(b)) continue;
+            const pos = encontrarPosicionBloque(b);
+            if (pos) {
+                quitarAsignacion(b.grupo, b, pos.dia, pos.hInicio);
+                removidos.push(b);
+            }
+        }
+
+        // Recreate: fallidos de la vecindad primero, luego los removidos
+        const fallVecindad = vecindad.filter(b => fallidosSet.has(b));
+        const cola = [bFallido,
+                      ...fallVecindad.filter(b => b !== bFallido),
+                      ...removidos];
+
+        const nuevosFallos = new Set(fallidosSet);
+        for (const b of cola) {
+            if (colocarBloque(b)) nuevosFallos.delete(b);
+            else                  nuevosFallos.add(b);
+        }
+
+        if (nuevosFallos.size < mejorFallos.length) {
+            mejoras++;
+            mejorFallos = [...nuevosFallos];
+            mejorSnap   = tomarSnapshot();
+            fallidosSet = nuevosFallos;
+            if (mejorFallos.length === 0) break;
+        }
+    }
+
+    restaurarSnapshot(mejorSnap);
+    return mejorFallos;
+}
+
+/**
+ * ─── REINICIO PARCIAL AGRESIVO ────────────────────────────────────────────────
+ *
+ * Libera el 70-85 % de los bloques colocados (no preAsignados) aleatoriamente
+ * y reconstruye el horario priorizando los bloques que fallaron. Al liberar
+ * tanto espacio, los fallidos encuentran el horario casi vacío y pueden
+ * explorar caminos completamente nuevos que los swaps locales no pueden ver.
+ *
+ * Cada iteración varía la fracción liberada (70 % → 85 %) para maximizar
+ * la diversidad de configuraciones exploradas.
+ */
+async function reinicioParcialAgresivo(bloquesFallidos, tiempoLimiteMs, progFn = null) {
+    if (bloquesFallidos.length === 0) return [];
+
+    const endTime    = Date.now() + tiempoLimiteMs;
+    const fallidosRef = new Set(bloquesFallidos);
+    let mejorFallos  = [...bloquesFallidos];
+    let mejorSnap    = tomarSnapshot();
+    let lastYield    = Date.now();
+    let iter = 0, mejoras = 0;
+
+    // Fracciones a ciclar para diversificar la exploración
+    const FRACCIONES = [0.75, 0.80, 0.70, 0.85, 0.65];
+
+    while (Date.now() < endTime && mejorFallos.length > 0) {
+        iter++;
+
+        const ahora = Date.now();
+        if (ahora - lastYield >= 400) {
+            if (progFn) {
+                const s = Math.max(0, Math.ceil((endTime - ahora) / 1000));
+                progFn(s,
+                    `♻️ RPA iter ${iter} · ${mejorFallos.length} sin ubicar` +
+                    ` · mejoras: ${mejoras} · ${s}s rest.`);
+            }
+            await cederControlUI();
+            lastYield = Date.now();
+        }
+
+        // Restaurar el mejor estado conocido
+        restaurarSnapshot(mejorSnap);
+
+        // Recopilar todos los bloques colocados (no preAsignados, no fallidos)
+        const colocados = [];
+        MAPA_GRUPOS.forEach(g => {
+            g.bloques.forEach(b => {
+                if (!fallidosRef.has(b) && !mejorFallos.some(f => f === b) && !b.preAsignado) {
+                    const pos = encontrarPosicionBloque(b);
+                    if (pos) colocados.push(b);
+                }
+            });
+        });
+
+        if (colocados.length === 0) break;
+
+        // Liberar la fracción correspondiente a esta iteración
+        const fraccion = FRACCIONES[(iter - 1) % FRACCIONES.length];
+        const nLiberar = Math.max(1, Math.floor(colocados.length * fraccion));
+        shuffleArray(colocados);
+        const aLiberar = colocados.slice(0, nLiberar);
+
+        for (const b of aLiberar) {
+            const pos = encontrarPosicionBloque(b);
+            if (pos) quitarAsignacion(b.grupo, b, pos.dia, pos.hInicio);
+        }
+
+        // Reconstruir: fallidos con técnicas completas, liberados con asignación directa
+        const nuevosFallos = new Set(mejorFallos);
+
+        for (const b of mejorFallos) {
+            const ok = intentarAsignar(b, false, false, false, false)
+                    || intentarAsignar(b, false, true,  false, false)
+                    || intentarSwapDeHorarios(b, [])
+                    || intentarCadenaSwap(b)
+                    || intentarCadenaAumentanteGlobal(b);
+            if (ok) nuevosFallos.delete(b);
+        }
+
+        for (const b of aLiberar) {
+            if (nuevosFallos.has(b)) continue;
+            if (intentarAsignar(b, false, false, false, false) ||
+                intentarAsignar(b, false, true,  false, false)) continue;
+            // Si no entró en asignación directa, no forzar (aceptar que quede fuera)
+        }
+
+        if (nuevosFallos.size < mejorFallos.length) {
+            mejoras++;
+            mejorFallos = [...nuevosFallos];
+            mejorSnap   = tomarSnapshot();
+            // Actualizar la referencia de fallidos para las próximas iteraciones
+            fallidosRef.clear();
+            mejorFallos.forEach(b => fallidosRef.add(b));
+            if (mejorFallos.length === 0) break;
+        }
+    }
+
+    restaurarSnapshot(mejorSnap);
+    return mejorFallos;
+}
+
 async function ejecutarAlgoritmoFinal() {
-    // ── Parámetros fijos (~15 min) ───────────────────────────────────────────
-    // SA domina — 3 ciclos SA+reconf+forzado con más tiempo por pase
-    const CFG = { sa: 180000, sa2: 120000, sa3: 90000, optim: 20000, forzIter: 12 };
+    // ── Parámetros fijos ─────────────────────────────────────────────────────
+    const CFG = { sa: 180000, sa2: 120000, sa3: 90000, optim: 20000, forzIter: 12,
+                  lns1: 60000, lns2: 45000, lns3: 30000,
+                  rpa1: 60000, rpa: 90000, solver: 45000 };
 
     // ── Estrategias de arranque (24 arranques con alta diversidad) ───────────
     // Menos starts → más tiempo libre para SA que es lo más efectivo
@@ -3517,6 +3923,19 @@ async function ejecutarAlgoritmoFinal() {
     let mejorFallos = null;
     let mejorSnap   = null;
     const tInicioTotal = Date.now();
+    sinMejoraConsecutiva = 0; // evitar arrastre entre ejecuciones
+
+    // Mostrar qué aprendizaje hay activo antes de empezar
+    {
+        const partes = [];
+        if (eliteOrden !== null) partes.push(`🧬 élite (${eliteFallosCount === Infinity ? '?' : eliteFallosCount} fallos)`);
+        if (freqTotalRuns > 0)   partes.push(`📊 ${freqTotalRuns} ejecución${freqTotalRuns !== 1 ? 'es' : ''} EDA (${freqMap.size} bloques)`);
+        const aprendizajeStr = partes.length > 0
+            ? `<br><small style="color:var(--color-cerulean)">Aprendizaje activo: ${partes.join(' · ')}</small>`
+            : `<br><small style="color:var(--color-gray-olive)">Sin aprendizaje previo — exploración libre</small>`;
+        setProgreso(0, '🚀 Iniciando generación de horarios...' + aprendizajeStr);
+        await cederControlUI();
+    }
 
     try {
     for (let intento = 0; intento < N_STARTS; intento++) {
@@ -3525,11 +3944,13 @@ async function ejecutarAlgoritmoFinal() {
         const pctRange = Math.max(1, Math.round(57 / N_STARTS));
 
         const { ruido, invertir } = ESTRATEGIAS[intento];
-        const labelEstrategia = ruido === 0   ? '🎯 det.'
+        const usarEliteEsteIntento = eliteOrden !== null && intento >= ELITE_EMPIEZA_EN;
+        const eliteBase            = usarEliteEsteIntento ? eliteOrden : null;
+        const labelEstrategia = (ruido === 0   ? '🎯 det.'
                               : ruido >= 1.0  ? '🎲 aleat.'
                               : ruido >= 0.5  ? '💥 agresivo'
                               : invertir       ? '🔁 invertido'
-                              : '🔀 leve';
+                              : '🔀 leve') + (usarEliteEsteIntento ? ' 🧬' : '');
 
         // Callback de progreso para las fases internas de construccionVorazCascada
         const progFn = (pctDentro, msg) => {
@@ -3547,16 +3968,33 @@ async function ejecutarAlgoritmoFinal() {
 
         MAPA_GRUPOS.forEach(g => {
             g.reset();
-            g.bloques.forEach(b => { delete b.preAsignado; delete b.nombreStrRender; });
+            g.bloques.forEach(b => { delete b.preAsignado; delete b.consensoFijado; delete b.nombreStrRender; });
         });
         MAPA_DOCENTES.forEach(d => d.reset());
 
-        const fallos = await construccionVorazCascada(null, ruido, progFn, invertir);
+        const fallos = await construccionVorazCascada(null, ruido, progFn, invertir, eliteBase);
 
         if (mejorFallos === null || fallos.length < mejorFallos.length) {
-            mejorFallos = fallos;
-            mejorSnap   = tomarSnapshot();
+            const snapActual = tomarSnapshot();
+            mejorFallos      = fallos;
+            mejorSnap        = snapActual;
+
+            if (fallos.length < eliteFallosCount) {
+                eliteOrden       = _ultimoOrden.length > 0 ? [..._ultimoOrden] : null;
+                eliteFallosCount = fallos.length;
+                actualizarBotonReset();
+            }
+
+            sinMejoraConsecutiva = 0;
             if (fallos.length === 0) break; // solución perfecta
+        } else {
+            sinMejoraConsecutiva++;
+            if (sinMejoraConsecutiva >= ELITE_RESET_TRAS) {
+                eliteOrden           = null;
+                eliteFallosCount     = Infinity; // permite regenerar élite desde cero
+                sinMejoraConsecutiva = 0;
+                actualizarBotonReset();
+            }
         }
     }
 
@@ -3596,6 +4034,20 @@ async function ejecutarAlgoritmoFinal() {
         setProgreso(75, `✅ Desbloqueo [1] — <b>${mejorFallos.length}</b> sin ubicar`);
         await cederControlUI();
     }
+    if (CFG.lns1 > 0 && mejorFallos.length > 0) {
+        mejorFallos = await busquedaVecinoGrande(mejorFallos, CFG.lns1, (s, msg) => {
+            setProgreso(75, `🔍 LNS [1/3] &nbsp;·&nbsp; ${msg}`);
+        });
+        setProgreso(76, `✅ LNS [1/3] — <b>${mejorFallos.length}</b> sin ubicar`);
+        await cederControlUI();
+    }
+    if (CFG.rpa1 > 0 && mejorFallos.length > 0) {
+        mejorFallos = await reinicioParcialAgresivo(mejorFallos, CFG.rpa1, (s, msg) => {
+            setProgreso(76, `♻️ RPA [1/2] &nbsp;·&nbsp; ${msg}`);
+        });
+        setProgreso(77, `✅ RPA [1/2] — <b>${mejorFallos.length}</b> sin ubicar`);
+        await cederControlUI();
+    }
 
     // ── Recocido Simulado (pase 2/3) ────────────────────────────────────────
     if (CFG.sa2 > 0 && mejorFallos.length > 0) {
@@ -3623,6 +4075,13 @@ async function ejecutarAlgoritmoFinal() {
                 setProgreso(87 + Math.round(pct * 0.005), msg);
             }, CFG.forzIter);
             setProgreso(88, `✅ Desbloqueo [2] — <b>${mejorFallos.length}</b> sin ubicar`);
+            await cederControlUI();
+        }
+        if (CFG.lns2 > 0 && mejorFallos.length > 0) {
+            mejorFallos = await busquedaVecinoGrande(mejorFallos, CFG.lns2, (s, msg) => {
+                setProgreso(88, `🔍 LNS [2/3] &nbsp;·&nbsp; ${msg}`);
+            });
+            setProgreso(89, `✅ LNS [2/3] — <b>${mejorFallos.length}</b> sin ubicar`);
             await cederControlUI();
         }
     }
@@ -3655,6 +4114,31 @@ async function ejecutarAlgoritmoFinal() {
             setProgreso(93, `✅ Desbloqueo [3] — <b>${mejorFallos.length}</b> sin ubicar`);
             await cederControlUI();
         }
+        if (CFG.lns3 > 0 && mejorFallos.length > 0) {
+            mejorFallos = await busquedaVecinoGrande(mejorFallos, CFG.lns3, (s, msg) => {
+                setProgreso(93, `🔍 LNS [3/3] &nbsp;·&nbsp; ${msg}`);
+            });
+            setProgreso(94, `✅ LNS [3/3] — <b>${mejorFallos.length}</b> sin ubicar`);
+            await cederControlUI();
+        }
+    }
+
+    // ── Reinicio Parcial Agresivo: liberar 70-85 % y reconstruir ────────────
+    if (CFG.rpa > 0 && mejorFallos.length > 0) {
+        mejorFallos = await reinicioParcialAgresivo(mejorFallos, CFG.rpa, (s, msg) => {
+            setProgreso(94, `♻️ RPA &nbsp;·&nbsp; ${msg}`);
+        });
+        setProgreso(94, `✅ RPA — <b>${mejorFallos.length}</b> sin ubicar`);
+        await cederControlUI();
+    }
+
+    // ── Solver exacto (backtracking MCV) para los últimos ≤12 bloques ────────
+    if (CFG.solver > 0 && mejorFallos.length > 0 && mejorFallos.length <= 12) {
+        mejorFallos = await solverExacto(mejorFallos, CFG.solver, (s, msg) => {
+            setProgreso(94, `🔬 Solver exacto &nbsp;·&nbsp; ${msg}`);
+        });
+        setProgreso(94, `✅ Solver exacto — <b>${mejorFallos.length}</b> sin ubicar`);
+        await cederControlUI();
     }
 
     const estadoAntes = obtenerSnapshotAsignaciones();
@@ -3665,6 +4149,33 @@ async function ejecutarAlgoritmoFinal() {
         setProgreso(Math.min(94, pct),
             `🔧 Optimizando calidad... &nbsp;<b>${segsRestantes}s</b> restantes`);
     });
+
+    // Actualizar bloques recurrentemente fallidos → prioridad en la próxima corrida
+    bloquesRecurrentesFallidos = new Set(mejorFallos);
+
+    // A: Guardar el mejor snapshot global para warm start en la próxima ejecución
+    if (mejorSnapGlobal === null || mejorFallos.length < mejorFallosGlobal.length) {
+        mejorSnapGlobal   = tomarSnapshot();
+        mejorFallosGlobal = [...mejorFallos];
+    }
+
+    // Acumular frecuencias EDA solo si el resultado es cercano al mejor histórico
+    {
+        const snapFinal = tomarSnapshot();
+        const nFallos   = mejorFallos.length;
+
+        if (nFallos <= globalBestFallos + NEAR_BEST_TOL) {
+            // Mejora significativa: limpiar datos viejos para no arrastrar posiciones malas
+            if (nFallos < globalBestFallos - RESET_SALTO) {
+                freqMap       = new Map();
+                freqTotalRuns = 0;
+            }
+            globalBestFallos = Math.min(globalBestFallos, nFallos);
+            acumularFrecuenciasDesde(snapFinal);
+        }
+        // Si el run es mucho peor que el mejor, no contaminar el mapa
+        actualizarBotonReset();
+    }
 
     setProgreso(94, '✅ Generando archivo Excel...');
     await cederControlUI();
@@ -3801,7 +4312,7 @@ function cederControlUI() { return new Promise(resolve => setTimeout(resolve, 0)
 function resetearParaAG() {
     MAPA_GRUPOS.forEach(g => {
         g.reset();
-        g.bloques.forEach(b => { delete b.preAsignado; delete b.nombreStrRender; });
+        g.bloques.forEach(b => { delete b.preAsignado; delete b.consensoFijado; delete b.nombreStrRender; });
     });
     MAPA_DOCENTES.forEach(d => d.reset());
 }
@@ -4102,7 +4613,7 @@ function mostrarPanelForzado(bloquesForzables, onAplicar) {
     let rows = '';
     bloquesForzables.forEach(({ bloque, slot }, i) => {
         const d    = bloque.docente;
-        const tipo = d.tipo_docente === 2 ? 'PA' : 'PTC';
+        const tipo = d.tipo_docente === 2 ? 'PA' : (d.categoria || 'PTC');
         const hFin = slot.hInicio + bloque.duracion;
 
         // Construir descripción de impacto real
@@ -4200,7 +4711,7 @@ function mostrarPanelImposibles(bloquesImposibles, onConfirmar) {
     bloquesImposibles.forEach(bloque => {
         const d    = bloque.docente;
         const g    = bloque.grupo;
-        const tipo = d.tipo_docente === 2 ? 'PA' : 'PTC';
+        const tipo = d.tipo_docente === 2 ? 'PA' : (d.categoria || 'PTC');
 
         // ── Diagnóstico detallado ──────────────────────────────────────────────
         // 1. Disponibilidad total del docente (horas declaradas)
@@ -4375,7 +4886,7 @@ function mostrarPanelExpansion(necesidades, onAplicar) {
 
     let rows = '';
     necesidades.forEach(({ diasActual, bloques }, docente) => {
-        const tipo  = docente.tipo_docente === 2 ? 'PA' : 'PTC';
+        const tipo  = docente.tipo_docente === 2 ? 'PA' : (docente.categoria || 'PTC');
         const bStr  = bloques.map(b => `${b.materia.nombre_materia} [${b.grupo.nombre_grupo}]`).join(', ');
         rows += `
         <label style="display:flex;align-items:flex-start;gap:0.7rem;padding:0.55rem 0;
@@ -4703,7 +5214,7 @@ function exportarExcel() {
         let totalSemana = 0;
         diasSemana.forEach(dia => { totalSemana += Object.keys(d.asignado[dia]).length; });
 
-        let estatusTipo = d.tipo_docente === 2 ? " (PA)" : " (Libre)";
+        let estatusTipo = ` (${d.categoria || (d.tipo_docente === 2 ? 'PA' : (d.categoria || 'PTC'))})`;
         rows.push([]);
         rows.push(["TOTAL HORAS EN LA SEMANA:", `${totalSemana} hrs`, "", "DÍAS ASISTIDOS:", `${d.diasActivos.size} de ${d.maxDias}${estatusTipo}`]);
         const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -4735,11 +5246,82 @@ function exportarExcel() {
     XLSX.writeFile(wb, "Horarios_Exhaustivos_Final.xlsx", { cellStyles: true });
 }
 
+// ─── APRENDIZAJE ENTRE EJECUCIONES ───────────────────────────────────────────
+
+function resetearAprendizaje() {
+    eliteOrden           = null;
+    eliteFallosCount     = Infinity;
+    sinMejoraConsecutiva = 0;
+    _ultimoOrden         = [];
+    freqMap                    = new Map();
+    freqTotalRuns              = 0;
+    globalBestFallos           = Infinity;
+    bloquesRecurrentesFallidos = new Set();
+    mejorSnapGlobal            = null;
+    mejorFallosGlobal          = [];
+    _edaBloqueado              = false;
+    actualizarBotonReset();
+}
+
+function actualizarBotonReset() {
+    const btn = document.getElementById('button_reset_aprendizaje');
+    if (!btn) return;
+    const tieneElite = eliteOrden !== null;
+    const tieneFreq  = freqTotalRuns > 0;
+    if (!tieneElite && !tieneFreq) {
+        btn.textContent   = 'Sin aprendizaje';
+        btn.disabled      = true;
+        btn.style.opacity = '0.4';
+    } else {
+        const partes = [];
+        if (tieneElite) partes.push('élite activo');
+        if (tieneFreq)  partes.push(freqTotalRuns + ' ejecución' + (freqTotalRuns !== 1 ? 'es' : '') + ' EDA');
+        btn.textContent   = 'Borrar: ' + partes.join(' · ');
+        btn.disabled      = false;
+        btn.style.opacity = '1';
+    }
+}
+
+function encontrarBloqueEnSnap(snap, g, b) {
+    const gS = snap.grupos.get(g.nombre_grupo);
+    if (!gS) return null;
+    for (const dia of diasSemana) {
+        for (let i = 0; i < g.baseHoras.length; i++) {
+            const h = g.baseHoras[i];
+            if (gS.horario[dia][h] !== b) continue;
+            if (i === 0 || gS.horario[dia][g.baseHoras[i - 1]] !== b)
+                return { dia, hInicio: h };
+        }
+    }
+    return null;
+}
+
+function acumularFrecuenciasDesde(snap) {
+    MAPA_GRUPOS.forEach(g => {
+        g.bloques.forEach(b => {
+            const pos = encontrarBloqueEnSnap(snap, g, b);
+            if (!pos) return;
+            if (!freqMap.has(b)) freqMap.set(b, new Map());
+            const key = pos.dia + '|' + pos.hInicio;
+            const m   = freqMap.get(b);
+            m.set(key, (m.get(key) || 0) + 1);
+        });
+    });
+    freqTotalRuns++;
+}
+
 document.getElementById("button_accion").onclick = () => {
     let cantBloques = 0;
     MAPA_GRUPOS.forEach(g => cantBloques += g.bloques.length);
     if (cantBloques === 0) return alert("Por favor, carga una plantilla válida primero.");
     ejecutarAlgoritmoFinal();
+};
+
+document.getElementById("button_reset_aprendizaje").onclick = () => {
+    resetearAprendizaje();
+    const errDiv = document.getElementById("span_error");
+    errDiv.style.color = "var(--color-dim-gray)";
+    errDiv.innerText = "Aprendizaje borrado. El próximo intento explorará desde cero.";
 };
     </script>
 </body>
