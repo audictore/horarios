@@ -566,6 +566,7 @@ let MAPA_DOCENTES = new Map(), MAPA_GRUPOS = new Map(), PLANTILLAS_MATERIAS = []
 // Worker infrastructure (solo en hilo principal)
 let _workerUrl = null; // URL del blob-worker (creado una vez)
 let _wBArr     = [];   // bArr[_wi] → bloque del hilo principal (asignado en serializarProblema)
+let _bloquesOriginales = new Map(); // gn → [{b, duracion}] — restaurar antes de cada ejecución
 let LOG_CAMBIOS = [];
 let wbCarga = null, wbDisp = null;
 let AG_BLOQUES_SORTED = [];
@@ -969,6 +970,13 @@ function parsearTodo() {
                 advertencias.push(`⚠ Grupo "${nombre}" tiene ${horasAsignadas}h asignadas pero solo ${slotsTotal} slots disponibles.`);
         });
 
+        // Guardar lista original de bloques para restaurar antes de cada ejecución
+        // (reconfigurarSesiones añade bloques nuevos que deben descartarse entre ejecuciones)
+        _bloquesOriginales = new Map();
+        MAPA_GRUPOS.forEach((g, gn) => {
+            _bloquesOriginales.set(gn, g.bloques.map(b => ({ b, duracion: b.duracion })));
+        });
+
         const errDiv = document.getElementById("span_error");
         if (asignacionesExitosas > 0 && advertencias.length === 0) {
             // Restablecer botón por si quedó deshabilitado de una ejecución anterior
@@ -1096,14 +1104,24 @@ function horasAsignadasEnDia(grupo, dia) {
 }
 
 function aplicarAsignacion(grupo, bloque, dia, horaInicio, esForzado = false) {
+    // REGLA DURA: nunca crear doble sesión — si ya hay una sesión de esta materia
+    // en este día, rechazar silenciosamente independientemente de quien llame.
+    if ((grupo.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= 1) return false;
+
+    // REGLA DURA: verificar que todos los slots estén libres antes de escribir
+    for (let h = horaInicio; h < horaInicio + bloque.duracion; h++) {
+        if (grupo.horario[dia][h] !== null) return false;
+    }
+
+    const marca = esForzado ? " [⚠️ FORZADO]" : "";
+    bloque.nombreStrRender = `${bloque.materia.nombre_materia} (${bloque.docente.nombre_docente})${marca}`;
     for (let h = horaInicio; h < horaInicio + bloque.duracion; h++) {
         grupo.horario[dia][h] = bloque;
-        let marca = esForzado ? " [⚠️ FORZADO]" : "";
-        bloque.nombreStrRender = `${bloque.materia.nombre_materia} (${bloque.docente.nombre_docente})${marca}`;
         bloque.docente.asignado[dia][h] = `${bloque.materia.nombre_materia} [${grupo.nombre_grupo}]${marca}`;
     }
     bloque.docente.diasActivos.add(dia);
     grupo.sesionesDia[dia][bloque.materia.nombre_materia] = (grupo.sesionesDia[dia][bloque.materia.nombre_materia] || 0) + 1;
+    return true;
 }
 
 /**
@@ -1128,9 +1146,15 @@ function encontrarPosicionBloque(bloque) {
 }
 
 function quitarAsignacion(grupo, bloque, dia, horaInicio) {
-    for (let h = horaInicio; h < horaInicio + bloque.duracion; h++) {
-        grupo.horario[dia][h] = null;
-        delete bloque.docente.asignado[dia][h];
+    // Escanear hacia adelante para limpiar TODAS las celdas que contienen este bloque
+    // (puede haber más celdas que bloque.duracion si hubo cambio de duración por reconfiguración)
+    const base = grupo.baseHoras;
+    let idx = base.indexOf(horaInicio);
+    if (idx === -1) return;
+    while (idx < base.length && grupo.horario[dia][base[idx]] === bloque) {
+        grupo.horario[dia][base[idx]] = null;
+        delete bloque.docente.asignado[dia][base[idx]];
+        idx++;
     }
     let quedanClases = false;
     for(let h in bloque.docente.asignado[dia]) quedanClases = true;
@@ -1444,27 +1468,26 @@ function intentarCadenaAumentanteGlobal(bloquePendiente, maxNodos = 300) {
     const nodeFrom = new Map();
     const visited  = new Set([bloquePendiente]);
 
-    // ── Genera slots candidatos para un bloque (solo disponibilidad + sesión doble) ──
+    // ── Genera slots candidatos para un bloque — valida TODAS las reglas duras ──
     function* candidatos(bloque) {
         const g = bloque.grupo, d = bloque.docente, dur = bloque.duracion;
         const posActual = (bloque !== bloquePendiente) ? encontrarPosicionBloque(bloque) : null;
         for (const dia of diasSemana) {
-            // Restricción sesión doble: si ya hay una sesión de esta materia HOY en este grupo
-            // ignorar SALVO que la sesión sea el propio bloque (que se va a mover)
             const sesHoy = g.sesionesDia[dia][bloque.materia.nombre_materia] || 0;
             if (sesHoy >= 1 && !(posActual && posActual.dia === dia)) continue;
-            // PA: no abrir día nuevo si maxDias alcanzado
             if (!d.diasActivos.has(dia) && d.tipo_docente === 2 &&
                 d.diasActivos.size >= d.maxDias) continue;
             for (let i = 0; i <= g.baseHoras.length - dur; i++) {
                 const h = g.baseHoras[i];
+                if (posActual && posActual.dia === dia && posActual.hInicio === h) continue;
+                // Solo disponibilidad del docente (el slot puede tener un obstáculo —
+                // eso es justamente lo que el BFS va a resolver). Contiguidad y libre
+                // se verifican tras ejecutar la cadena con hayHueco.
                 let dispOk = true;
                 for (let o = 0; o < dur; o++) {
                     if (!d.disponibilidad[dia].has(h + o)) { dispOk = false; break; }
                 }
                 if (!dispOk) continue;
-                // No tiene sentido proponer el propio slot actual del bloque
-                if (posActual && posActual.dia === dia && posActual.hInicio === h) continue;
                 yield { dia, h };
             }
         }
@@ -1569,6 +1592,16 @@ function intentarCadenaAumentanteGlobal(bloquePendiente, maxNodos = 300) {
         }
 
         aplicarAsignacion(b.grupo, b, toDia, toH);
+    }
+
+    // Verificar que la cadena no creó huecos en ningún grupo/día
+    for (const [, g] of MAPA_GRUPOS) {
+        for (const dia of diasSemana) {
+            if (hayHueco(g, dia)) {
+                restaurarSnapshot(snap);
+                return false;
+            }
+        }
     }
 
     return true;
@@ -2692,6 +2725,63 @@ function enBorde(grupo, dia, h) {
     return !(prevOcup && nextOcup); // en el medio → false
 }
 
+/**
+ * Validación central: devuelve true solo si colocar `bloque` en (dia, hInicio)
+ * cumple TODAS las reglas duras — disponibilidad, grupo/docente libre,
+ * sin doble sesión, contigüidad, maxDias.
+ * Para bloques no colocados aún (estado limpio).
+ */
+function esSlotValido(grupo, bloque, dia, hInicio) {
+    const d    = bloque.docente;
+    const dur  = bloque.duracion;
+    const base = grupo.baseHoras;
+    const idxIni = base.indexOf(hInicio);
+
+    if (idxIni === -1 || idxIni + dur > base.length) return false;
+    if (dia === 'sabado' && d.disponibilidad.sabado.size === 0) return false;
+    if (!d.diasActivos.has(dia) && d.tipo_docente === 2 &&
+        d.diasActivos.size >= d.maxDias) return false;
+    if ((grupo.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= 1) return false;
+
+    for (let o = 0; o < dur; o++) {
+        const h = base[idxIni + o];
+        if (grupo.horario[dia][h] !== null) return false;
+        if (d.asignado[dia][h])            return false;
+        if (!d.disponibilidad[dia].has(h)) return false;
+    }
+
+    // Contigüidad: si el día ya tiene clases, el bloque solo puede ir en el borde
+    const tieneClases = base.some(hx => grupo.horario[dia][hx] !== null);
+    if (tieneClases) {
+        const idxPrimero = base.findIndex(hx => grupo.horario[dia][hx] !== null);
+        let idxUltimo = -1;
+        for (let i = base.length - 1; i >= 0; i--) {
+            if (grupo.horario[dia][base[i]] !== null) { idxUltimo = i; break; }
+        }
+        const terminaAntes   = idxIni + dur === idxPrimero;
+        const empiezaDespues = idxIni === idxUltimo + 1;
+        if (!terminaAntes && !empiezaDespues) return false;
+    }
+
+    return true;
+}
+
+function hayHueco(grupo, dia) {
+    const base = grupo.baseHoras;
+    let firstIdx = -1, lastIdx = -1;
+    for (let i = 0; i < base.length; i++) {
+        if (grupo.horario[dia][base[i]] !== null) {
+            if (firstIdx === -1) firstIdx = i;
+            lastIdx = i;
+        }
+    }
+    if (firstIdx === -1) return false;
+    for (let i = firstIdx + 1; i < lastIdx; i++) {
+        if (grupo.horario[dia][base[i]] === null) return true;
+    }
+    return false;
+}
+
 function esAdyacenteOVacio(grupo, dia, h) {
     // Devuelve true si h está vacío y es adyacente a clases existentes (o el día está vacío)
     if (grupo.horario[dia][h] !== null) return false;
@@ -2705,39 +2795,64 @@ function esAdyacenteOVacio(grupo, dia, h) {
 }
 
 function repararViolacionesDisponibilidad() {
-    // Una reparación por iteración — usar break explícito para evitar movimientos múltiples
-    // que se interfieran entre sí creando huecos
     for (let iter = 0; iter < 100; iter++) {
         let reparado = false;
 
         grupoLoop: for (let [, grupo] of MAPA_GRUPOS) {
             for (let dia of diasSemana) {
-                for (let h of grupo.baseHoras) {
-                    let bV = grupo.horario[dia][h];
-                    if (!bV || bV.docente.disponibilidad[dia].has(h)) continue;
-                    if (!enBorde(grupo, dia, h)) continue; // no se puede mover sin crear hueco
+                const base = grupo.baseHoras;
+                for (let idxH = 0; idxH < base.length; idxH++) {
+                    const h = base[idxH];
+                    const bV = grupo.horario[dia][h];
+                    if (!bV) continue;
 
-                    // Mover a slot vacío adyacente donde tenga disponibilidad
+                    // Solo procesar la primera hora de cada bloque en el día
+                    if (idxH > 0 && grupo.horario[dia][base[idxH - 1]] === bV) continue;
+
+                    // Verificar si ALGUNA hora del bloque viola disponibilidad
+                    let tieneViolacion = false;
+                    for (let o = 0; o < bV.duracion; o++) {
+                        if (!bV.docente.disponibilidad[dia].has(h + o)) { tieneViolacion = true; break; }
+                    }
+                    if (!tieneViolacion) continue;
+
+                    // El BLOQUE COMPLETO debe estar en el borde para moverlo sin crear hueco
+                    const idxFin = idxH + bV.duracion - 1;
+                    const hayAntes   = idxH > 0 && grupo.horario[dia][base[idxH - 1]] !== null;
+                    const hayDespues = idxFin < base.length - 1 && grupo.horario[dia][base[idxFin + 1]] !== null;
+                    if (hayAntes && hayDespues) continue;
+
+                    // Mover a slot adyacente con disponibilidad completa para todo el bloque
                     for (let diaB of diasSemana) {
-                        for (let hB of grupo.baseHoras) {
+                        for (let idxB = 0; idxB <= base.length - bV.duracion; idxB++) {
+                            const hB = base[idxB];
                             if (!esAdyacenteOVacio(grupo, diaB, hB)) continue;
-                            if (!bV.docente.disponibilidad[diaB].has(hB)) continue;
-                            if (bV.docente.asignado[diaB][hB]) continue;
-                            // Verificar que no cree sesión doble en el día destino (regla dura)
+                            let valido = true;
+                            for (let o = 0; o < bV.duracion; o++) {
+                                if (!bV.docente.disponibilidad[diaB].has(hB + o)) { valido = false; break; }
+                                if (bV.docente.asignado[diaB][hB + o])            { valido = false; break; }
+                                if (grupo.horario[diaB][hB + o] !== null)         { valido = false; break; }
+                            }
+                            if (!valido) continue;
                             if (diaB !== dia && (grupo.sesionesDia[diaB][bV.materia.nombre_materia] || 0) >= 1) continue;
                             quitarAsignacion(grupo, bV, dia, h);
                             aplicarAsignacion(grupo, bV, diaB, hB);
+                            if (hayHueco(grupo, dia) || hayHueco(grupo, diaB)) {
+                                quitarAsignacion(grupo, bV, diaB, hB);
+                                aplicarAsignacion(grupo, bV, dia, h);
+                                continue;
+                            }
                             reparado = true;
                             break grupoLoop;
                         }
                     }
 
-                    // Swap con otro bloque del mismo grupo (ambos de 1hr)
-                    if (reparado) break;
+                    // Swap con otro bloque de 1h (solo si bV también es 1h)
+                    if (reparado || bV.duracion !== 1) continue;
                     for (let diaB of diasSemana) {
-                        for (let hB of grupo.baseHoras) {
-                            let bO = grupo.horario[diaB][hB];
-                            if (!bO || bO === bV || bO.duracion !== 1 || bV.duracion !== 1) continue;
+                        for (const hB of base) {
+                            const bO = grupo.horario[diaB][hB];
+                            if (!bO || bO === bV || bO.duracion !== 1) continue;
                             if (!bV.docente.disponibilidad[diaB].has(hB)) continue;
                             if (bV.docente.asignado[diaB][hB] && bV.docente.asignado[diaB][hB] !== bV) continue;
                             if (!bO.docente.disponibilidad[dia].has(h)) continue;
@@ -2749,8 +2864,7 @@ function repararViolacionesDisponibilidad() {
                                 if (otroG.horario[dia]?.[h]?.docente === bO.docente) conf = true;
                             }
                             if (conf) continue;
-                            // Verificar que el intercambio no cree sesión doble (regla dura)
-                            let mismaMatRep = bV.materia.nombre_materia === bO.materia.nombre_materia;
+                            const mismaMatRep = bV.materia.nombre_materia === bO.materia.nombre_materia;
                             if (!mismaMatRep) {
                                 if ((grupo.sesionesDia[diaB][bV.materia.nombre_materia] || 0) >= 1) continue;
                                 if ((grupo.sesionesDia[dia][bO.materia.nombre_materia] || 0) >= 1) continue;
@@ -2901,27 +3015,45 @@ async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null) 
         return arr;
     }
 
-    // ── Slots libres en el grupo para un bloque (docente disponible + grupo libre + no doble) ──
+    // ── Slots libres en el grupo para un bloque — aplica TODAS las reglas duras ──
     function slotsLibres(bloque, excluirPos) {
         const resultado = [];
         const g = bloque.grupo, d = bloque.docente, dur = bloque.duracion;
+        const base = g.baseHoras;
         for (const dia of diasSemana) {
-            // sesión doble: si el bloque ya está en este día, puede moverse DENTRO del día
             const sesHoy = g.sesionesDia[dia][bloque.materia.nombre_materia] || 0;
             const esElMismo = excluirPos && excluirPos.dia === dia;
             if (sesHoy >= 1 && !esElMismo) continue;
             if (!d.diasActivos.has(dia) && d.tipo_docente === 2 &&
                 d.diasActivos.size >= d.maxDias) continue;
-            for (let i = 0; i <= g.baseHoras.length - dur; i++) {
-                const h = g.baseHoras[i];
-                if (excluirPos && excluirPos.dia === dia && excluirPos.hInicio === h) continue;
+
+            for (let i = 0; i <= base.length - dur; i++) {
+                const h = base[i];
+                if (excluirPos && esElMismo && excluirPos.hInicio === h) continue;
                 let ok = true;
                 for (let o = 0; o < dur; o++) {
                     if (!d.disponibilidad[dia].has(h + o)) { ok = false; break; }
                     if (g.horario[dia][h + o] !== null)    { ok = false; break; }
                     if (d.asignado[dia][h + o])             { ok = false; break; }
                 }
-                if (ok) resultado.push({ dia, h });
+                if (!ok) continue;
+
+                // Contigüidad para días distintos al origen (el bloque no está ahí)
+                if (!esElMismo) {
+                    const tieneClases = base.some(hx => g.horario[dia][hx] !== null);
+                    if (tieneClases) {
+                        const idxPrimero = base.findIndex(hx => g.horario[dia][hx] !== null);
+                        let idxUltimo = -1;
+                        for (let j = base.length - 1; j >= 0; j--) {
+                            if (g.horario[dia][base[j]] !== null) { idxUltimo = j; break; }
+                        }
+                        const terminaAntes   = i + dur === idxPrimero;
+                        const empiezaDespues = i === idxUltimo + 1;
+                        if (!terminaAntes && !empiezaDespues) continue;
+                    }
+                }
+
+                resultado.push({ dia, h });
             }
         }
         return resultado;
@@ -3074,6 +3206,14 @@ async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null) 
 
         quitarAsignacion(bMover.grupo, bMover, posActual.dia, posActual.hInicio);
         aplicarAsignacion(bMover.grupo, bMover, destino.dia, destino.h);
+
+        // Rechazar movimiento si crea hueco en día origen o destino
+        if (hayHueco(bMover.grupo, posActual.dia) || hayHueco(bMover.grupo, destino.dia)) {
+            restaurarSnapshot(snap);
+            fallidosSet = fallosAntes;
+            T *= ALPHA;
+            continue;
+        }
 
         // Intentar colocar bloques fallidos con el nuevo hueco
         const energiaNueva = colocarFallidos();
@@ -3747,22 +3887,11 @@ async function solverExacto(bloquesFallidos, tiempoLimiteMs, progFn = null) {
     let nodos     = 0;
 
     function slotsValidos(b) {
-        const g = b.grupo, d = b.docente, dur = b.duracion;
+        const g = b.grupo;
         const res = [];
         for (const dia of diasSemana) {
-            if (dia === 'sabado' && !d.disponibilidad.sabado.size) continue;
-            if ((g.sesionesDia[dia][b.materia.nombre_materia] || 0) >= 1) continue;
-            if (d.tipo_docente === 2 && !d.diasActivos.has(dia) &&
-                d.diasActivos.size >= d.maxDias) continue;
-            for (let i = 0; i <= g.baseHoras.length - dur; i++) {
-                const h = g.baseHoras[i];
-                let ok = true;
-                for (let o = 0; o < dur && ok; o++) {
-                    if (g.horario[dia][h + o] !== null)       ok = false;
-                    if (d.asignado[dia][h + o])               ok = false;
-                    if (!d.disponibilidad[dia].has(h + o))    ok = false;
-                }
-                if (ok) res.push({ dia, hInicio: h });
+            for (const h of g.baseHoras) {
+                if (esSlotValido(g, b, dia, h)) res.push({ dia, hInicio: h });
             }
         }
         return res;
@@ -4233,53 +4362,61 @@ function normalizarHorasMaterias() {
             esperado.set(k, (esperado.get(k) || 0) + b.duracion);
         });
 
-        // Paso 1: eliminar celdas con bloques no registrados en g.bloques
-        diasSemana.forEach(dia => {
-            g.baseHoras.forEach(h => {
-                const b = g.horario[dia][h];
-                if (b && !legit.has(b)) {
-                    g.horario[dia][h] = null;
-                    delete b.docente.asignado[dia][h];
-                }
-            });
-        });
+        // Paso 1+2: recoger todos los bloques ÚNICOS actualmente en el horario,
+        // eliminar los ilegítimos (no en g.bloques) y el excedente de los legítimos.
+        // Se elimina por bloques COMPLETOS (nunca celdas sueltas) para no crear huecos.
+        const bloquesPorClave = new Map(); // k → [{bloque, dia, hInicio, celdas}]
 
-        // Paso 2: contar horas reales y eliminar el excedente si lo hay
-        const actual = new Map();
         diasSemana.forEach(dia => {
-            g.baseHoras.forEach(h => {
-                const b = g.horario[dia][h];
-                if (!b) return;
+            const base = g.baseHoras;
+            for (let i = 0; i < base.length; i++) {
+                const b = g.horario[dia][base[i]];
+                if (!b) continue;
+                // Solo procesar la primera celda de cada bloque
+                if (i > 0 && g.horario[dia][base[i - 1]] === b) continue;
+                // Contar celdas reales de este bloque (puede diferir de b.duracion)
+                let celdas = 0;
+                let j = i;
+                while (j < base.length && g.horario[dia][base[j]] === b) { celdas++; j++; }
+
+                if (!legit.has(b)) {
+                    // Bloque ilegítimo → quitar todas sus celdas y continuar
+                    quitarAsignacion(g, b, dia, base[i]);
+                    continue;
+                }
                 const k = b.materia.nombre_materia + '|' + b.docente.nombre_docente;
-                actual.set(k, (actual.get(k) || 0) + 1);
-            });
+                if (!bloquesPorClave.has(k)) bloquesPorClave.set(k, []);
+                bloquesPorClave.get(k).push({ b, dia, hInicio: base[i], celdas });
+            }
         });
 
-        actual.forEach((hrs, k) => {
-            if (hrs <= (esperado.get(k) || 0)) return;
-            // Hay más celdas de las esperadas — eliminar desde el final de la semana
-            let exceso = hrs - (esperado.get(k) || 0);
-            for (let di = diasSemana.length - 1; di >= 0 && exceso > 0; di--) {
-                const dia = diasSemana[di];
-                for (let hi = g.baseHoras.length - 1; hi >= 0 && exceso > 0; hi--) {
-                    const h = g.baseHoras[hi];
-                    const b = g.horario[dia][h];
-                    if (!b) continue;
-                    const bk = b.materia.nombre_materia + '|' + b.docente.nombre_docente;
-                    if (bk !== k) continue;
-                    g.horario[dia][h] = null;
-                    delete b.docente.asignado[dia][h];
-                    exceso--;
-                }
+        // Eliminar bloques en exceso desde el final de la semana
+        bloquesPorClave.forEach((lista, k) => {
+            const exp = esperado.get(k) || 0;
+            const act = lista.reduce((s, e) => s + e.celdas, 0);
+            if (act <= exp) return;
+            let exceso = act - exp;
+            // Ordenar de fin a inicio de semana para eliminar los últimos primero
+            lista.sort((a, b) => {
+                const di = diasSemana.indexOf(b.dia) - diasSemana.indexOf(a.dia);
+                return di !== 0 ? di : b.hInicio - a.hInicio;
+            });
+            for (const { b, dia, hInicio, celdas } of lista) {
+                if (exceso <= 0) break;
+                quitarAsignacion(g, b, dia, hInicio);
+                exceso -= celdas;
             }
         });
 
         // Paso 3: recalcular sesionesDia desde el horario ya saneado
+        // Contar bloques únicos (no horas) para que bloques 2h sigan siendo 1 sesión
         diasSemana.forEach(dia => {
             g.sesionesDia[dia] = {};
+            const contados = new Set();
             g.baseHoras.forEach(h => {
                 const b = g.horario[dia][h];
-                if (!b) return;
+                if (!b || contados.has(b)) return;
+                contados.add(b);
                 const mat = b.materia.nombre_materia;
                 g.sesionesDia[dia][mat] = (g.sesionesDia[dia][mat] || 0) + 1;
             });
@@ -4342,6 +4479,19 @@ async function ejecutarAlgoritmoFinal() {
     // Pre-asignamos inglés antes de cualquier arranque greedy y guardamos el
     // snapshot. Cada arranque restaura estas posiciones en lugar de recalcularlas,
     // de modo que los bloques de inglés son inmovibles durante toda la ejecución.
+    // Restaurar bloques originales (cancela cualquier reconfiguración de ejecuciones previas)
+    if (_bloquesOriginales.size > 0) {
+        MAPA_GRUPOS.forEach((g, gn) => {
+            const orig = _bloquesOriginales.get(gn);
+            if (orig) {
+                g.bloques = orig.map(({ b, duracion }) => {
+                    b.duracion = duracion; // restaura duración original
+                    return b;
+                });
+            }
+        });
+    }
+
     setProgreso(0, '📌 Fijando clases de inglés...');
     await cederControlUI();
     MAPA_GRUPOS.forEach(g => {
