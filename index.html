@@ -558,8 +558,14 @@
          (fill, font, border) en .xlsx — API idéntica a SheetJS. -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script>
+        // ── Detección de contexto: Worker vs hilo principal ──────────────────────
+        const IS_WORKER = typeof document === 'undefined';
+
         const diasSemana = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
 let MAPA_DOCENTES = new Map(), MAPA_GRUPOS = new Map(), PLANTILLAS_MATERIAS = [];
+// Worker infrastructure (solo en hilo principal)
+let _workerUrl = null; // URL del blob-worker (creado una vez)
+let _wBArr     = [];   // bArr[_wi] → bloque del hilo principal (asignado en serializarProblema)
 let LOG_CAMBIOS = [];
 let wbCarga = null, wbDisp = null;
 let AG_BLOQUES_SORTED = [];
@@ -1065,21 +1071,23 @@ function mostrarDesglose() {
     crearTabsHorarios();
 }
 
-document.getElementById("input_carga").onchange = e => {
-    leerArchivo(e.target.files[0], wb => {
-        wbCarga = wb;
-        actualizarEstado();
-        if (wbCarga && wbDisp) parsearTodo();
-    });
-};
+if (!IS_WORKER) {
+    document.getElementById("input_carga").onchange = e => {
+        leerArchivo(e.target.files[0], wb => {
+            wbCarga = wb;
+            actualizarEstado();
+            if (wbCarga && wbDisp) parsearTodo();
+        });
+    };
 
-document.getElementById("input_disp").onchange = e => {
-    leerArchivo(e.target.files[0], wb => {
-        wbDisp = wb;
-        actualizarEstado();
-        if (wbCarga && wbDisp) parsearTodo();
-    });
-};
+    document.getElementById("input_disp").onchange = e => {
+        leerArchivo(e.target.files[0], wb => {
+            wbDisp = wb;
+            actualizarEstado();
+            if (wbCarga && wbDisp) parsearTodo();
+        });
+    };
+}
 
 function horasAsignadasEnDia(grupo, dia) {
     let horas = 0;
@@ -2565,6 +2573,25 @@ async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = nu
         ...restantes.filter(b => !esIngles(b) && (!conSesgo || !bloquesRecurrentesFallidos.has(b)))
     ];
 
+    // Sanear horario: eliminar cualquier bloque huérfano (no registrado en g.bloques)
+    // que haya podido quedar de runs anteriores o de mecanismos de split legacy.
+    const todosBloques = new Set();
+    MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => todosBloques.add(b)));
+    MAPA_GRUPOS.forEach(g => {
+        diasSemana.forEach(dia => {
+            g.baseHoras.forEach(h => {
+                const b = g.horario[dia][h];
+                if (b && !todosBloques.has(b)) {
+                    g.horario[dia][h] = null;
+                    delete b.docente.asignado[dia][h];
+                }
+            });
+            MAPA_DOCENTES.forEach(d => {
+                if (Object.keys(d.asignado[dia]).length === 0) d.diasActivos.delete(dia);
+            });
+        });
+    });
+
     let bloquesFallidos = [];
 
     await avanzar(0, '📋 Construyendo horario base...');
@@ -2575,12 +2602,11 @@ async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = nu
         if (intentarAsignar(bloque, false, false, false, false)) continue; // estricto
         if (intentarAsignar(bloque, false, true,  false, false)) continue; // relajar maxDias
 
-        // Si el bloque es multi-hora y no cabe contiguo, partirlo en horas sueltas
-        if (bloque.duracion > 1) {
-            let dur = bloque.duracion;
-            for (let k = 0; k < dur; k++) { queue.unshift({...bloque, duracion: 1}); }
-            continue;
-        }
+        // NOTA: el split en horas sueltas se eliminó porque creaba copias anónimas
+        // (spread objects) que NO están en g.bloques, quedando como "huérfanas" en
+        // g.horario. reconfigurarSesiones las ignoraba y colocaba el bloque original
+        // encima → horas duplicadas. El split lo maneja reconfigurarSesiones
+        // con tracking completo después del greedy.
 
         if (intentarSwapDeHorarios(bloque, queue)) continue;
 
@@ -3141,11 +3167,13 @@ async function optimizacionExhaustiva(tiempoLimiteMs, progFn = null) {
 // intentarReestructuracionCruzada (que puede llamarse desde cualquiera de los dos)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Captura el estado completo del horario en memoria. */
+/** Captura el estado completo del horario en memoria.
+ *  Incluye g.bloques y bloque.duracion para que restaurarSnapshot
+ *  revierta correctamente los cambios estructurales de reconfigurarSesiones. */
 function tomarSnapshot() {
     const s = { grupos: new Map(), docentes: new Map(), bloques: new Map() };
     MAPA_GRUPOS.forEach((g, gn) => {
-        const gS = { horario: {}, sesionesDia: {} };
+        const gS = { horario: {}, sesionesDia: {}, bloques: [...g.bloques] };
         diasSemana.forEach(d => {
             gS.horario[d] = {};
             g.baseHoras.forEach(h => { gS.horario[d][h] = g.horario[d][h]; });
@@ -3159,15 +3187,23 @@ function tomarSnapshot() {
         s.docentes.set(dn, dS);
     });
     MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => {
-        s.bloques.set(b, { preAsignado: b.preAsignado, nombreStrRender: b.nombreStrRender });
+        s.bloques.set(b, {
+            preAsignado:     b.preAsignado,
+            nombreStrRender: b.nombreStrRender,
+            duracion:        b.duracion        // ← captura la duración actual
+        });
     }));
     return s;
 }
 
-/** Restaura el estado capturado por tomarSnapshot(). */
+/** Restaura el estado capturado por tomarSnapshot().
+ *  Restaura también g.bloques y bloque.duracion para deshacer
+ *  los cambios estructurales de reconfigurarSesiones. */
 function restaurarSnapshot(snap) {
     MAPA_GRUPOS.forEach((g, gn) => {
         const gS = snap.grupos.get(gn);
+        // Restaurar la lista de bloques del grupo (deshace adiciones/eliminaciones de reconf.)
+        if (gS.bloques) g.bloques = [...gS.bloques];
         diasSemana.forEach(d => {
             g.baseHoras.forEach(h => { g.horario[d][h] = gS.horario[d][h]; });
             g.sesionesDia[d] = Object.assign({}, gS.sesionesDia[d]);
@@ -3180,10 +3216,12 @@ function restaurarSnapshot(snap) {
     });
     MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => {
         const bS = snap.bloques.get(b);
+        if (!bS) return; // bloque nuevo no existía cuando se tomó el snapshot
         if (bS.preAsignado     !== undefined) b.preAsignado     = bS.preAsignado;
         else delete b.preAsignado;
         if (bS.nombreStrRender !== undefined) b.nombreStrRender = bS.nombreStrRender;
         else delete b.nombreStrRender;
+        if (bS.duracion        !== undefined) b.duracion        = bS.duracion; // ← restaura duración
     }));
 }
 
@@ -4174,6 +4212,89 @@ async function intercambiarGruposPAs(bloquesFallidos, progFn = null) {
     return mejorFallos;
 }
 
+/**
+ * Garantía de integridad: elimina celdas huérfanas del horario.
+ * Una celda es huérfana si el bloque que la ocupa no está registrado
+ * en g.bloques (puede ocurrir por cambios de split en reconfigurarSesiones
+ * que no se revierten correctamente en fases posteriores).
+ * También verifica que cada (materia, docente, grupo) no supere las horas
+ * declaradas en los bloques de g.bloques.
+ */
+function normalizarHorasMaterias() {
+    // Conjunto global de bloques legítimos
+    const legit = new Set();
+    MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => legit.add(b)));
+
+    MAPA_GRUPOS.forEach(g => {
+        // Horas esperadas por clave "materia|docente"
+        const esperado = new Map();
+        g.bloques.forEach(b => {
+            const k = b.materia.nombre_materia + '|' + b.docente.nombre_docente;
+            esperado.set(k, (esperado.get(k) || 0) + b.duracion);
+        });
+
+        // Paso 1: eliminar celdas con bloques no registrados en g.bloques
+        diasSemana.forEach(dia => {
+            g.baseHoras.forEach(h => {
+                const b = g.horario[dia][h];
+                if (b && !legit.has(b)) {
+                    g.horario[dia][h] = null;
+                    delete b.docente.asignado[dia][h];
+                }
+            });
+        });
+
+        // Paso 2: contar horas reales y eliminar el excedente si lo hay
+        const actual = new Map();
+        diasSemana.forEach(dia => {
+            g.baseHoras.forEach(h => {
+                const b = g.horario[dia][h];
+                if (!b) return;
+                const k = b.materia.nombre_materia + '|' + b.docente.nombre_docente;
+                actual.set(k, (actual.get(k) || 0) + 1);
+            });
+        });
+
+        actual.forEach((hrs, k) => {
+            if (hrs <= (esperado.get(k) || 0)) return;
+            // Hay más celdas de las esperadas — eliminar desde el final de la semana
+            let exceso = hrs - (esperado.get(k) || 0);
+            for (let di = diasSemana.length - 1; di >= 0 && exceso > 0; di--) {
+                const dia = diasSemana[di];
+                for (let hi = g.baseHoras.length - 1; hi >= 0 && exceso > 0; hi--) {
+                    const h = g.baseHoras[hi];
+                    const b = g.horario[dia][h];
+                    if (!b) continue;
+                    const bk = b.materia.nombre_materia + '|' + b.docente.nombre_docente;
+                    if (bk !== k) continue;
+                    g.horario[dia][h] = null;
+                    delete b.docente.asignado[dia][h];
+                    exceso--;
+                }
+            }
+        });
+
+        // Paso 3: recalcular sesionesDia desde el horario ya saneado
+        diasSemana.forEach(dia => {
+            g.sesionesDia[dia] = {};
+            g.baseHoras.forEach(h => {
+                const b = g.horario[dia][h];
+                if (!b) return;
+                const mat = b.materia.nombre_materia;
+                g.sesionesDia[dia][mat] = (g.sesionesDia[dia][mat] || 0) + 1;
+            });
+        });
+    });
+
+    // Paso 4: recalcular diasActivos de todos los docentes
+    MAPA_DOCENTES.forEach(d => {
+        d.diasActivos = new Set();
+        diasSemana.forEach(dia => {
+            if (Object.keys(d.asignado[dia]).length > 0) d.diasActivos.add(dia);
+        });
+    });
+}
+
 async function ejecutarAlgoritmoFinal() {
     // ── Parámetros fijos ─────────────────────────────────────────────────────
     const CFG = { sa: 180000, sa2: 120000, sa3: 90000, optim: 20000, forzIter: 12,
@@ -4244,76 +4365,69 @@ async function ejecutarAlgoritmoFinal() {
     }
 
     try {
-    for (let intento = 0; intento < N_STARTS; intento++) {
-        // Cada intento ocupa un tramo igual de la barra (0-57 %)
-        const pctBase  = Math.round((intento / N_STARTS) * 57);
-        const pctRange = Math.max(1, Math.round(57 / N_STARTS));
+    // ── Fase 1: arranques greedy en PARALELO con Web Workers ────────────────
+    {
+        // Crear el blob-worker la primera vez (extrae el script de esta misma página)
+        if (!_workerUrl) {
+            const src = [...document.querySelectorAll('script:not([src])')].map(s => s.textContent).join('\n');
+            _workerUrl = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+        }
 
-        const { ruido, invertir } = ESTRATEGIAS[intento];
-        const usarEliteEsteIntento = eliteOrden !== null && intento >= ELITE_EMPIEZA_EN;
-        const eliteBase            = usarEliteEsteIntento ? eliteOrden : null;
-        const labelEstrategia = (ruido === 0   ? '🎯 det.'
-                              : ruido >= 1.0  ? '🎲 aleat.'
-                              : ruido >= 0.5  ? '💥 agresivo'
-                              : invertir       ? '🔁 invertido'
-                              : '🔀 leve') + (usarEliteEsteIntento ? ' 🧬' : '');
+        // Asignar índices y serializar problema UNA sola vez
+        asignarIndicesWorker();
+        const problemaData = serializarProblema();
 
-        // Callback de progreso para las fases internas de construccionVorazCascada
-        const progFn = (pctDentro, msg) => {
-            const elapsed  = Math.round((Date.now() - tInicioTotal) / 1000);
-            const mejorStr = mejorFallos !== null
-                ? ` &nbsp;·&nbsp; Mejor: <b>${mejorFallos.length}</b> sin ubicar` : '';
-            setProgreso(
-                Math.min(56, pctBase + Math.round(pctDentro / 100 * pctRange)),
-                `⏳ Intento <b>${intento + 1}/${N_STARTS}</b> ${labelEstrategia} &nbsp;·&nbsp; ${msg}` +
-                ` &nbsp;·&nbsp; ⏱ ${elapsed}s${mejorStr}`
-            );
-        };
-        progFn(0, 'Iniciando...');
+        // Pool: tantos workers como núcleos lógicos (máx. N_STARTS)
+        const nW = Math.min(N_STARTS, navigator.hardwareConcurrency || 4);
+        const pool = Array.from({ length: nW }, () => new Worker(_workerUrl));
+
+        // Preparar tareas para cada arranque
+        const tareas = ESTRATEGIAS.map((est, i) => ({
+            problema: problemaData,
+            ruido: est.ruido,
+            invertir: est.invertir,
+            eliteBaseIdxs: eliteOrden && i >= ELITE_EMPIEZA_EN
+                ? eliteOrden.filter(b => b._wi !== undefined).map(b => b._wi) : null,
+            freqData: serializarFreqMap(),
+            recurrentesIdxs: [...bloquesRecurrentesFallidos].filter(b => b._wi !== undefined).map(b => b._wi),
+            globalBest: globalBestFallos,
+            edaBloqueado: _edaBloqueado,
+            intentoNum: i
+        }));
+
+        setProgreso(2, `⚡ Lanzando <b>${N_STARTS}</b> arranques en <b>${nW}</b> núcleos en paralelo...`);
         await cederControlUI();
 
-        MAPA_GRUPOS.forEach(g => {
-            g.reset();
-            g.bloques.forEach(b => { delete b.preAsignado; delete b.consensoFijado; delete b.nombreStrRender; });
+        const resultados = await ejecutarConPool(pool, tareas, (hecho, total, mejor) => {
+            const elapsed = Math.round((Date.now() - tInicioTotal) / 1000);
+            setProgreso(
+                Math.round(2 + (hecho / total) * 55),
+                `⚡ Arranques greedy: <b>${hecho}/${total}</b> listos &nbsp;·&nbsp; ` +
+                `Mejor: <b>${mejor === Infinity ? '?' : mejor}</b> sin ubicar &nbsp;·&nbsp; ⏱ ${elapsed}s`
+            );
         });
-        MAPA_DOCENTES.forEach(d => d.reset());
 
-        // Restaurar posiciones de inglés fijadas al inicio → nunca se recalculan
-        restaurarSnapshot(snapInglesGlobal);
-        inglesGlobalFijados.forEach(b => { b.preAsignado = true; });
+        // Terminar workers
+        pool.forEach(w => w.terminate());
 
-        const fallos = await construccionVorazCascada(null, ruido, progFn, invertir, eliteBase, inglesGlobalFijados);
+        // Elegir mejor resultado y restaurar estado en hilo principal
+        const mejor = resultados.filter(Boolean).sort((a, b) => a.fallosCount - b.fallosCount)[0];
+        restaurarDesdeWorker(mejor);
+        let mejorFallosCount = mejor.fallosCount;
+        mejorFallos = mejor.fallosIndices.map(i => _wBArr[i]).filter(Boolean);
+        mejorSnap   = tomarSnapshot();
 
-        if (mejorFallos === null || fallos.length < mejorFallos.length) {
-            const snapActual = tomarSnapshot();
-            mejorFallos      = fallos;
-            mejorSnap        = snapActual;
-
-            if (fallos.length < eliteFallosCount) {
-                eliteOrden       = _ultimoOrden.length > 0 ? [..._ultimoOrden] : null;
-                eliteFallosCount = fallos.length;
-                actualizarBotonReset();
+        // Actualizar élite y EDA con el mejor resultado
+        if (mejor.ultimoOrden && mejor.ultimoOrden.length > 0) {
+            const newOrden = mejor.ultimoOrden.map(i => _wBArr[i]).filter(Boolean);
+            if (mejorFallosCount < eliteFallosCount) {
+                eliteOrden = newOrden; eliteFallosCount = mejorFallosCount; actualizarBotonReset();
             }
-
-            // Acumular EDA en caliente: el siguiente arranque ya se beneficia de este resultado
-            if (fallos.length < mejorFallosRonda - RESET_SALTO) {
-                freqMap       = new Map();
-                freqTotalRuns = 0;
-            }
-            globalBestFallos = Math.min(globalBestFallos, fallos.length);
-            mejorFallosRonda = fallos.length;
-            acumularFrecuenciasDesde(snapActual);
-
-            sinMejoraConsecutiva = 0;
-            if (fallos.length === 0) break; // solución perfecta
-        } else {
-            sinMejoraConsecutiva++;
-            if (sinMejoraConsecutiva >= ELITE_RESET_TRAS) {
-                eliteOrden           = null;
-                eliteFallosCount     = Infinity; // permite regenerar élite desde cero
-                sinMejoraConsecutiva = 0;
-                actualizarBotonReset();
-            }
+        }
+        if (mejorFallosCount <= globalBestFallos + NEAR_BEST_TOL) {
+            if (mejorFallosCount < globalBestFallos - RESET_SALTO) { freqMap = new Map(); freqTotalRuns = 0; }
+            globalBestFallos = Math.min(globalBestFallos, mejorFallosCount);
+            acumularFrecuenciasDesde(mejorSnap);
         }
     }
 
@@ -4511,6 +4625,11 @@ async function ejecutarAlgoritmoFinal() {
     }
 
     if (badgeEnCurso) badgeEnCurso.style.display = 'none';
+
+    // Garantía final: asegurar que cada materia tenga exactamente las horas
+    // que le corresponden según g.bloques. Elimina celdas huérfanas del horario.
+    normalizarHorasMaterias();
+
     _forzarRenderHorario(); // render final con el resultado definitivo
 
     manejarFallos(mejorFallos, errDiv, '', () => {
@@ -4729,7 +4848,7 @@ function _renderHorarioActivo() {
 }
 
 function cederControlUI() {
-    _renderHorarioActivo();
+    if (!IS_WORKER) _renderHorarioActivo();
     return new Promise(resolve => setTimeout(resolve, 0));
 }
 
@@ -5689,6 +5808,7 @@ function resetearAprendizaje() {
 }
 
 function actualizarBotonReset() {
+    if (IS_WORKER) return;
     const btn = document.getElementById('button_reset_aprendizaje');
     if (!btn) return;
     const tieneElite = eliteOrden !== null;
@@ -5735,19 +5855,229 @@ function acumularFrecuenciasDesde(snap) {
     freqTotalRuns++;
 }
 
-document.getElementById("button_accion").onclick = () => {
-    let cantBloques = 0;
-    MAPA_GRUPOS.forEach(g => cantBloques += g.bloques.length);
-    if (cantBloques === 0) return alert("Por favor, carga una plantilla válida primero.");
-    ejecutarAlgoritmoFinal();
-};
+if (!IS_WORKER) {
+    document.getElementById("button_accion").onclick = () => {
+        let cantBloques = 0;
+        MAPA_GRUPOS.forEach(g => cantBloques += g.bloques.length);
+        if (cantBloques === 0) return alert("Por favor, carga una plantilla válida primero.");
+        ejecutarAlgoritmoFinal();
+    };
 
-document.getElementById("button_reset_aprendizaje").onclick = () => {
-    resetearAprendizaje();
-    const errDiv = document.getElementById("span_error");
-    errDiv.style.color = "var(--color-dim-gray)";
-    errDiv.innerText = "Aprendizaje borrado. El próximo intento explorará desde cero.";
-};
+    document.getElementById("button_reset_aprendizaje").onclick = () => {
+        resetearAprendizaje();
+        const errDiv = document.getElementById("span_error");
+        errDiv.style.color = "var(--color-dim-gray)";
+        errDiv.innerText = "Aprendizaje borrado. El próximo intento explorará desde cero.";
+    };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEB WORKERS — Serialización, pool y manejador
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Asigna índices _wi a docentes, grupos, materias y bloques.
+ *  Debe llamarse antes de serializarProblema() y de usar _wBArr. */
+function asignarIndicesWorker() {
+    let dIdx = 0; MAPA_DOCENTES.forEach(d => { d._wi = dIdx++; });
+    let gIdx = 0; MAPA_GRUPOS.forEach(g => { g._wi = gIdx++; });
+    let mIdx = 0; const matKey = new Map();
+    let bIdx = 0;
+    MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => {
+        b._wi = bIdx++;
+        const k = b.materia.nombre_materia + '|' + b.materia.grado_materia + '|' + b.materia.turno_materia;
+        if (!matKey.has(k)) { matKey.set(k, mIdx); b.materia._wi = mIdx++; }
+        else b.materia._wi = matKey.get(k);
+    }));
+    _wBArr = [];
+    MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => { _wBArr[b._wi] = b; }));
+}
+
+/** Serializa todo el problema para enviarlo a un Worker. */
+function serializarProblema() {
+    const docentes = [];
+    MAPA_DOCENTES.forEach((d, n) => docentes.push({
+        i: d._wi, n, t: d.tipo_docente, cat: d.categoria,
+        hc: d.horas_carga, he: d.horas_extra_clase,
+        md: d.maxDias, ing: d.esDocenteIngles,
+        dp: Object.fromEntries(diasSemana.map(dia => [dia, [...d.disponibilidad[dia]]]))
+    }));
+    const grupos = [];
+    MAPA_GRUPOS.forEach((g, n) => grupos.push({ i: g._wi, n, tu: g.turno }));
+    const matArr = [];
+    MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => {
+        if (!matArr[b.materia._wi]) matArr[b.materia._wi] = {
+            i: b.materia._wi, n: b.materia.nombre_materia, h: b.materia.horas_materia,
+            g: b.materia.grado_materia, tu: b.materia.turno_materia, ts: b.materia.tsu
+        };
+    }));
+    const bloques = [];
+    MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => bloques.push(
+        { i: b._wi, di: b.docente._wi, gi: b.grupo._wi, mi: b.materia._wi, dur: b.duracion }
+    )));
+    return { docentes, grupos, materias: matArr.filter(Boolean), bloques };
+}
+
+/** Serializa el freqMap (EDA) para enviarlo al Worker. */
+function serializarFreqMap() {
+    if (freqTotalRuns === 0) return null;
+    const entries = {};
+    freqMap.forEach((slotMap, b) => {
+        if (b._wi === undefined) return;
+        entries[b._wi] = Object.fromEntries(slotMap);
+    });
+    return { entries, total: freqTotalRuns };
+}
+
+/** Restaura el estado del hilo principal desde el resultado de un Worker. */
+function restaurarDesdeWorker(r) {
+    MAPA_GRUPOS.forEach(g => g.reset());
+    MAPA_DOCENTES.forEach(d => d.reset());
+    // horario
+    for (const [gn, hG] of Object.entries(r.horario)) {
+        const g = MAPA_GRUPOS.get(gn); if (!g) continue;
+        for (const [dia, hD] of Object.entries(hG))
+            for (const [hStr, bi] of Object.entries(hD))
+                if (bi !== null && bi !== undefined) g.horario[dia][+hStr] = _wBArr[bi];
+    }
+    // docentes
+    for (const [dn, dD] of Object.entries(r.docenteAsig)) {
+        const d = MAPA_DOCENTES.get(dn); if (!d) continue;
+        d.diasActivos = new Set(r.docenteDias[dn] || []);
+        for (const [dia, aD] of Object.entries(dD)) d.asignado[dia] = aD;
+    }
+    // sesionesDia
+    for (const [gn, sG] of Object.entries(r.sesiones)) {
+        const g = MAPA_GRUPOS.get(gn); if (!g) continue;
+        for (const [dia, sD] of Object.entries(sG)) g.sesionesDia[dia] = sD;
+    }
+    // flags de bloque
+    for (const [biStr, fl] of Object.entries(r.bloqueFlags)) {
+        const b = _wBArr[+biStr]; if (!b) continue;
+        if (fl.pre) b.preAsignado = true; else delete b.preAsignado;
+        if (fl.nr)  b.nombreStrRender = fl.nr; else delete b.nombreStrRender;
+    }
+}
+
+/** Ejecuta tareas en un pool de Workers, devuelve array de resultados en orden. */
+async function ejecutarConPool(pool, tareas, onProgreso) {
+    return new Promise(resolve => {
+        const resultados = new Array(tareas.length);
+        let completados = 0, tareaIdx = 0, mejorN = Infinity;
+        function enviar(worker) {
+            if (tareaIdx >= tareas.length) return;
+            const tarea = tareas[tareaIdx++];
+            const num = tarea.intentoNum;
+            worker.onmessage = e => {
+                resultados[num] = e.data;
+                completados++;
+                if (e.data.fallosCount < mejorN) mejorN = e.data.fallosCount;
+                if (onProgreso) onProgreso(completados, tareas.length, mejorN);
+                if (completados === tareas.length) resolve(resultados.filter(Boolean));
+                else enviar(worker);
+            };
+            worker.onerror = err => {
+                console.error('[Worker] error en intento', num,
+                    err.message, 'línea', err.lineno, err.filename);
+                // Recuperar: marcar como completado con resultado vacío
+                resultados[num] = null;
+                completados++;
+                if (onProgreso) onProgreso(completados, tareas.length, mejorN);
+                if (completados === tareas.length) resolve(resultados.filter(Boolean));
+                else enviar(worker);
+            };
+            worker.postMessage(tarea);
+        }
+        pool.forEach(w => enviar(w));
+    });
+}
+
+// ── Manejador de mensajes (solo activo dentro del Worker) ──────────────────────
+if (IS_WORKER) {
+    // Deserializa el problema enviado por el hilo principal
+    function _deserializar(data) {
+        MAPA_DOCENTES.clear(); MAPA_GRUPOS.clear();
+        const dArr = [], gArr = [], mArr = [], bArr = [];
+        data.docentes.forEach(d => {
+            const doc = new Docente(d.n, d.t, d.he, d.cat);
+            doc.horas_carga = d.hc; doc.maxDias = d.md; doc.esDocenteIngles = d.ing;
+            diasSemana.forEach(dia => { doc.disponibilidad[dia] = new Set(d.dp[dia] || []); });
+            MAPA_DOCENTES.set(d.n, doc); dArr[d.i] = doc;
+        });
+        data.materias.forEach(m => { mArr[m.i] = new Materia(m.n, m.h, m.g, m.tu, m.ts); });
+        data.grupos.forEach(g => {
+            const grp = new Grupo(g.n, g.tu);
+            MAPA_GRUPOS.set(g.n, grp); gArr[g.i] = grp;
+        });
+        data.bloques.forEach(b => {
+            const bloque = {
+                docente: dArr[b.di], grupo: gArr[b.gi], materia: mArr[b.mi],
+                duracion: b.dur, _wi: b.i,
+                nombreStr: mArr[b.mi].nombre_materia + ' (' + dArr[b.di].nombre_docente + ')'
+            };
+            gArr[b.gi].bloques.push(bloque); bArr[b.i] = bloque;
+        });
+        return bArr;
+    }
+
+    // Serializa el resultado del Worker para enviarlo al hilo principal
+    function _serializar(fallos) {
+        const horario = {}, docenteAsig = {}, docenteDias = {}, sesiones = {}, bloqueFlags = {};
+        MAPA_GRUPOS.forEach((g, gn) => {
+            horario[gn] = {}; sesiones[gn] = {};
+            diasSemana.forEach(dia => {
+                horario[gn][dia] = {}; sesiones[gn][dia] = Object.assign({}, g.sesionesDia[dia]);
+                g.baseHoras.forEach(h => { const b = g.horario[dia][h]; horario[gn][dia][h] = b ? b._wi : null; });
+            });
+            g.bloques.forEach(b => {
+                const fl = {};
+                if (b.preAsignado)      fl.pre = true;
+                if (b.nombreStrRender)  fl.nr  = b.nombreStrRender;
+                if (Object.keys(fl).length) bloqueFlags[b._wi] = fl;
+            });
+        });
+        MAPA_DOCENTES.forEach((d, dn) => {
+            docenteAsig[dn] = {}; docenteDias[dn] = [...d.diasActivos];
+            diasSemana.forEach(dia => { docenteAsig[dn][dia] = Object.assign({}, d.asignado[dia]); });
+        });
+        return {
+            fallosCount: fallos.length,
+            fallosIndices: fallos.map(b => b._wi),
+            horario, docenteAsig, docenteDias, sesiones, bloqueFlags,
+            ultimoOrden: _ultimoOrden.map(b => b._wi)
+        };
+    }
+
+    self.onmessage = async function(e) {
+        const { problema, ruido, invertir, eliteBaseIdxs, freqData, recurrentesIdxs, globalBest, edaBloqueado } = e.data;
+
+        const bArr = _deserializar(problema);
+
+        // Restaurar estado EDA/recurrentes
+        globalBestFallos = globalBest;
+        freqTotalRuns = freqData ? freqData.total : 0;
+        freqMap = new Map();
+        if (freqData && freqData.entries) {
+            for (const [biStr, slots] of Object.entries(freqData.entries)) {
+                const b = bArr[+biStr]; if (b) freqMap.set(b, new Map(Object.entries(slots)));
+            }
+        }
+        bloquesRecurrentesFallidos = new Set((recurrentesIdxs || []).map(i => bArr[i]).filter(Boolean));
+        _edaBloqueado = !!edaBloqueado;
+
+        // Reset + fijar inglés
+        MAPA_GRUPOS.forEach(g => { g.reset(); g.bloques.forEach(b => { delete b.preAsignado; delete b.consensoFijado; delete b.nombreStrRender; }); });
+        MAPA_DOCENTES.forEach(d => d.reset());
+        const inglesFixed = preAsignarInglesSimultaneo();
+        const snapIngles  = tomarSnapshot();
+        restaurarSnapshot(snapIngles);
+        inglesFixed.forEach(b => { b.preAsignado = true; });
+
+        const eliteBase = eliteBaseIdxs ? eliteBaseIdxs.map(i => bArr[i]).filter(Boolean) : null;
+        const fallos = await construccionVorazCascada(null, ruido, null, invertir, eliteBase, inglesFixed);
+
+        self.postMessage(_serializar(fallos));
+    };
+}
     </script>
 </body>
 </html>
