@@ -1109,8 +1109,9 @@ function aplicarAsignacion(grupo, bloque, dia, horaInicio, esForzado = false) {
     if ((grupo.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= 1) return false;
 
     // REGLA DURA: verificar que todos los slots estén libres antes de escribir
+    // Usa != null (abstracto) para tratar undefined igual que null
     for (let h = horaInicio; h < horaInicio + bloque.duracion; h++) {
-        if (grupo.horario[dia][h] !== null) return false;
+        if (grupo.horario[dia][h] != null) return false;
     }
 
     const marca = esForzado ? " [⚠️ FORZADO]" : "";
@@ -6082,30 +6083,46 @@ function serializarFreqMap() {
 function restaurarDesdeWorker(r) {
     MAPA_GRUPOS.forEach(g => g.reset());
     MAPA_DOCENTES.forEach(d => d.reset());
-    // horario
+
+    // Horario: solo aplicar bloques reconocidos (con _wi en hilo principal)
     for (const [gn, hG] of Object.entries(r.horario)) {
         const g = MAPA_GRUPOS.get(gn); if (!g) continue;
-        for (const [dia, hD] of Object.entries(hG))
-            for (const [hStr, bi] of Object.entries(hD))
-                if (bi !== null && bi !== undefined) g.horario[dia][+hStr] = _wBArr[bi];
+        for (const [dia, hD] of Object.entries(hG)) {
+            for (const [hStr, bi] of Object.entries(hD)) {
+                if (bi == null) continue;
+                const bloque = _wBArr[bi];
+                if (bloque) g.horario[dia][+hStr] = bloque;
+                // Si bloque es undefined (creado por reconf del worker sin _wi): dejar null
+            }
+        }
     }
-    // docentes
-    for (const [dn, dD] of Object.entries(r.docenteAsig)) {
-        const d = MAPA_DOCENTES.get(dn); if (!d) continue;
-        d.diasActivos = new Set(r.docenteDias[dn] || []);
-        for (const [dia, aD] of Object.entries(dD)) d.asignado[dia] = aD;
-    }
-    // sesionesDia
-    for (const [gn, sG] of Object.entries(r.sesiones)) {
-        const g = MAPA_GRUPOS.get(gn); if (!g) continue;
-        for (const [dia, sD] of Object.entries(sG)) g.sesionesDia[dia] = sD;
-    }
-    // flags de bloque
+
+    // Flags de bloque (preAsignado, nombreStrRender)
     for (const [biStr, fl] of Object.entries(r.bloqueFlags)) {
         const b = _wBArr[+biStr]; if (!b) continue;
         if (fl.pre) b.preAsignado = true; else delete b.preAsignado;
         if (fl.nr)  b.nombreStrRender = fl.nr; else delete b.nombreStrRender;
     }
+
+    // Recalcular docente.asignado, diasActivos y sesionesDia desde el horario real
+    // (no usar los valores del worker que pueden incluir bloques no reconocidos)
+    MAPA_GRUPOS.forEach(g => {
+        diasSemana.forEach(dia => {
+            const seen = new Set();
+            g.baseHoras.forEach(h => {
+                const b = g.horario[dia][h];
+                if (!b) return;
+                const marca = b.nombreStrRender?.includes('FORZADO') ? ' [⚠️ FORZADO]' : '';
+                b.docente.asignado[dia][h] = `${b.materia.nombre_materia} [${g.nombre_grupo}]${marca}`;
+                b.docente.diasActivos.add(dia);
+                if (!seen.has(b)) {
+                    seen.add(b);
+                    const mat = b.materia.nombre_materia;
+                    g.sesionesDia[dia][mat] = (g.sesionesDia[dia][mat] || 0) + 1;
+                }
+            });
+        });
+    });
 }
 
 /** Ejecuta tareas en un pool de Workers, devuelve array de resultados en orden. */
