@@ -440,6 +440,98 @@
             margin-top: 0.1rem;
         }
 
+        /* ── Inventario de clases del grupo ── */
+        .inventario-wrap {
+            margin-top: 1.2rem;
+            font-family: var(--font-roboto-mono);
+            font-size: 0.72rem;
+        }
+        .inv-cabecera {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .inv-titulo {
+            font-size: 0.78rem;
+            font-weight: bold;
+            color: var(--color-dim-gray);
+        }
+        .inv-total-barra-wrap {
+            flex: 1;
+            height: 7px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .inv-total-barra-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: var(--color-celadon);
+            transition: width 0.3s ease;
+        }
+        .inv-total-pct {
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: var(--color-cerulean);
+            white-space: nowrap;
+        }
+        .inventario-tabla {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .inventario-tabla thead th {
+            background: var(--color-black);
+            color: var(--color-yellow);
+            padding: 0.28rem 0.5rem;
+            text-align: left;
+            font-size: 0.65rem;
+            font-weight: bold;
+        }
+        .inventario-tabla tbody td {
+            padding: 0.22rem 0.5rem;
+            border-bottom: 1px solid #ebebeb;
+            vertical-align: middle;
+        }
+        .inventario-tabla tr.inv-completo td { background: #e8f5e9; }
+        .inventario-tabla tr.inv-vacio    td { background: #fff8e1; }
+        .inventario-tabla tr.inv-parcial  td { background: #fff; }
+        .inv-swatch {
+            display: inline-block;
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 2px;
+            border: 1px solid rgba(0,0,0,0.15);
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+        .inv-barra-wrap {
+            width: 70px;
+            height: 7px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 0.35rem;
+        }
+        .inv-barra-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .inv-horas {
+            font-weight: bold;
+            font-size: 0.7rem;
+        }
+        .inv-estado {
+            font-size: 0.7rem;
+            font-weight: bold;
+            min-width: 2.2rem;
+            display: inline-block;
+            text-align: right;
+        }
+
         footer{
             width: 100%;
             height: 40dvh;
@@ -556,7 +648,7 @@
 
     <!-- xlsx-js-style: fork de SheetJS que restaura escritura de estilos de celda
          (fill, font, border) en .xlsx — API idéntica a SheetJS. -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script>
         // ── Detección de contexto: Worker vs hilo principal ──────────────────────
         const IS_WORKER = typeof document === 'undefined';
@@ -582,6 +674,62 @@ let freqTotalRuns        = 0;         // ejecuciones acumuladas en freqMap
 let globalBestFallos     = Infinity;  // mejor resultado histórico (para filtrar acumulación)
 const FREQ_BONUS         = 100000;   // bonus máximo para slot con freq = 1.0
 const NEAR_BEST_TOL      = 1;        // acumular si fallos <= globalBest + esta tolerancia
+
+// ── SharedArrayBuffer: disponibilidad como bitmasks (solo lectura, compartido con Workers) ──
+// Layout Int32Array: [nDoc*6 bitmasks de disponibilidad] [nDoc maxDias] [nDoc tipo_docente]
+// Disponible solo si el servidor envía COOP + COEP. Si no, _sabProblema queda null
+// y los Workers usan el fallback JSON (dp arrays).
+let _sabProblema = null;  // SharedArrayBuffer actual
+const DIAS_IDX = Object.fromEntries(["lunes","martes","miercoles","jueves","viernes","sabado"].map((d,i)=>[d,i]));
+
+/** Codifica disponibilidad de todos los docentes en un SharedArrayBuffer.
+ *  Requiere que asignarIndicesWorker() haya asignado _wi a cada docente. */
+function _crearSABProblema() {
+    if (typeof SharedArrayBuffer === 'undefined') return;
+    const nDoc = MAPA_DOCENTES.size;
+    const sab  = new SharedArrayBuffer((nDoc * 6 + nDoc * 2) * 4);
+    const v    = new Int32Array(sab);
+    MAPA_DOCENTES.forEach(d => {
+        diasSemana.forEach((dia, dIdx) => {
+            let mask = 0;
+            d.disponibilidad[dia].forEach(h => { if (h < 32) mask |= (1 << h); });
+            v[d._wi * 6 + dIdx] = mask;
+        });
+        v[nDoc * 6 + d._wi]         = d.maxDias;
+        v[nDoc * 6 + nDoc + d._wi]  = d.tipo_docente;
+    });
+    _sabProblema = sab;
+}
+
+/** Serializa el estado actual del horario en el hilo principal.
+ *  Mismo formato que _serializar() en el Worker. Permite enviarlo a Workers como punto de partida. */
+function _serializarEstadoActual(fallos = []) {
+    const horario = {}, docenteAsig = {}, docenteDias = {}, sesiones = {}, bloqueFlags = {};
+    MAPA_GRUPOS.forEach((g, gn) => {
+        horario[gn] = {}; sesiones[gn] = {};
+        diasSemana.forEach(dia => {
+            horario[gn][dia] = {};
+            sesiones[gn][dia] = Object.assign({}, g.sesionesDia[dia]);
+            g.baseHoras.forEach(h => { const b = g.horario[dia][h]; horario[gn][dia][h] = b ? b._wi : null; });
+        });
+        g.bloques.forEach(b => {
+            const fl = {};
+            if (b.preAsignado)     fl.pre = true;
+            if (b.nombreStrRender) fl.nr  = b.nombreStrRender;
+            if (Object.keys(fl).length) bloqueFlags[b._wi] = fl;
+        });
+    });
+    MAPA_DOCENTES.forEach((d, dn) => {
+        docenteAsig[dn] = {}; docenteDias[dn] = [...d.diasActivos];
+        diasSemana.forEach(dia => { docenteAsig[dn][dia] = Object.assign({}, d.asignado[dia]); });
+    });
+    return {
+        fallosCount: fallos.length,
+        fallosIndices: fallos.filter(b => b._wi !== undefined).map(b => b._wi),
+        horario, docenteAsig, docenteDias, sesiones, bloqueFlags,
+        ultimoOrden: []
+    };
+}
 const RESET_SALTO        = 2;        // reiniciar freqMap si la mejora supera este salto
 let bloquesRecurrentesFallidos = new Set(); // bloques que fallaron en la última ejecución → prioridad absoluta
 let mejorSnapGlobal            = null;      // mejor snapshot persistente entre ejecuciones (warm start)
@@ -589,9 +737,13 @@ let mejorFallosGlobal          = [];        // bloques fallidos del mejor snapsh
 let _edaBloqueado              = false;     // true en arranques libres (sin sesgo EDA ni recurrentes)
 
 /** Devuelve true si el bloque corresponde a una materia de inglés. */
+/** Inglés especial: requiere pre-asignación sincronizada y bloques de 1h.
+ *  Inglés 8 e Inglés 9 son materias normales — se excluyen del trato especial. */
 function esIngles(b) {
-    return b.materia.nombre_materia.toUpperCase()
-        .normalize("NFD").replace(/[̀-ͯ]/g, "").includes("INGLES");
+    const nm = b.materia.nombre_materia.toUpperCase()
+        .normalize("NFD").replace(/[̀-ͯ]/g, "");
+    if (/INGLES\s*[89]/.test(nm)) return false;
+    return nm.includes("INGLES");
 }
 
 // ─── Paleta de colores por materia (Excel + vista desglose) ────────────────
@@ -815,9 +967,11 @@ function parsearCargaAcademica(wb) {
         let nm = c.nombre_materia.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
         let desglose = [];
 
-        // Inglés y tutoría siempre en bloques de 1h (para poder sincronizar por cuatrimestre)
-        if (nm.includes("INGLES") || nm.includes("TUTORIA") || c.tsu) {
-            if (nm.includes("INGLES")) d.esDocenteIngles = true; // todos los inglés → días ilimitados
+        // Inglés 8 e Inglés 9 son materias normales: usan el split regular (2, 2, 1...)
+        const esInglesEspecial = nm.includes("INGLES") && !/INGLES\s*[89]/.test(nm);
+        // Inglés especial y tutoría: bloques de 1h para sincronizar por cuatrimestre
+        if (esInglesEspecial || nm.includes("TUTORIA") || c.tsu) {
+            if (esInglesEspecial) d.esDocenteIngles = true; // días ilimitados solo para inglés regular
             for (let i = 0; i < h; i++) desglose.push(1);
         } else {
             // Regla de partición: 1→[1], 2→[2], 3→[2,1], 4→[2,2], 5→[2,2,1], 6→[2,2,2], 7→[2,2,2,1]
@@ -1096,6 +1250,12 @@ function horasAsignadasEnDia(grupo, dia) {
 }
 
 function aplicarAsignacion(grupo, bloque, dia, horaInicio, esForzado = false) {
+    // Guardia: si el bloque ya está en cualquier slot del grupo, no duplicar.
+    // Cubre el caso donde un swap o SA olvidó hacer quitarAsignacion primero.
+    for (const dd of diasSemana)
+        for (const h of grupo.baseHoras)
+            if (grupo.horario[dd][h] === bloque) return;
+
     for (let h = horaInicio; h < horaInicio + bloque.duracion; h++) {
         grupo.horario[dia][h] = bloque;
         let marca = esForzado ? " [⚠️ FORZADO]" : "";
@@ -1128,14 +1288,27 @@ function encontrarPosicionBloque(bloque) {
 }
 
 function quitarAsignacion(grupo, bloque, dia, horaInicio) {
-    for (let h = horaInicio; h < horaInicio + bloque.duracion; h++) {
-        grupo.horario[dia][h] = null;
-        delete bloque.docente.asignado[dia][h];
+    // Barrer TODAS las ocurrencias del bloque en el grupo (no solo horaInicio).
+    // Elimina copias fantasma que quedan cuando un swap o SA no hizo rollback limpio.
+    const nm = bloque.materia.nombre_materia;
+    const d  = bloque.docente;
+    const diasAfectados = new Set();
+    for (const dd of diasSemana) {
+        for (const h of grupo.baseHoras) {
+            if (grupo.horario[dd][h] === bloque) {
+                grupo.horario[dd][h] = null;
+                delete d.asignado[dd][h];
+                diasAfectados.add(dd);
+            }
+        }
     }
-    let quedanClases = false;
-    for(let h in bloque.docente.asignado[dia]) quedanClases = true;
-    if(!quedanClases) bloque.docente.diasActivos.delete(dia);
-    grupo.sesionesDia[dia][bloque.materia.nombre_materia] -= 1;
+    // Actualizar sesionesDia y diasActivos para cada día donde se encontró el bloque
+    for (const dd of diasAfectados) {
+        if (grupo.sesionesDia[dd]?.[nm] > 0) grupo.sesionesDia[dd][nm]--;
+        let quedan = false;
+        for (const h in d.asignado[dd]) { quedan = true; break; }
+        if (!quedan) d.diasActivos.delete(dd);
+    }
 }
 
 function obtenerSnapshotAsignaciones() {
@@ -2868,13 +3041,13 @@ function intentarTraerBordeAHueco(grupo, diaDestino, hHueco) {
  * @param {Function} progFn          (segsRestantes, msg) → void
  * @returns {Array}  Bloques que siguen sin colocar tras el SA
  */
-async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null) {
+async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null, T_INIT = 3.0, ALPHA_PARAM = 0.99997) {
     if (bloquesFallidos.length === 0) return [];
 
     const endTime   = Date.now() + tiempoLimiteMs;
-    let T           = 3.0;      // temperatura inicial (1 bloque fallido ≈ energía 1)
+    let T           = T_INIT;   // temperatura inicial (configurable por isla)
     const T_MIN     = 0.002;
-    const ALPHA     = 0.99997;  // enfriamiento muy lento (≈ 115 k iters hasta T_MIN)
+    const ALPHA     = ALPHA_PARAM; // enfriamiento configurable por isla
     let lastYield   = Date.now();
     let iter = 0, aceptados = 0, mejoras = 0;
     let itersDesdeUltimaMejora = 0;
@@ -4295,6 +4468,92 @@ function normalizarHorasMaterias() {
     });
 }
 
+// ── SA en islas: lanza N Workers con distintos parámetros T/α en paralelo ────
+// Cada isla explora el espacio de forma independiente desde el mismo punto de
+// arranque. El hilo principal toma el mejor resultado al finalizar todas las islas.
+async function recocidoSimuladoIslas(bloquesFallidos, tiempoLimiteMs, progFn = null) {
+    if (bloquesFallidos.length === 0) return [];
+    if (!_workerUrl) return recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn);
+
+    const nIslas = Math.min(4, navigator.hardwareConcurrency || 2);
+    // Configuraciones con distintos regímenes térmicos para maximizar diversidad
+    const CONFIGS = [
+        { T: 3.0, alpha: 0.99997 }, // canónico — equilibrio exploración/explotación
+        { T: 8.0, alpha: 0.9999  }, // caliente  — exploración amplia
+        { T: 1.0, alpha: 0.9998  }, // frío      — explotación intensiva
+        { T: 4.0, alpha: 0.99995 }, // rápido    — convergencia acelerada
+    ].slice(0, nIslas);
+
+    const snapData   = _serializarEstadoActual(bloquesFallidos);
+    const fallosIdxs = bloquesFallidos.filter(b => b._wi !== undefined).map(b => b._wi);
+    const probData   = serializarProblema();
+
+    const pool  = Array.from({ length: nIslas }, () => new Worker(_workerUrl));
+    const tareas = CONFIGS.map((cfg, i) => ({
+        type: 'sa', problema: probData, sabBuffer: _sabProblema,
+        snapData, fallosIdxs, params: { tiempoMs: tiempoLimiteMs, T: cfg.T, alpha: cfg.alpha },
+        intentoNum: i
+    }));
+
+    // Actualizar la barra de progreso desde un timer del hilo principal
+    const inicio = Date.now();
+    let timer;
+    if (progFn) {
+        timer = setInterval(() => {
+            const s = Math.max(0, Math.ceil((tiempoLimiteMs - (Date.now() - inicio)) / 1000));
+            progFn(s, `🌡️ SA <b>${nIslas}</b> islas en paralelo &nbsp;·&nbsp; <b>${s}s</b> restantes`);
+        }, 1000);
+    }
+
+    const resultados = await ejecutarConPool(pool, tareas, null);
+    clearInterval(timer);
+    pool.forEach(w => w.terminate());
+
+    const mejor = resultados.filter(Boolean).sort((a, b) => a.fallosCount - b.fallosCount)[0];
+    if (!mejor) return bloquesFallidos;
+    restaurarDesdeWorker(mejor);
+    return mejor.fallosIndices.map(i => _wBArr[i]).filter(Boolean);
+}
+
+// ── RPA paralelo: N Workers exploran distintas fracciones de liberación en paralelo ──
+// Cada Worker parte del mismo snapshot óptimo pero usa un random diferente
+// (cada Worker tiene su propio estado de Math.random()), garantizando diversidad.
+async function reinicioParcialAgresivoParalelo(bloquesFallidos, tiempoLimiteMs, progFn = null) {
+    if (bloquesFallidos.length === 0) return [];
+    if (!_workerUrl) return reinicioParcialAgresivo(bloquesFallidos, tiempoLimiteMs, progFn);
+
+    const nW = Math.min(4, navigator.hardwareConcurrency || 2);
+
+    const snapData   = _serializarEstadoActual(bloquesFallidos);
+    const fallosIdxs = bloquesFallidos.filter(b => b._wi !== undefined).map(b => b._wi);
+    const probData   = serializarProblema();
+
+    const pool  = Array.from({ length: nW }, () => new Worker(_workerUrl));
+    const tareas = Array.from({ length: nW }, (_, i) => ({
+        type: 'rpa', problema: probData, sabBuffer: _sabProblema,
+        snapData, fallosIdxs, tiempoMs: tiempoLimiteMs,
+        intentoNum: i
+    }));
+
+    const inicio = Date.now();
+    let timer;
+    if (progFn) {
+        timer = setInterval(() => {
+            const s = Math.max(0, Math.ceil((tiempoLimiteMs - (Date.now() - inicio)) / 1000));
+            progFn(s, `♻️ RPA <b>${nW}</b> paralelo &nbsp;·&nbsp; <b>${s}s</b> restantes`);
+        }, 1000);
+    }
+
+    const resultados = await ejecutarConPool(pool, tareas, null);
+    clearInterval(timer);
+    pool.forEach(w => w.terminate());
+
+    const mejor = resultados.filter(Boolean).sort((a, b) => a.fallosCount - b.fallosCount)[0];
+    if (!mejor) return bloquesFallidos;
+    restaurarDesdeWorker(mejor);
+    return mejor.fallosIndices.map(i => _wBArr[i]).filter(Boolean);
+}
+
 async function ejecutarAlgoritmoFinal() {
     // ── Parámetros fijos ─────────────────────────────────────────────────────
     const CFG = { sa: 180000, sa2: 120000, sa3: 90000, optim: 20000, forzIter: 12,
@@ -4376,6 +4635,7 @@ async function ejecutarAlgoritmoFinal() {
         // Asignar índices y serializar problema UNA sola vez
         asignarIndicesWorker();
         const problemaData = serializarProblema();
+        _crearSABProblema(); // SharedArrayBuffer de disponibilidad (cero copias hacia Workers)
 
         // Pool: tantos workers como núcleos lógicos (máx. N_STARTS)
         const nW = Math.min(N_STARTS, navigator.hardwareConcurrency || 4);
@@ -4436,15 +4696,14 @@ async function ejecutarAlgoritmoFinal() {
     await cederControlUI();
     restaurarSnapshot(mejorSnap);
 
-    // ── Recocido Simulado (pase 1/3) ────────────────────────────────────────
+    // ── Recocido Simulado (pase 1/3) — N islas en paralelo ──────────────────
     if (mejorFallos.length > 0) {
         const SA_TIEMPO = CFG.sa;
-        mejorFallos = await recocidoSimulado(mejorFallos, SA_TIEMPO, (segsRestantes, msg) => {
+        mejorFallos = await recocidoSimuladoIslas(mejorFallos, SA_TIEMPO, (segsRestantes, msg) => {
             const pct = 58 + Math.round((1 - segsRestantes / (SA_TIEMPO / 1000)) * 14);
-            setProgreso(Math.min(71, pct),
-                `🌡️ SA [pase 1/3] &nbsp;·&nbsp; ${msg} &nbsp;·&nbsp; <b>${segsRestantes}s</b> rest.`);
+            setProgreso(Math.min(71, pct), msg);
         });
-        setProgreso(72, `✅ SA pase 1 — <b>${mejorFallos.length}</b> sin ubicar`);
+        setProgreso(72, `✅ SA pase 1 (islas) — <b>${mejorFallos.length}</b> sin ubicar`);
         await cederControlUI();
     }
 
@@ -4475,19 +4734,18 @@ async function ejecutarAlgoritmoFinal() {
         await cederControlUI();
     }
     if (CFG.rpa1 > 0 && mejorFallos.length > 0) {
-        mejorFallos = await reinicioParcialAgresivo(mejorFallos, CFG.rpa1, (s, msg) => {
-            setProgreso(76, `♻️ RPA [1/2] &nbsp;·&nbsp; ${msg}`);
+        mejorFallos = await reinicioParcialAgresivoParalelo(mejorFallos, CFG.rpa1, (s, msg) => {
+            setProgreso(76, msg);
         });
-        setProgreso(77, `✅ RPA [1/2] — <b>${mejorFallos.length}</b> sin ubicar`);
+        setProgreso(77, `✅ RPA [1/2] (paralelo) — <b>${mejorFallos.length}</b> sin ubicar`);
         await cederControlUI();
     }
 
-    // ── Recocido Simulado (pase 2/3) ────────────────────────────────────────
+    // ── Recocido Simulado (pase 2/3) — N islas en paralelo ──────────────────
     if (CFG.sa2 > 0 && mejorFallos.length > 0) {
-        mejorFallos = await recocidoSimulado(mejorFallos, CFG.sa2, (segsRestantes, msg) => {
+        mejorFallos = await recocidoSimuladoIslas(mejorFallos, CFG.sa2, (segsRestantes, msg) => {
             const pct = 76 + Math.round((1 - segsRestantes / (CFG.sa2 / 1000)) * 10);
-            setProgreso(Math.min(85, pct),
-                `🌡️ SA [pase 2/3] &nbsp;·&nbsp; ${msg} &nbsp;·&nbsp; <b>${segsRestantes}s</b> rest.`);
+            setProgreso(Math.min(85, pct), msg);
         });
         setProgreso(86, `✅ SA pase 2 — <b>${mejorFallos.length}</b> sin ubicar`);
         await cederControlUI();
@@ -4519,14 +4777,13 @@ async function ejecutarAlgoritmoFinal() {
         }
     }
 
-    // ── Recocido Simulado (pase 3/3) ────────────────────────────────────────
+    // ── Recocido Simulado (pase 3/3) — N islas en paralelo ──────────────────
     if (CFG.sa3 > 0 && mejorFallos.length > 0) {
-        mejorFallos = await recocidoSimulado(mejorFallos, CFG.sa3, (segsRestantes, msg) => {
+        mejorFallos = await recocidoSimuladoIslas(mejorFallos, CFG.sa3, (segsRestantes, msg) => {
             const pct = 88 + Math.round((1 - segsRestantes / (CFG.sa3 / 1000)) * 4);
-            setProgreso(Math.min(91, pct),
-                `🌡️ SA [pase 3/3] &nbsp;·&nbsp; ${msg} &nbsp;·&nbsp; <b>${segsRestantes}s</b> rest.`);
+            setProgreso(Math.min(91, pct), msg);
         });
-        setProgreso(92, `✅ SA pase 3 — <b>${mejorFallos.length}</b> sin ubicar`);
+        setProgreso(92, `✅ SA pase 3 (islas) — <b>${mejorFallos.length}</b> sin ubicar`);
         await cederControlUI();
 
         if (mejorFallos.length > 0) {
@@ -4556,12 +4813,12 @@ async function ejecutarAlgoritmoFinal() {
         }
     }
 
-    // ── Reinicio Parcial Agresivo: liberar 70-85 % y reconstruir ────────────
+    // ── Reinicio Parcial Agresivo: N Workers exploran en paralelo ───────────
     if (CFG.rpa > 0 && mejorFallos.length > 0) {
-        mejorFallos = await reinicioParcialAgresivo(mejorFallos, CFG.rpa, (s, msg) => {
-            setProgreso(94, `♻️ RPA &nbsp;·&nbsp; ${msg}`);
+        mejorFallos = await reinicioParcialAgresivoParalelo(mejorFallos, CFG.rpa, (s, msg) => {
+            setProgreso(94, msg);
         });
-        setProgreso(94, `✅ RPA — <b>${mejorFallos.length}</b> sin ubicar`);
+        setProgreso(94, `✅ RPA (paralelo) — <b>${mejorFallos.length}</b> sin ubicar`);
         await cederControlUI();
     }
 
@@ -4843,8 +5100,92 @@ function _renderHorarioActivo() {
     });
     tabla.appendChild(tbody);
 
+    // ── Inventario de clases del grupo ─────────────────────────────────────────
+    // Agrupa los bloques por materia+docente y cuenta horas requeridas vs colocadas.
+    const invMap = new Map();
+    grupo.bloques.forEach(b => {
+        const key = b.materia.nombre_materia + '§' + b.docente.nombre_docente;
+        if (!invMap.has(key)) invMap.set(key, {
+            materia: b.materia.nombre_materia,
+            docente: b.docente.nombre_docente,
+            requeridas: 0,
+            colocadas: 0,
+            hex: colorParaMateria(b.materia.nombre_materia)
+        });
+        invMap.get(key).requeridas += b.duracion;
+    });
+
+    // Contar horas ya colocadas escaneando el horario (cada slot = 1 hora).
+    diasSemana.forEach(dia => {
+        if (!grupo.horario[dia]) return;
+        grupo.baseHoras.forEach(h => {
+            const bl = grupo.horario[dia][h];
+            if (!bl) return;
+            const key = bl.materia.nombre_materia + '§' + bl.docente.nombre_docente;
+            if (invMap.has(key)) invMap.get(key).colocadas++;
+        });
+    });
+
+    const totalReq = [...invMap.values()].reduce((s, v) => s + v.requeridas, 0);
+    const totalCol = [...invMap.values()].reduce((s, v) => s + v.colocadas, 0);
+    const totalPct = totalReq > 0 ? Math.round((totalCol / totalReq) * 100) : 0;
+
+    // Orden: 1) vacías (0h) · 2) parciales · 3) completas — facilita ver pérdidas
+    const entradas = [...invMap.values()].sort((a, b) => {
+        const aDone  = a.colocadas === a.requeridas;
+        const bDone  = b.colocadas === b.requeridas;
+        const aVacio = a.colocadas === 0;
+        const bVacio = b.colocadas === 0;
+        if (aDone  !== bDone)  return aDone  ? 1 : -1;  // completas al fondo
+        if (aVacio !== bVacio) return aVacio ? -1 : 1;  // vacías arriba
+        return a.materia.localeCompare(b.materia);
+    });
+
+    const invDiv = document.createElement('div');
+    invDiv.className = 'inventario-wrap';
+
+    let html = `
+    <div class="inv-cabecera">
+        <span class="inv-titulo">Clases del grupo &mdash; <b>${totalCol}</b>/${totalReq}h colocadas</span>
+        <span class="inv-total-barra-wrap"><span class="inv-total-barra-fill" style="width:${totalPct}%"></span></span>
+        <span class="inv-total-pct">${totalPct}%</span>
+    </div>
+    <table class="inventario-tabla">
+        <thead><tr>
+            <th style="width:1.2rem"></th>
+            <th>Materia</th>
+            <th>Docente</th>
+            <th colspan="2">Progreso</th>
+        </tr></thead>
+        <tbody>`;
+
+    entradas.forEach(({ materia, docente, requeridas, colocadas, hex }) => {
+        const pct      = requeridas > 0 ? Math.round((colocadas / requeridas) * 100) : 0;
+        const completo = colocadas === requeridas;
+        const vacio    = colocadas === 0;
+        const rowClass = completo ? 'inv-completo' : vacio ? 'inv-vacio' : 'inv-parcial';
+        const color    = completo ? '#388e3c' : vacio ? '#f57c00' : 'var(--color-cerulean)';
+        const estado   = completo ? '✓' : vacio ? '—' : pct + '%';
+        html += `<tr class="${rowClass}">
+            <td><span class="inv-swatch" style="background:#${hex}"></span></td>
+            <td>${materia}</td>
+            <td style="color:var(--color-dim-gray);font-size:0.65rem">${docente}</td>
+            <td>
+                <span class="inv-barra-wrap">
+                    <span class="inv-barra-fill" style="width:${pct}%;background:${color}"></span>
+                </span>
+                <span class="inv-horas" style="color:${color}">${colocadas}/${requeridas}h</span>
+            </td>
+            <td><span class="inv-estado" style="color:${color}">${estado}</span></td>
+        </tr>`;
+    });
+
+    html += '</tbody></table>';
+    invDiv.innerHTML = html;
+
     wrap.innerHTML = '';
     wrap.appendChild(tabla);
+    wrap.appendChild(invDiv);
 }
 
 function cederControlUI() {
@@ -5993,14 +6334,27 @@ async function ejecutarConPool(pool, tareas, onProgreso) {
 
 // ── Manejador de mensajes (solo activo dentro del Worker) ──────────────────────
 if (IS_WORKER) {
-    // Deserializa el problema enviado por el hilo principal
-    function _deserializar(data) {
+    // Deserializa el problema enviado por el hilo principal.
+    // Si se pasa sabBuffer (SharedArrayBuffer), reconstruye disponibilidad desde
+    // bitmasks en lugar de parsear los arrays JSON (más rápido, cero copias).
+    function _deserializar(data, sabBuffer) {
         MAPA_DOCENTES.clear(); MAPA_GRUPOS.clear();
         const dArr = [], gArr = [], mArr = [], bArr = [];
+        const sabView = sabBuffer ? new Int32Array(sabBuffer) : null;
         data.docentes.forEach(d => {
             const doc = new Docente(d.n, d.t, d.he, d.cat);
             doc.horas_carga = d.hc; doc.maxDias = d.md; doc.esDocenteIngles = d.ing;
-            diasSemana.forEach(dia => { doc.disponibilidad[dia] = new Set(d.dp[dia] || []); });
+            if (sabView) {
+                // Reconstruir Sets desde bitmasks del SAB (sin parsear JSON)
+                diasSemana.forEach((dia, dIdx) => {
+                    const mask = sabView[d.i * 6 + dIdx];
+                    const s = new Set();
+                    for (let bit = 0; bit < 24; bit++) if (mask & (1 << bit)) s.add(bit);
+                    doc.disponibilidad[dia] = s;
+                });
+            } else {
+                diasSemana.forEach(dia => { doc.disponibilidad[dia] = new Set(d.dp[dia] || []); });
+            }
             MAPA_DOCENTES.set(d.n, doc); dArr[d.i] = doc;
         });
         data.materias.forEach(m => { mArr[m.i] = new Materia(m.n, m.h, m.g, m.tu, m.ts); });
@@ -6017,6 +6371,32 @@ if (IS_WORKER) {
             gArr[b.gi].bloques.push(bloque); bArr[b.i] = bloque;
         });
         return bArr;
+    }
+
+    // Restaura el estado del horario en el Worker desde un snapData serializado.
+    // Equivalente a restaurarDesdeWorker() del hilo principal.
+    function _restaurarEstado(snap, bArr) {
+        MAPA_GRUPOS.forEach(g => g.reset());
+        MAPA_DOCENTES.forEach(d => d.reset());
+        for (const [gn, hG] of Object.entries(snap.horario)) {
+            const g = MAPA_GRUPOS.get(gn); if (!g) continue;
+            for (const [dia, hD] of Object.entries(hG))
+                for (const [hStr, bi] of Object.entries(hD))
+                    if (bi !== null && bi !== undefined) g.horario[dia][+hStr] = bArr[bi];
+        }
+        for (const [dn, dD] of Object.entries(snap.docenteAsig)) {
+            const d = MAPA_DOCENTES.get(dn); if (!d) continue;
+            d.diasActivos = new Set(snap.docenteDias[dn] || []);
+            for (const [dia, aD] of Object.entries(dD)) d.asignado[dia] = aD;
+        }
+        for (const [gn, sG] of Object.entries(snap.sesiones)) {
+            const g = MAPA_GRUPOS.get(gn); if (!g) continue;
+            for (const [dia, sD] of Object.entries(sG)) g.sesionesDia[dia] = sD;
+        }
+        for (const [biStr, fl] of Object.entries(snap.bloqueFlags || {})) {
+            const b = bArr[+biStr]; if (!b) continue;
+            if (fl.pre) b.preAsignado = true; else delete b.preAsignado;
+        }
     }
 
     // Serializa el resultado del Worker para enviarlo al hilo principal
@@ -6048,9 +6428,33 @@ if (IS_WORKER) {
     }
 
     self.onmessage = async function(e) {
+        const type = e.data.type;
+
+        // ── SA en isla: correr recocidoSimulado con parámetros propios ──────────
+        if (type === 'sa') {
+            const bArr = _deserializar(e.data.problema, e.data.sabBuffer);
+            _restaurarEstado(e.data.snapData, bArr);
+            const fallos = e.data.fallosIdxs.map(i => bArr[i]).filter(Boolean);
+            const { tiempoMs, T, alpha } = e.data.params;
+            const result = await recocidoSimulado(fallos, tiempoMs, null, T, alpha);
+            self.postMessage({ type: 'sa_done', ..._serializar(result) });
+            return;
+        }
+
+        // ── RPA paralelo: correr reinicioParcialAgresivo con random propio ───────
+        if (type === 'rpa') {
+            const bArr = _deserializar(e.data.problema, e.data.sabBuffer);
+            _restaurarEstado(e.data.snapData, bArr);
+            const fallos = e.data.fallosIdxs.map(i => bArr[i]).filter(Boolean);
+            const result = await reinicioParcialAgresivo(fallos, e.data.tiempoMs, null);
+            self.postMessage({ type: 'rpa_done', ..._serializar(result) });
+            return;
+        }
+
+        // ── Greedy (comportamiento original, sin campo type) ─────────────────────
         const { problema, ruido, invertir, eliteBaseIdxs, freqData, recurrentesIdxs, globalBest, edaBloqueado } = e.data;
 
-        const bArr = _deserializar(problema);
+        const bArr = _deserializar(problema, e.data.sabBuffer);
 
         // Restaurar estado EDA/recurrentes
         globalBestFallos = globalBest;
