@@ -3362,8 +3362,9 @@ function tomarSnapshot() {
     MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => {
         s.bloques.set(b, {
             preAsignado:     b.preAsignado,
+            consensoFijado:  b.consensoFijado,  // ← necesario para restaurar pre-asignación Inglés
             nombreStrRender: b.nombreStrRender,
-            duracion:        b.duracion        // ← captura la duración actual
+            duracion:        b.duracion
         });
     }));
     return s;
@@ -3390,11 +3391,10 @@ function restaurarSnapshot(snap) {
     MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => {
         const bS = snap.bloques.get(b);
         if (!bS) return; // bloque nuevo no existía cuando se tomó el snapshot
-        if (bS.preAsignado     !== undefined) b.preAsignado     = bS.preAsignado;
-        else delete b.preAsignado;
-        if (bS.nombreStrRender !== undefined) b.nombreStrRender = bS.nombreStrRender;
-        else delete b.nombreStrRender;
-        if (bS.duracion        !== undefined) b.duracion        = bS.duracion; // ← restaura duración
+        if (bS.preAsignado     !== undefined) b.preAsignado     = bS.preAsignado;     else delete b.preAsignado;
+        if (bS.consensoFijado  !== undefined) b.consensoFijado  = bS.consensoFijado;  else delete b.consensoFijado;
+        if (bS.nombreStrRender !== undefined) b.nombreStrRender = bS.nombreStrRender; else delete b.nombreStrRender;
+        if (bS.duracion        !== undefined) b.duracion        = bS.duracion;
     }));
 }
 
@@ -4386,87 +4386,143 @@ async function intercambiarGruposPAs(bloquesFallidos, progFn = null) {
 }
 
 /**
- * Garantía de integridad: elimina celdas huérfanas del horario.
- * Una celda es huérfana si el bloque que la ocupa no está registrado
- * en g.bloques (puede ocurrir por cambios de split en reconfigurarSesiones
- * que no se revierten correctamente en fases posteriores).
- * También verifica que cada (materia, docente, grupo) no supere las horas
- * declaradas en los bloques de g.bloques.
+ * Valida la integridad del horario y corrige todas las violaciones en el sitio.
+ *
+ * Detecta y repara (en orden):
+ *   0. Bloques huérfanos (en horario pero no en g.bloques)      → eliminados
+ *   1. Bloques duplicados (mismo objeto en más slots que duracion,
+ *      o en días distintos, o no contiguos)                     → eliminados + fallidos
+ *   2. Docente con doble asignación en el mismo slot             → eliminados + fallidos
+ *   3. Reconstruye sesionesDia, d.asignado y d.diasActivos
+ *      desde el horario ya limpio (fuente de verdad)
+ *   4. Bloques perdidos (en g.bloques, no en horario ni fallidos) → fallidos
+ *
+ * @param {Array} bloquesFallidos  Lista de bloques ya conocidos como no ubicados.
+ * @returns {{ fallos: Array, resumen: {multiplicaciones, dobles, perdidos} }}
  */
-function normalizarHorasMaterias() {
-    // Conjunto global de bloques legítimos
-    const legit = new Set();
-    MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => legit.add(b)));
+function validarYLimpiar(bloquesFallidos = []) {
+    const fallidos = new Set(bloquesFallidos);
+    const resumen  = { multiplicaciones: 0, dobles: 0, perdidos: 0 };
 
+    // ── Fase 0: bloques huérfanos ─────────────────────────────────────────────
+    const legitimos = new Set();
+    MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => legitimos.add(b)));
     MAPA_GRUPOS.forEach(g => {
-        // Horas esperadas por clave "materia|docente"
-        const esperado = new Map();
-        g.bloques.forEach(b => {
-            const k = b.materia.nombre_materia + '|' + b.docente.nombre_docente;
-            esperado.set(k, (esperado.get(k) || 0) + b.duracion);
-        });
+        diasSemana.forEach(dia => g.baseHoras.forEach(h => {
+            const b = g.horario[dia][h];
+            if (b && !legitimos.has(b)) g.horario[dia][h] = null;
+        }));
+    });
 
-        // Paso 1: eliminar celdas con bloques no registrados en g.bloques
+    // ── Fase 0.5: bloques fuera de disponibilidad del docente ────────────────
+    // SA y fases de reparación pueden colocar bloques con relajarDisponibilidad=true.
+    // Si no se corrigen antes de la siguiente fase, el resultado viola reglas duras.
+    MAPA_GRUPOS.forEach(g => {
         diasSemana.forEach(dia => {
             g.baseHoras.forEach(h => {
                 const b = g.horario[dia][h];
-                if (b && !legit.has(b)) {
+                if (!b || b.preAsignado) return;
+                if (!b.docente.disponibilidad[dia].has(h)) {
                     g.horario[dia][h] = null;
-                    delete b.docente.asignado[dia][h];
+                    if (!fallidos.has(b)) { fallidos.add(b); resumen.disponibilidad = (resumen.disponibilidad || 0) + 1; }
                 }
-            });
-        });
-
-        // Paso 2: contar horas reales y eliminar el excedente si lo hay
-        const actual = new Map();
-        diasSemana.forEach(dia => {
-            g.baseHoras.forEach(h => {
-                const b = g.horario[dia][h];
-                if (!b) return;
-                const k = b.materia.nombre_materia + '|' + b.docente.nombre_docente;
-                actual.set(k, (actual.get(k) || 0) + 1);
-            });
-        });
-
-        actual.forEach((hrs, k) => {
-            if (hrs <= (esperado.get(k) || 0)) return;
-            // Hay más celdas de las esperadas — eliminar desde el final de la semana
-            let exceso = hrs - (esperado.get(k) || 0);
-            for (let di = diasSemana.length - 1; di >= 0 && exceso > 0; di--) {
-                const dia = diasSemana[di];
-                for (let hi = g.baseHoras.length - 1; hi >= 0 && exceso > 0; hi--) {
-                    const h = g.baseHoras[hi];
-                    const b = g.horario[dia][h];
-                    if (!b) continue;
-                    const bk = b.materia.nombre_materia + '|' + b.docente.nombre_docente;
-                    if (bk !== k) continue;
-                    g.horario[dia][h] = null;
-                    delete b.docente.asignado[dia][h];
-                    exceso--;
-                }
-            }
-        });
-
-        // Paso 3: recalcular sesionesDia desde el horario ya saneado
-        diasSemana.forEach(dia => {
-            g.sesionesDia[dia] = {};
-            g.baseHoras.forEach(h => {
-                const b = g.horario[dia][h];
-                if (!b) return;
-                const mat = b.materia.nombre_materia;
-                g.sesionesDia[dia][mat] = (g.sesionesDia[dia][mat] || 0) + 1;
             });
         });
     });
 
-    // Paso 4: recalcular diasActivos de todos los docentes
+    // ── Fase 1: bloques duplicados / mal colocados ────────────────────────────
+    MAPA_GRUPOS.forEach(g => {
+        const conteos = new Map(); // bloque → [{dia, h}]
+        diasSemana.forEach(dia => g.baseHoras.forEach(h => {
+            const b = g.horario[dia][h];
+            if (!b) return;
+            if (!conteos.has(b)) conteos.set(b, []);
+            conteos.get(b).push({ dia, h });
+        }));
+
+        conteos.forEach((slots, b) => {
+            const diasUnicos = new Set(slots.map(s => s.dia));
+            const sorted     = slots.slice().sort((a, bx) => a.h - bx.h);
+            const contiguo   = sorted.every((s, i) => i === 0 || s.h === sorted[i-1].h + 1);
+            const ok = slots.length === b.duracion && diasUnicos.size === 1 && contiguo;
+            if (ok) return;
+            // Violación: quitar todos los slots y reencolar
+            slots.forEach(({ dia, h }) => { g.horario[dia][h] = null; });
+            if (!b.preAsignado) { fallidos.add(b); resumen.multiplicaciones++; }
+        });
+    });
+
+    // ── Fase 2: docente doblemente asignado en el mismo slot ─────────────────
     MAPA_DOCENTES.forEach(d => {
-        d.diasActivos = new Set();
         diasSemana.forEach(dia => {
-            if (Object.keys(d.asignado[dia]).length > 0) d.diasActivos.add(dia);
+            const porSlot = new Map(); // h → [{g, b}]
+            MAPA_GRUPOS.forEach(g => g.baseHoras.forEach(h => {
+                const b = g.horario[dia][h];
+                if (!b || b.docente !== d) return;
+                if (!porSlot.has(h)) porSlot.set(h, []);
+                porSlot.get(h).push({ g, b });
+            }));
+            porSlot.forEach((asigs, h) => {
+                if (asigs.length <= 1) return;
+                asigs.forEach(({ g, b }) => {
+                    g.horario[dia][h] = null;
+                    if (!b.preAsignado) fallidos.add(b);
+                });
+                resumen.dobles++;
+            });
         });
     });
+
+    // ── Fase 3: reconstruir contadores desde el horario limpio ───────────────
+    MAPA_GRUPOS.forEach(g => diasSemana.forEach(d => { g.sesionesDia[d] = {}; }));
+    MAPA_DOCENTES.forEach(d => {
+        diasSemana.forEach(dia => { d.asignado[dia] = {}; });
+        d.diasActivos = new Set();
+    });
+    MAPA_GRUPOS.forEach(g => {
+        diasSemana.forEach(dia => {
+            const yaContados = new Set();
+            g.baseHoras.forEach(h => {
+                const b = g.horario[dia][h];
+                if (!b) return;
+                b.docente.asignado[dia][h] = `${b.materia.nombre_materia} [${g.nombre_grupo}]`;
+                b.docente.diasActivos.add(dia);
+                if (!yaContados.has(b)) {
+                    yaContados.add(b);
+                    g.sesionesDia[dia][b.materia.nombre_materia] =
+                        (g.sesionesDia[dia][b.materia.nombre_materia] || 0) + 1;
+                }
+            });
+        });
+    });
+
+    // ── Fase 4: bloques perdidos ──────────────────────────────────────────────
+    MAPA_GRUPOS.forEach(g => {
+        g.bloques.forEach(b => {
+            if (b.preAsignado) return;
+            const enHorario = diasSemana.some(dia => g.baseHoras.some(h => g.horario[dia][h] === b));
+            if (!enHorario && !fallidos.has(b)) { fallidos.add(b); resumen.perdidos++; }
+        });
+    });
+
+    return { fallos: [...fallidos], resumen };
 }
+
+/** Badge HTML para mostrar correcciones en la barra de progreso. */
+function _tagValidacion({ multiplicaciones, dobles, perdidos, disponibilidad }) {
+    const total = (multiplicaciones||0) + (dobles||0) + (perdidos||0) + (disponibilidad||0);
+    if (total === 0) return '';
+    const parts = [];
+    if (multiplicaciones > 0)  parts.push(`${multiplicaciones}×dup`);
+    if (dobles > 0)            parts.push(`${dobles}×doble`);
+    if (perdidos > 0)          parts.push(`${perdidos}×perdido`);
+    if (disponibilidad > 0)    parts.push(`${disponibilidad}×disp`);
+    return ` <span style="color:var(--color-tomato);font-size:0.75rem;font-weight:normal">` +
+           `[⚠ ${parts.join(' ')} corr.]</span>`;
+}
+
+/** Compatibilidad: llamada al final del algoritmo sin tracking de fallidos. */
+function normalizarHorasMaterias() { validarYLimpiar([]); }
 
 // ── SA en islas: lanza N Workers con distintos parámetros T/α en paralelo ────
 // Cada isla explora el espacio de forma independiente desde el mismo punto de
@@ -4691,10 +4747,15 @@ async function ejecutarAlgoritmoFinal() {
         }
     }
 
-    // Aplicar el mejor resultado encontrado
+    // Aplicar el mejor resultado encontrado + validación post-greedy
     setProgreso(58, `⚙️ Aplicando mejor resultado — <b>${mejorFallos.length}</b> bloque(s) sin ubicar...`);
     await cederControlUI();
     restaurarSnapshot(mejorSnap);
+    { const { fallos: _vf, resumen: _vr } = validarYLimpiar(mejorFallos);
+      mejorFallos = _vf; mejorSnap = tomarSnapshot();
+      if (_vr.multiplicaciones + _vr.dobles + _vr.perdidos > 0)
+          setProgreso(58, `🧹 Post-greedy${_tagValidacion(_vr)} — <b>${mejorFallos.length}</b> sin ubicar`);
+    }
 
     // ── Recocido Simulado (pase 1/3) — N islas en paralelo ──────────────────
     if (mejorFallos.length > 0) {
@@ -4703,7 +4764,9 @@ async function ejecutarAlgoritmoFinal() {
             const pct = 58 + Math.round((1 - segsRestantes / (SA_TIEMPO / 1000)) * 14);
             setProgreso(Math.min(71, pct), msg);
         });
-        setProgreso(72, `✅ SA pase 1 (islas) — <b>${mejorFallos.length}</b> sin ubicar`);
+        { const { fallos: _vf, resumen: _vr } = validarYLimpiar(mejorFallos);
+          mejorFallos = _vf; mejorSnap = tomarSnapshot();
+          setProgreso(72, `✅ SA pase 1 — <b>${mejorFallos.length}</b> sin ubicar${_tagValidacion(_vr)}`); }
         await cederControlUI();
     }
 
@@ -4747,7 +4810,9 @@ async function ejecutarAlgoritmoFinal() {
             const pct = 76 + Math.round((1 - segsRestantes / (CFG.sa2 / 1000)) * 10);
             setProgreso(Math.min(85, pct), msg);
         });
-        setProgreso(86, `✅ SA pase 2 — <b>${mejorFallos.length}</b> sin ubicar`);
+        { const { fallos: _vf, resumen: _vr } = validarYLimpiar(mejorFallos);
+          mejorFallos = _vf; mejorSnap = tomarSnapshot();
+          setProgreso(86, `✅ SA pase 2 — <b>${mejorFallos.length}</b> sin ubicar${_tagValidacion(_vr)}`); }
         await cederControlUI();
 
         if (mejorFallos.length > 0) {
@@ -4783,7 +4848,9 @@ async function ejecutarAlgoritmoFinal() {
             const pct = 88 + Math.round((1 - segsRestantes / (CFG.sa3 / 1000)) * 4);
             setProgreso(Math.min(91, pct), msg);
         });
-        setProgreso(92, `✅ SA pase 3 (islas) — <b>${mejorFallos.length}</b> sin ubicar`);
+        { const { fallos: _vf, resumen: _vr } = validarYLimpiar(mejorFallos);
+          mejorFallos = _vf; mejorSnap = tomarSnapshot();
+          setProgreso(92, `✅ SA pase 3 — <b>${mejorFallos.length}</b> sin ubicar${_tagValidacion(_vr)}`); }
         await cederControlUI();
 
         if (mejorFallos.length > 0) {
@@ -4883,9 +4950,12 @@ async function ejecutarAlgoritmoFinal() {
 
     if (badgeEnCurso) badgeEnCurso.style.display = 'none';
 
-    // Garantía final: asegurar que cada materia tenga exactamente las horas
-    // que le corresponden según g.bloques. Elimina celdas huérfanas del horario.
-    normalizarHorasMaterias();
+    // Validación final: corregir cualquier violación residual y actualizar fallidos
+    { const { fallos: _vfFin, resumen: _vrFin } = validarYLimpiar(mejorFallos);
+      mejorFallos = _vfFin;
+      if (_vrFin.multiplicaciones + _vrFin.dobles + _vrFin.perdidos > 0)
+          console.warn('[validarYLimpiar final]', _vrFin);
+    }
 
     _forzarRenderHorario(); // render final con el resultado definitivo
 
