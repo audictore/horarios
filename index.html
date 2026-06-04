@@ -4612,9 +4612,12 @@ async function reinicioParcialAgresivoParalelo(bloquesFallidos, tiempoLimiteMs, 
 
 async function ejecutarAlgoritmoFinal() {
     // ── Parámetros fijos ─────────────────────────────────────────────────────
-    const CFG = { sa: 180000, sa2: 120000, sa3: 90000, optim: 20000, forzIter: 12,
-                  lns1: 20000, lns2: 15000, lns3: 10000,
-                  rpa1: 60000, rpa: 90000, solver: 45000 };
+    // Con islas paralelas, cada SA corre en N núcleos simultáneamente.
+    // SA1 120s × 4 islas = 480s de exploración efectiva (vs 180s × 1 antes).
+    // SA3, LNS3 y RPA1 eliminados — las islas los suplen con creces.
+    const CFG = { sa: 120000, sa2: 90000, optim: 15000, forzIter: 12,
+                  lns1: 20000, lns2: 15000,
+                  rpa: 60000, solver: 30000 };
 
     // ── Estrategias de arranque (8 arranques con alta diversidad) ───────────
     // Menos starts → más tiempo libre para SA que es lo más efectivo
@@ -4791,16 +4794,9 @@ async function ejecutarAlgoritmoFinal() {
     }
     if (CFG.lns1 > 0 && mejorFallos.length > 0) {
         mejorFallos = await busquedaVecinoGrande(mejorFallos, CFG.lns1, (s, msg) => {
-            setProgreso(75, `🔍 LNS [1/3] &nbsp;·&nbsp; ${msg}`);
+            setProgreso(75, `🔍 LNS [1/2] &nbsp;·&nbsp; ${msg}`);
         });
-        setProgreso(76, `✅ LNS [1/3] — <b>${mejorFallos.length}</b> sin ubicar`);
-        await cederControlUI();
-    }
-    if (CFG.rpa1 > 0 && mejorFallos.length > 0) {
-        mejorFallos = await reinicioParcialAgresivoParalelo(mejorFallos, CFG.rpa1, (s, msg) => {
-            setProgreso(76, msg);
-        });
-        setProgreso(77, `✅ RPA [1/2] (paralelo) — <b>${mejorFallos.length}</b> sin ubicar`);
+        setProgreso(76, `✅ LNS [1/2] — <b>${mejorFallos.length}</b> sin ubicar`);
         await cederControlUI();
     }
 
@@ -4835,47 +4831,9 @@ async function ejecutarAlgoritmoFinal() {
         }
         if (CFG.lns2 > 0 && mejorFallos.length > 0) {
             mejorFallos = await busquedaVecinoGrande(mejorFallos, CFG.lns2, (s, msg) => {
-                setProgreso(88, `🔍 LNS [2/3] &nbsp;·&nbsp; ${msg}`);
+                setProgreso(88, `🔍 LNS [2/2] &nbsp;·&nbsp; ${msg}`);
             });
-            setProgreso(89, `✅ LNS [2/3] — <b>${mejorFallos.length}</b> sin ubicar`);
-            await cederControlUI();
-        }
-    }
-
-    // ── Recocido Simulado (pase 3/3) — N islas en paralelo ──────────────────
-    if (CFG.sa3 > 0 && mejorFallos.length > 0) {
-        mejorFallos = await recocidoSimuladoIslas(mejorFallos, CFG.sa3, (segsRestantes, msg) => {
-            const pct = 88 + Math.round((1 - segsRestantes / (CFG.sa3 / 1000)) * 4);
-            setProgreso(Math.min(91, pct), msg);
-        });
-        { const { fallos: _vf, resumen: _vr } = validarYLimpiar(mejorFallos);
-          mejorFallos = _vf; mejorSnap = tomarSnapshot();
-          setProgreso(92, `✅ SA pase 3 — <b>${mejorFallos.length}</b> sin ubicar${_tagValidacion(_vr)}`); }
-        await cederControlUI();
-
-        if (mejorFallos.length > 0) {
-            setProgreso(92, `🔀 Reconfiguración [3] — <b>${mejorFallos.length}</b> sin ubicar...`);
-            await cederControlUI();
-            mejorFallos = await reconfigurarSesiones(mejorFallos, (pct, msg) => {
-                setProgreso(92 + Math.round(pct * 0.003), msg);
-            });
-            setProgreso(92, `✅ Reconfiguración [3] — <b>${mejorFallos.length}</b> sin ubicar`);
-            await cederControlUI();
-        }
-        if (mejorFallos.length > 0) {
-            setProgreso(92, `⚡ Desbloqueo cruzado [3] — <b>${mejorFallos.length}</b> sin ubicar...`);
-            await cederControlUI();
-            mejorFallos = await paseForzadoCruzado(mejorFallos, (pct, msg) => {
-                setProgreso(92 + Math.round(pct * 0.005), msg);
-            }, CFG.forzIter);
-            setProgreso(93, `✅ Desbloqueo [3] — <b>${mejorFallos.length}</b> sin ubicar`);
-            await cederControlUI();
-        }
-        if (CFG.lns3 > 0 && mejorFallos.length > 0) {
-            mejorFallos = await busquedaVecinoGrande(mejorFallos, CFG.lns3, (s, msg) => {
-                setProgreso(93, `🔍 LNS [3/3] &nbsp;·&nbsp; ${msg}`);
-            });
-            setProgreso(94, `✅ LNS [3/3] — <b>${mejorFallos.length}</b> sin ubicar`);
+            setProgreso(89, `✅ LNS [2/2] — <b>${mejorFallos.length}</b> sin ubicar`);
             await cederControlUI();
         }
     }
