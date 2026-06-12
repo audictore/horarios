@@ -129,6 +129,12 @@
             margin: 0;
         }
 
+        /* Se activa por JS cuando el contenido de #span_error desborda */
+        main.error-expandido {
+            height: auto;
+            grid-template-rows: repeat(7, 9.3dvh) 37dvh 37dvh 9.3dvh;
+        }
+
         main img{
             width: 100%;
             height: auto;
@@ -247,23 +253,21 @@
         .span_error{
             width: 100%;
             height: 100%;
-            grid-area: 8/2/10/13; /* La hacemos un poco más alta abarcando más filas */
-            font-size: 1.2rem; /* Letra un poco más pequeña para la lista */
+            grid-area: 8/2/10/13;
+            font-size: 1.2rem;
             color: var(--color-black);
             font-weight: bold;
-            
-            /* Estilos de la caja */
+
             background-color: #ffffff;
             border: 2px solid var(--color-tomato);
             border-radius: 1rem;
             padding: 1rem;
             box-sizing: border-box;
-            
-            /* Magia del Scroll */
-            overflow-y: auto; 
+
+            overflow-y: auto;
             text-align: left;
-            white-space: pre-wrap; /* Obliga a HTML a respetar los saltos de línea \n */
-            display: block; 
+            white-space: pre-wrap;
+            display: block;
         }
 
         /* ── Sección desglose docente·materia·horas ── */
@@ -734,6 +738,8 @@ const RESET_SALTO        = 2;        // reiniciar freqMap si la mejora supera es
 let bloquesRecurrentesFallidos = new Set(); // bloques que fallaron en la última ejecución → prioridad absoluta
 let mejorSnapGlobal            = null;      // mejor snapshot persistente entre ejecuciones (warm start)
 let mejorFallosGlobal          = [];        // bloques fallidos del mejor snapshot global
+let mejorHorasGlobal           = -1;        // horas colocadas en mejorSnapGlobal (métrica de monotonía)
+let _bitacoraCSP               = [];        // resumen de cada cluster CSP de la corrida (se muestra al final)
 let _edaBloqueado              = false;     // true en arranques libres (sin sesgo EDA ni recurrentes)
 
 /** Devuelve true si el bloque corresponde a una materia de inglés. */
@@ -744,6 +750,16 @@ function esIngles(b) {
         .normalize("NFD").replace(/[̀-ͯ]/g, "");
     if (/INGLES\s*[89]/.test(nm)) return false;
     return nm.includes("INGLES");
+}
+
+/** Máximo de sesiones de una misma materia por día/grupo.
+ *  Inglés 1-7 se parte en 8-9 bloques de 1h pero la semana solo tiene 6 días:
+ *  con límite 1 sería matemáticamente incompletable. El coordinador permite
+ *  hasta 3h de inglés el mismo día (todas juntas, p.ej. 7:00-9:00) cuando la
+ *  disponibilidad del docente está concentrada en pocos días → límite 3.
+ *  Las demás materias (incluido inglés 8/9) conservan el límite duro de 1. */
+function maxSesionesPorDia(b) {
+    return esIngles(b) ? 3 : 1;
 }
 
 // ─── Paleta de colores por materia (Excel + vista desglose) ────────────────
@@ -820,8 +836,9 @@ class Docente {
     }
     calcularMaxDias() {
         if (this.tipo_docente === 2) { // PA
+            // Regla institucional: carga 2-9 → 2 días, 10-20 → 3 días, 21+ → 4 días
             let total = this.horas_carga + this.horas_extra_clase;
-            if (total <= 8)  return 2;
+            if (total <= 9)  return 2;
             if (total <= 20) return 3;
             return 4;
         }
@@ -974,15 +991,26 @@ function parsearCargaAcademica(wb) {
             if (esInglesEspecial) d.esDocenteIngles = true; // días ilimitados solo para inglés regular
             for (let i = 0; i < h; i++) desglose.push(1);
         } else {
-            // Regla de partición: 1→[1], 2→[2], 3→[2,1], 4→[2,2], 5→[2,2,1], 6→[2,2,2], 7→[2,2,2,1]
-            // Bloques de 2h; si queda 1h de residuo se agrega como bloque de 1h.
-            if (h === 1) {
-                desglose.push(1);
+            // Partición según los DÍAS DE ASISTENCIA del docente: con la regla de
+            // 1 sesión por materia/día, un docente de 2 días no puede dar una
+            // materia de 7h en [2,2,2,1] (necesitaría 4 días) → usa sesiones más
+            // largas. Tablas del método tradicional validado:
+            //   2 días: 7→[4,3]   6→[3,3]   5→[3,2]   4→[2,2] 3→[2,1] 2→[1,1]
+            //   3 días: 7→[3,2,2] 6→[2,2,2] 5→[2,2,1] 4→[2,2] 3→[2,1] 2→[1,1]
+            //   4+días: 7→[2,2,2,1] (resto igual que 3 días)
+            const diasDoc = d.tipo_docente === 2 ? d.maxDias : 5;
+            const TABLA = diasDoc <= 2
+                ? { 7:[4,3],     6:[3,3],   5:[3,2],   4:[2,2], 3:[2,1], 2:[1,1], 1:[1] }
+                : diasDoc === 3
+                ? { 7:[3,2,2],   6:[2,2,2], 5:[2,2,1], 4:[2,2], 3:[2,1], 2:[1,1], 1:[1] }
+                : { 7:[2,2,2,1], 6:[2,2,2], 5:[2,2,1], 4:[2,2], 3:[2,1], 2:[1,1], 1:[1] };
+            if (TABLA[h]) {
+                desglose = [...TABLA[h]];
             } else {
-                while (h > 0) {
-                    if (h >= 2) { desglose.push(2); h -= 2; }
-                    else        { desglose.push(1); h -= 1; }
-                }
+                // h > 7 (raro): repartir lo más parejo posible en los días del docente
+                const nSes = Math.max(1, Math.min(diasDoc, Math.ceil(h / 2)));
+                const base = Math.floor(h / nSes), extra = h % nSes;
+                for (let i = 0; i < nSes; i++) desglose.push(base + (i < extra ? 1 : 0));
             }
         }
 
@@ -1051,6 +1079,46 @@ function actualizarEstado() {
     }
 }
 
+// ── FASE 1: Determinar maxDias por docente ────────────────────────────────────
+// Contrasta la carga del docente con su disponibilidad real para decidir cuántos
+// días usará el algoritmo en la iteración (Fase 2).
+// Regla: si el peor día disponible dentro del top-N no tiene al menos 1h de
+// holgura sobre la carga media diaria, se suma 1 día más (hasta el tope).
+//   Ejemplo Abner 17h PA, disp=[10,5,5,4]:
+//     maxDias=3 → peorDia=5, cargaMedia=⌈17/3⌉=6 → 5<7 → maxDias=4 ✓
+function calcularDiasDocentes() {
+    MAPA_DOCENTES.forEach(d => {
+        // Partir siempre del valor base calculado por carga académica
+        d.maxDias = d.calcularMaxDias();
+
+        if (d.horas_carga === 0) return;
+        if (d.esDocenteIngles)   return; // inglés usa todos los días disponibles
+
+        const topeDias = d.tipo_docente === 2 ? 4 : 6;
+
+        // Horas disponibles por día, ordenadas de mayor a menor
+        const dispOrd = diasSemana
+            .map(dia => d.disponibilidad[dia].size)
+            .sort((a, b) => b - a);
+
+        const diasConDisp = dispOrd.filter(n => n > 0).length;
+
+        // Mientras haya un día extra disponible y no se alcance el tope:
+        // Si el peor día del top-N no cubre (cargaMedia + 1h de holgura), sumar día
+        while (diasConDisp > d.maxDias && d.maxDias < topeDias) {
+            const peorDia    = dispOrd[d.maxDias - 1];
+            const cargaMedia = Math.ceil(d.horas_carga / d.maxDias);
+            if (peorDia >= cargaMedia + 1) break;
+            d.maxDias++;
+        }
+    });
+
+    // Docentes de inglés: sin restricción de días
+    MAPA_DOCENTES.forEach(d => {
+        if (d.esDocenteIngles) d.maxDias = diasSemana.length;
+    });
+}
+
 function parsearTodo() {
     try {
         resetearAprendizaje();
@@ -1059,50 +1127,18 @@ function parsearTodo() {
         let asignacionesExitosas = parsearCargaAcademica(wbCarga);
         let docentesConDisp = parsearDisponibilidades(wbDisp);
 
-        // Ajustar maxDias: si los mejores maxDias días no tienen suficientes
-        // slots para cubrir la carga, añadir 1 día (si hay disponibilidad).
-        MAPA_DOCENTES.forEach(d => {
-            if (d.horas_carga === 0) return;
-
-            // Slots efectivos por día: horas únicas dentro del turno de sus grupos
-            // en que el docente está disponible (un docente ocupa 1 slot/hora máx.)
-            let slotsPorDia = diasSemana.map(dia => {
-                let hrs = new Set();
-                MAPA_GRUPOS.forEach(grupo => {
-                    if (!grupo.bloques.some(b => b.docente === d)) return;
-                    grupo.baseHoras.forEach(h => {
-                        if (d.disponibilidad[dia].has(h)) hrs.add(h);
-                    });
-                });
-                return hrs.size;
-            }).sort((a, b) => b - a); // mejores días primero
-
-            let diasDisponibles = slotsPorDia.filter(s => s > 0).length;
-            let sumTopDias = slotsPorDia.slice(0, d.maxDias).reduce((a, b) => a + b, 0);
-
-            // Si los mejores días no alcanzan y hay un día más con disponibilidad,
-            // añadir 1 día — respetando el tope por categoría:
-            //   PA  → máximo 4 días (regla institucional, excepto inglés)
-            //   PTC → máximo 6 días
-            const topeDias = d.tipo_docente === 2 ? 4 : 6;
-            if (sumTopDias < d.horas_carga && diasDisponibles > d.maxDias && d.maxDias < topeDias) {
-                d.maxDias++;
-            }
-        });
-
-        // Barrido de respaldo: marcar como inglés a cualquier docente (incluyendo PAs como Daniela)
-        // que tenga al menos un bloque de inglés, aunque el nombre de la materia no haya
-        // matcheado exactamente durante parsearCargaAcademica.
+        // Barrido de respaldo: marcar como inglés a cualquier docente que tenga
+        // al menos un bloque de inglés (detecta casos que no matchearon por nombre).
+        // Debe correr ANTES de calcularDiasDocentes para que esos docentes sean
+        // excluidos correctamente de la lógica de expansión de días.
         MAPA_GRUPOS.forEach(g => {
             g.bloques.forEach(b => {
                 if (esIngles(b)) b.docente.esDocenteIngles = true;
             });
         });
 
-        // Docentes de inglés (cualquier cuatrimestre): pueden asistir todos sus días disponibles
-        MAPA_DOCENTES.forEach(d => {
-            if (d.esDocenteIngles) d.maxDias = diasSemana.length;
-        });
+        // Fase 1: calcular maxDias de cada docente según carga y disponibilidad
+        calcularDiasDocentes();
 
         let advertencias = [];
 
@@ -1350,7 +1386,7 @@ function intentarAsignar(bloque, relajarSesiones, relajarDiasMax, relajarContigu
         }
 
         let sesionesActuales = grupo.sesionesDia[dia][bloque.materia.nombre_materia] || 0;
-        if (sesionesActuales >= 1) return; // DURO: máximo 1 sesión por materia por día
+        if (sesionesActuales >= maxSesionesPorDia(bloque)) return; // DURO: 1/día (inglés 1-7: 2/día)
 
         let tieneClasesHoy = false;
         let primeraClase = 99, ultimaClase = -1;
@@ -1510,7 +1546,7 @@ function intentarSwapDeHorarios(bloquePendiente, queue) {
                 docentePendiente.diasActivos.size >= docentePendiente.maxDias) continue;
 
             // Verificar que el bloque pendiente no tenga ya sesión ese día (regla dura)
-            if ((grupo.sesionesDia[diaP][bloquePendiente.materia.nombre_materia] || 0) >= 1) continue;
+            if ((grupo.sesionesDia[diaP][bloquePendiente.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloquePendiente)) continue;
 
             let bloquesDesplazar = new Map();
             let slotsValidos = true;
@@ -1533,7 +1569,7 @@ function intentarSwapDeHorarios(bloquePendiente, queue) {
                     for (let idxE = 0; idxE <= grupo.baseHoras.length - bloqueEx.duracion; idxE++) {
                         let hE = grupo.baseHoras[idxE];
                         // Verificar que el bloque desplazado no cree sesión doble en día destino (regla dura)
-                        if (diaE !== diaP && (grupo.sesionesDia[diaE][bloqueEx.materia.nombre_materia] || 0) >= 1) continue;
+                        if (diaE !== diaP && (grupo.sesionesDia[diaE][bloqueEx.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloqueEx)) continue;
                         // DURO para PAs: el bloque desplazado no puede abrir un día nuevo si ya está en maxDias
                         // (conservador: no contabilizamos la posible liberación del día origen)
                         if (diaE !== diaP &&
@@ -1771,7 +1807,7 @@ function intentarCadenaSwap(bloquePendiente, profMaxCruzado = 0, visitadosCruzad
         if (!docente.diasActivos.has(diaP) &&
             docente.tipo_docente === 2 &&
             docente.diasActivos.size >= docente.maxDias) continue;
-        if ((grupo.sesionesDia[diaP][bloquePendiente.materia.nombre_materia] || 0) >= 1) continue;
+        if ((grupo.sesionesDia[diaP][bloquePendiente.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloquePendiente)) continue;
 
         for (let idxP = 0; idxP <= grupo.baseHoras.length - durP; idxP++) {
             const hP = grupo.baseHoras[idxP];
@@ -1900,7 +1936,7 @@ function intentarReestructuracionCruzada(bloquePendiente, profMax = 2, visitados
             docente.tipo_docente === 2 &&
             docente.diasActivos.size >= docente.maxDias) continue;
         // No sesión doble de la misma materia en el mismo día
-        if ((grupo.sesionesDia[dia][bloquePendiente.materia.nombre_materia] || 0) >= 1) continue;
+        if ((grupo.sesionesDia[dia][bloquePendiente.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloquePendiente)) continue;
 
         for (let idxH = 0; idxH <= grupo.baseHoras.length - durP; idxH++) {
             const hP = grupo.baseHoras[idxH];
@@ -2027,7 +2063,7 @@ function obtenerSlotsValidosPA(bloque, relajarContig = false) {
         // maxDias es regla dura para PAs
         if (!docente.diasActivos.has(dia) && docente.diasActivos.size >= docente.maxDias) return;
         // 1 sesión por materia por día
-        if ((grupo.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= 1) return;
+        if ((grupo.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloque)) return;
 
         let horasPermitidas = [];
 
@@ -2123,9 +2159,20 @@ function preAsignarPAsOptimo() {
         return bloques.length > 0 ? total / bloques.length : 999;
     }
 
-    // Más restringido (menos slots/bloque) → primero
+    // Prioridad 1 (regla institucional): docentes con grupos en AMBOS turnos.
+    // Prioridad 2: docentes con bloques recurrentemente fallidos (corrida
+    // anterior) — toman los mejores huecos del tablero aún vacío.
+    // Prioridad 3: más restringido (menos slots/bloque) primero.
+    const sinAmbosTurnos = ([d]) => d.turnosAsignados.size >= 2 ? 0 : 1;
+    const sinRecurrente  = ([, bs]) => bs.some(b => bloquesRecurrentesFallidos.has(b)) ? 0 : 1;
     const entradas = [...porDocente.entries()]
-        .sort(([da, ba], [db, bb]) => slotsEstaticos(da, ba) - slotsEstaticos(db, bb));
+        .sort((ea, eb) => {
+            const ta = sinAmbosTurnos(ea), tb = sinAmbosTurnos(eb);
+            if (ta !== tb) return ta - tb;
+            const ra = sinRecurrente(ea), rb = sinRecurrente(eb);
+            if (ra !== rb) return ra - rb;
+            return slotsEstaticos(ea[0], ea[1]) - slotsEstaticos(eb[0], eb[1]);
+        });
 
     const asignadosTotal = new Set();
 
@@ -2155,12 +2202,16 @@ function preAsignarPAsOptimo() {
             }
             if (restantes.length === 0) return;
 
-            // ── MCV dinámico: escoger el bloque con menos slots libres ────────
-            let minSlots = Infinity, elegidoK = 0;
-            const slotsCache = restantes.map(k => {
-                const n = obtenerSlotsValidosPA(bloques[k], true).length;
-                if (n < minSlots) { minSlots = n; elegidoK = restantes.indexOf(k); }
-                return n;
+            // ── MCV dinámico: escoger el bloque con menos slots libres.
+            // Desempate: bloque recurrentemente fallido primero (así la rama
+            // "saltar bloque" sacrifica antes a los no-recurrentes).
+            let minSlots = Infinity, elegidoK = 0, elegidoRec = false;
+            restantes.forEach((k, i) => {
+                const n   = obtenerSlotsValidosPA(bloques[k], true).length;
+                const rec = bloquesRecurrentesFallidos.has(bloques[k]);
+                if (n < minSlots || (n === minSlots && rec && !elegidoRec)) {
+                    minSlots = n; elegidoK = i; elegidoRec = rec;
+                }
             });
 
             // ── Forward-checking: si algún bloque tiene 0 slots → podar ──────
@@ -2347,12 +2398,29 @@ function preAsignarInglesSimultaneo() {
         // Resultado: máxima sincronización posible con los datos de disponibilidad.
         let baseHorasRev = [...baseHoras].reverse();
         while (quedanBloques()) {
-            let mejorDia = null, mejorH = null, mejorGrupos = [];
+            let mejorDia = null, mejorH = null, mejorGrupos = [], mejorAdy = -1, mejorRec = -1;
             for (let dia of diasSemana) {
                 for (let h of baseHorasRev) {
                     const disp = gruposDisponibles(dia, h);
-                    if (disp.length > mejorGrupos.length) {
+                    if (disp.length === 0) continue;
+                    // Desempates tras la cobertura:
+                    //  1) recurrentes: slots que sirven a grupos cuyo bloque
+                    //     pendiente falló la corrida anterior van primero
+                    //  2) "todas las horas juntas": preferir el slot pegado a
+                    //     una sesión de inglés ya colocada ese día (7-8-9, no
+                    //     7 y 11 sueltas).
+                    let ady = 0, nRec = 0;
+                    disp.forEach(g => {
+                        const arr = g.horario[dia][h - 1], aba = g.horario[dia][h + 1];
+                        if ((arr && esIngles(arr)) || (aba && esIngles(aba))) ady++;
+                        const bPend = porGrupo.get(g)[idx.get(g)];
+                        if (bloquesRecurrentesFallidos.has(bPend)) nRec++;
+                    });
+                    if (disp.length > mejorGrupos.length ||
+                        (disp.length === mejorGrupos.length && (nRec > mejorRec ||
+                         (nRec === mejorRec && ady > mejorAdy)))) {
                         mejorDia = dia; mejorH = h; mejorGrupos = disp;
+                        mejorAdy = ady; mejorRec = nRec;
                     }
                 }
             }
@@ -2390,10 +2458,10 @@ function preAsignarInglesSimultaneo() {
         });
     });
 
-    // maxSesionesDia=2: permite hasta 2 sesiones de inglés por día en grupos 1-7
-    // (necesario para llenar toda la disponibilidad del docente sin concentrar
-    //  5+ horas en un solo día). Los grupos 8+ conservan el límite de 1.
-    inglesPorTurno.forEach(porGrupo => sincronizarGrupos(porGrupo, 2));
+    // maxSesionesDia=3: permite hasta 3 sesiones de inglés por día en grupos 1-7
+    // (regla del coordinador: docentes con disponibilidad concentrada en pocos
+    //  días pueden dar hasta 3h juntas). Los grupos 8+ conservan el límite de 1.
+    inglesPorTurno.forEach(porGrupo => sincronizarGrupos(porGrupo, 3));
 
     // CUATRIMESTRES 8+: no se sincronizan — se tratan como docentes normales
     // y sus bloques de inglés se colocan por el algoritmo greedy estándar.
@@ -2591,7 +2659,7 @@ async function rescateBacktracking(bloquesFallidos, progFn = null) {
             const docente = b.docente;
             const durP    = b.duracion;
             diasSemana.forEach(dia => {
-                if ((grupo.sesionesDia[dia][b.materia.nombre_materia] || 0) >= 1) return;
+                if ((grupo.sesionesDia[dia][b.materia.nombre_materia] || 0) >= maxSesionesPorDia(b)) return;
                 for (let idx = 0; idx <= grupo.baseHoras.length - durP; idx++) {
                     const h = grupo.baseHoras[idx];
                     // ¿Tiene disponibilidad el docente aquí?
@@ -2637,10 +2705,17 @@ async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = nu
     }
 
     MAPA_DOCENTES.forEach(d => {
-        let dispTotal = 0;
-        diasSemana.forEach(dia => dispTotal += d.disponibilidad[dia].size);
+        let dispTotal = 0, diasDisp = 0;
+        diasSemana.forEach(dia => {
+            dispTotal += d.disponibilidad[dia].size;
+            if (d.disponibilidad[dia].size > 0) diasDisp++;
+        });
         d.flexibilidad    = dispTotal - d.horas_carga;
         d.constraintRatio = d.horas_carga / Math.max(1, dispTotal); // mayor → más restringido
+        // Fórmula de prioridad del método tradicional:
+        // (carga/disponibilidad) × díasDisponibles × tipoDocente — MENOR primero.
+        // Tipos: 1=inglés, 2=PA, 3=PTC, 4=TA/Director.
+        d.scoreTradicional = d.constraintRatio * Math.max(1, diasDisp) * (d.tipo_docente || 3);
     });
 
     if (cromosoma !== null) {
@@ -2687,12 +2762,17 @@ async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = nu
             const aI = esIngles(a) ? 1 : 0, bI = esIngles(b) ? 1 : 0;
             if (aI !== bI) return bI - aI;
 
+            // 1. Regla institucional (absoluta, no se invierte): docentes con
+            //    grupos en AMBOS turnos primero — recurso más restringido.
+            const aT = a.docente.turnosAsignados.size >= 2 ? 1 : 0;
+            const bT = b.docente.turnosAsignados.size >= 2 ? 1 : 0;
+            if (aT !== bT) return bT - aT;
+
             const signo = invertirOrden ? -1 : 1;
 
-            // 1. Docente con mayor ratio carga/disponibilidad primero
-            //    (más carga y menos disponibilidad → más urgente)
-            if (a.docente.constraintRatio !== b.docente.constraintRatio)
-                return signo * (b.docente.constraintRatio - a.docente.constraintRatio);
+            // 2. Fórmula tradicional: (carga/disp) × díasDisp × tipo — MENOR primero
+            if (a.docente.scoreTradicional !== b.docente.scoreTradicional)
+                return signo * (a.docente.scoreTradicional - b.docente.scoreTradicional);
 
             // 2. Margen local en el grupo (días útiles disponibles − sesiones a dar)
             if (a.flexibilidadEfectiva !== b.flexibilidadEfectiva)
@@ -2738,12 +2818,16 @@ async function construccionVorazCascada(cromosoma = null, ruido = 0, progFn = nu
         b => !inglesPreAsignados.has(b) && !paPreAsignados.has(b)
     );
 
-    // Orden de cola: 1) inglés  2) recurrentes (solo en arranques con sesgo)  3) resto
+    // Orden de cola: 1) inglés  2) docentes con AMBOS turnos (regla institucional:
+    // prioridad máxima — su disponibilidad cruza matutino y vespertino y son el
+    // recurso más restringido)  3) recurrentes (solo arranques con sesgo)  4) resto
     const conSesgo = !_edaBloqueado && bloquesRecurrentesFallidos.size > 0;
+    const esAmbosTurnos = b => b.docente.turnosAsignados.size >= 2;
     let queue = [
         ...restantes.filter(b =>  esIngles(b)),
-        ...(conSesgo ? restantes.filter(b => !esIngles(b) &&  bloquesRecurrentesFallidos.has(b)) : []),
-        ...restantes.filter(b => !esIngles(b) && (!conSesgo || !bloquesRecurrentesFallidos.has(b)))
+        ...restantes.filter(b => !esIngles(b) &&  esAmbosTurnos(b)),
+        ...(conSesgo ? restantes.filter(b => !esIngles(b) && !esAmbosTurnos(b) &&  bloquesRecurrentesFallidos.has(b)) : []),
+        ...restantes.filter(b => !esIngles(b) && !esAmbosTurnos(b) && (!conSesgo || !bloquesRecurrentesFallidos.has(b)))
     ];
 
     // Sanear horario: eliminar cualquier bloque huérfano (no registrado en g.bloques)
@@ -2897,7 +2981,7 @@ function repararViolacionesDisponibilidad() {
                             if (!bV.docente.disponibilidad[diaB].has(hB)) continue;
                             if (bV.docente.asignado[diaB][hB]) continue;
                             // Verificar que no cree sesión doble en el día destino (regla dura)
-                            if (diaB !== dia && (grupo.sesionesDia[diaB][bV.materia.nombre_materia] || 0) >= 1) continue;
+                            if (diaB !== dia && (grupo.sesionesDia[diaB][bV.materia.nombre_materia] || 0) >= maxSesionesPorDia(bV)) continue;
                             quitarAsignacion(grupo, bV, dia, h);
                             aplicarAsignacion(grupo, bV, diaB, hB);
                             reparado = true;
@@ -2925,8 +3009,8 @@ function repararViolacionesDisponibilidad() {
                             // Verificar que el intercambio no cree sesión doble (regla dura)
                             let mismaMatRep = bV.materia.nombre_materia === bO.materia.nombre_materia;
                             if (!mismaMatRep) {
-                                if ((grupo.sesionesDia[diaB][bV.materia.nombre_materia] || 0) >= 1) continue;
-                                if ((grupo.sesionesDia[dia][bO.materia.nombre_materia] || 0) >= 1) continue;
+                                if ((grupo.sesionesDia[diaB][bV.materia.nombre_materia] || 0) >= maxSesionesPorDia(bV)) continue;
+                                if ((grupo.sesionesDia[dia][bO.materia.nombre_materia] || 0) >= maxSesionesPorDia(bO)) continue;
                             }
                             quitarAsignacion(grupo, bV, dia, h);
                             quitarAsignacion(grupo, bO, diaB, hB);
@@ -3005,7 +3089,7 @@ function intentarTraerBordeAHueco(grupo, diaDestino, hHueco) {
             if (!bloque.docente.disponibilidad[diaDestino].has(hHueco)) continue;
             if (bloque.docente.asignado[diaDestino][hHueco]) continue;
             // Verificar que no cree sesión doble en el día destino (regla dura)
-            if ((grupo.sesionesDia[diaDestino][bloque.materia.nombre_materia] || 0) >= 1) continue;
+            if ((grupo.sesionesDia[diaDestino][bloque.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloque)) continue;
 
             let activaNuevoDia = !bloque.docente.diasActivos.has(diaDestino);
             let dejaDiaLimpio = Object.keys(bloque.docente.asignado[diaOrigen]).length === 1;
@@ -3340,6 +3424,112 @@ async function optimizacionExhaustiva(tiempoLimiteMs, progFn = null) {
 // intentarReestructuracionCruzada (que puede llamarse desde cualquiera de los dos)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Total de horas (celdas ocupadas) en los horarios de TODOS los grupos.
+ *  Métrica de comparación entre corridas: más horas colocadas = mejor. */
+function contarHorasColocadasTotales() {
+    let n = 0;
+    MAPA_GRUPOS.forEach(g => {
+        diasSemana.forEach(dia => {
+            g.baseHoras.forEach(h => { if (g.horario[dia][h] !== null) n++; });
+        });
+    });
+    return n;
+}
+
+// ── Diagnóstico manual desde la consola del navegador ────────────────────────
+// porQueNo('Alonzo', 'Tutoria', '2c') → explica, día por día y hora por hora,
+// por qué un bloque no puede colocarse donde el usuario "ve espacio libre".
+// Solo lectura: no modifica nada. Los nombres aceptan fragmentos sin acentos.
+// globalThis (no window): este script también corre dentro de Web Workers.
+globalThis.porQueNo = function (nomDocente, nomMateria, nomGrupo) {
+    const norm = s => String(s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    let grupo = null;
+    MAPA_GRUPOS.forEach((g, gn) => { if (norm(gn) === norm(nomGrupo)) grupo = g; });
+    if (!grupo) { console.warn('Grupo no encontrado:', nomGrupo, '— disponibles:', [...MAPA_GRUPOS.keys()]); return; }
+    const bloques = grupo.bloques.filter(b =>
+        norm(b.materia.nombre_materia).includes(norm(nomMateria)) &&
+        norm(b.docente.nombre_docente).includes(norm(nomDocente)));
+    if (bloques.length === 0) { console.warn('Ningún bloque coincide con esa materia/docente en', grupo.nombre_grupo); return; }
+
+    bloques.forEach((b, bi) => {
+        const d = b.docente;
+        let colocadas = 0;
+        diasSemana.forEach(dia => grupo.baseHoras.forEach(h => { if (grupo.horario[dia][h] === b) colocadas++; }));
+        console.log(`\n■ Bloque ${bi + 1}/${bloques.length}: ${b.materia.nombre_materia} [${grupo.nombre_grupo}] — ` +
+            `${d.nombre_docente} — ${b.duracion}h — colocadas ${colocadas}/${b.duracion}` +
+            `${b.preAsignado ? ' (preAsignado)' : ''}`);
+        if (colocadas >= b.duracion) { console.log('  ✓ Ya está completo.'); return; }
+
+        diasSemana.forEach(dia => {
+            // Vetos de día completo (los mismos de intentarAsignar)
+            const vetosDia = [];
+            if (dia === 'sabado' && d.disponibilidad['sabado'].size === 0)
+                vetosDia.push('sábado sin disponibilidad declarada');
+            if (Object.keys(d.asignado[dia]).length === 0 && d.diasActivos.size >= d.maxDias)
+                vetosDia.push(`abriría día nuevo: ya usa ${d.diasActivos.size}/${d.maxDias} días ` +
+                    `(${d.tipo_docente === 2 ? 'PA: límite duro' : 'PTC: relajable en reparación'})`);
+            if ((grupo.sesionesDia[dia][b.materia.nombre_materia] || 0) >= maxSesionesPorDia(b))
+                vetosDia.push(`el grupo ya tiene ${maxSesionesPorDia(b)} sesión(es) de esta materia ese día (regla dura)`);
+            if (vetosDia.length) { console.log(`  ${dia}: ✗ ${vetosDia.join(' · ')}`); return; }
+
+            // Bordes del día del grupo (para la regla de contiguidad)
+            let primera = 99, ultima = -1, tieneClases = false;
+            grupo.baseHoras.forEach(h => {
+                if (grupo.horario[dia][h] !== null) {
+                    tieneClases = true;
+                    if (h < primera) primera = h;
+                    if (h > ultima)  ultima  = h;
+                }
+            });
+
+            const lineas = [];
+            for (let idx = 0; idx <= grupo.baseHoras.length - b.duracion; idx++) {
+                const h0 = grupo.baseHoras[idx];
+                const motivos = new Set();
+                for (let h = h0; h < h0 + b.duracion; h++) {
+                    const occ = grupo.horario[dia][h];
+                    if (occ) motivos.add(`grupo ocupado ${h}h (${occ.materia.nombre_materia} — ${occ.docente.nombre_docente})`);
+                    if (d.asignado[dia][h]) {
+                        let donde = '';
+                        for (const [gn2, g2] of MAPA_GRUPOS) {
+                            const oB = g2.horario[dia]?.[h];
+                            if (oB && oB.docente === d) { donde = ` (en ${gn2}: ${oB.materia.nombre_materia})`; break; }
+                        }
+                        motivos.add(`docente ocupado ${h}h${donde}`);
+                    }
+                    if (!d.disponibilidad[dia].has(h)) motivos.add(`sin disponibilidad declarada ${h}h`);
+                }
+                if (motivos.size === 0 && tieneClases && h0 !== primera - b.duracion && h0 !== ultima + 1)
+                    motivos.add('CONTIGUIDAD: celda libre pero no pega con las clases del día ' +
+                        `(solo cabe en ${primera - b.duracion}h o ${ultima + 1}h; relajable en fase de reparación)`);
+                lineas.push(`    ${h0}h: ${motivos.size ? '✗ ' + [...motivos].join(' · ') : '✓ ASIGNABLE AHORA MISMO'}`);
+            }
+            console.log(`  ${dia}:\n` + lineas.join('\n'));
+        });
+    });
+};
+
+/** Libera bloques preAsignado que NO tienen todas sus horas en el tablero.
+ *  Un preAsignado incompleto es un estado ROTO, no una fijación válida:
+ *  todas las fases de reparación, scans y CSP filtran preAsignado, así que
+ *  sus horas faltantes se pierden en silencio (nadie las ve ni las repara).
+ *  Quitarle la marca lo devuelve al circuito de reparación.
+ *  @returns {number} cuántos bloques se liberaron */
+function liberarPreAsignadosIncompletos() {
+    let liberados = 0;
+    MAPA_GRUPOS.forEach(g => {
+        g.bloques.forEach(b => {
+            if (!b.preAsignado) return;
+            let n = 0;
+            diasSemana.forEach(dia => {
+                g.baseHoras.forEach(h => { if (g.horario[dia][h] === b) n++; });
+            });
+            if (n < b.duracion) { b.preAsignado = false; liberados++; }
+        });
+    });
+    return liberados;
+}
+
 /** Captura el estado completo del horario en memoria.
  *  Incluye g.bloques y bloque.duracion para que restaurarSnapshot
  *  revierta correctamente los cambios estructurales de reconfigurarSesiones. */
@@ -3588,8 +3778,11 @@ async function reconfigurarSesiones(bloquesFallidos, progFn = null) {
                 const nb = {
                     materia, docente, grupo,
                     duracion: 1,  // se actualizará abajo
-                    nombreStr: `${materia.nombre_materia} (${docente.nombre_docente})`
+                    nombreStr: `${materia.nombre_materia} (${docente.nombre_docente})`,
+                    _wi: _wBArr.length  // índice worker: sin esto, los Workers (SA/RPA) descartan
+                                        // este bloque al serializar/restaurar y queda "perdido"
                 };
+                _wBArr.push(nb);
                 grupo.bloques.push(nb);
                 bloquesNuevos.push(nb);
             }
@@ -3670,7 +3863,7 @@ function intentarSwapCadenaMultiDocente(bloquePendiente, visitados = new Set(), 
 
     for (const dia of diasSemana) {
         // Regla sesión doble
-        if ((g.sesionesDia[dia][bloquePendiente.materia.nombre_materia] || 0) >= 1) continue;
+        if ((g.sesionesDia[dia][bloquePendiente.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloquePendiente)) continue;
         // PA: no abrir día nuevo si ya está en maxDias
         if (!d.diasActivos.has(dia) && d.tipo_docente === 2 &&
             d.diasActivos.size >= d.maxDias) continue;
@@ -3798,7 +3991,7 @@ async function paseForzadoCruzado(bloquesFallidos, progFn = null, maxIter = 3) {
             slotLoop:
             for (const dia of diasSemana) {
                 // No doblar sesión de la misma materia
-                if ((g.sesionesDia[dia][b.materia.nombre_materia] || 0) >= 1) continue;
+                if ((g.sesionesDia[dia][b.materia.nombre_materia] || 0) >= maxSesionesPorDia(b)) continue;
                 // PA: no abrir día nuevo si ya está en maxDias
                 if (!d.diasActivos.has(dia) && d.tipo_docente === 2 &&
                     d.diasActivos.size >= d.maxDias) continue;
@@ -3924,7 +4117,7 @@ async function solverExacto(bloquesFallidos, tiempoLimiteMs, progFn = null) {
         const res = [];
         for (const dia of diasSemana) {
             if (dia === 'sabado' && !d.disponibilidad.sabado.size) continue;
-            if ((g.sesionesDia[dia][b.materia.nombre_materia] || 0) >= 1) continue;
+            if ((g.sesionesDia[dia][b.materia.nombre_materia] || 0) >= maxSesionesPorDia(b)) continue;
             if (d.tipo_docente === 2 && !d.diasActivos.has(dia) &&
                 d.diasActivos.size >= d.maxDias) continue;
             for (let i = 0; i <= g.baseHoras.length - dur; i++) {
@@ -4198,6 +4391,407 @@ async function reinicioParcialAgresivo(bloquesFallidos, tiempoLimiteMs, progFn =
             fallidosRef.clear();
             mejorFallos.forEach(b => fallidosRef.add(b));
             if (mejorFallos.length === 0) break;
+        }
+    }
+
+    restaurarSnapshot(mejorSnap);
+    return mejorFallos;
+}
+
+/**
+ * Reinicio de agenda por docente.
+ *
+ * Cuando la cadena de swaps no logra liberar un slot bloqueado, la causa más
+ * frecuente es un ciclo de dependencias: A necesita el slot de B, B necesita el
+ * de C y C necesita el de A.  Ninguna técnica local (swap-chain, BFS) puede romper
+ * ese ciclo sin desvincular todos los participantes a la vez.
+ *
+ * Esta función lo hace de forma quirúrgica:
+ *   1. Para cada docente con bloques fallidos, desasigna TODOS sus bloques.
+ *   2. Los reasigna en un orden donde los bloques fallidos van PRIMERO, dándoles
+ *      prioridad para elegir el mejor slot disponible.
+ *   3. Solo acepta el resultado si la cantidad de fallos del docente disminuye
+ *      y no se crean nuevos fallos en bloques que antes estaban colocados.
+ *   4. Prueba hasta 4 ordenaciones distintas antes de rendirse con ese docente.
+ */
+async function rescateReinicioDocente(bloquesFallidos, progFn = null) {
+    if (bloquesFallidos.length === 0) return [];
+
+    const docentesFallidos = [...new Set(bloquesFallidos.map(b => b.docente))];
+    let mejorFallos = [...bloquesFallidos];
+    let mejorSnap   = tomarSnapshot();
+
+    for (const docente of docentesFallidos) {
+        // Todos los bloques del docente que no están pre-asignados
+        const todosBloques = [];
+        MAPA_GRUPOS.forEach(g => {
+            g.bloques.forEach(b => {
+                if (b.docente === docente && !b.preAsignado) todosBloques.push(b);
+            });
+        });
+
+        const failingSet = new Set(mejorFallos.filter(b => b.docente === docente));
+        if (failingSet.size === 0) continue;
+
+        let progreso = false;
+
+        for (let intento = 0; intento < 4 && !progreso; intento++) {
+            if (progFn) {
+                progFn(`🔄 Reinicio docente [${intento + 1}/4]: ${docente.nombre_docente} — ${failingSet.size} bloq. sin ubicar`);
+                await cederControlUI();
+            }
+
+            const snap = tomarSnapshot();
+
+            // 1. Desasignar todos los bloques del docente de un golpe
+            for (const b of todosBloques) {
+                const pos = encontrarPosicionBloque(b);
+                if (pos) quitarAsignacion(b.grupo, b, pos.dia, pos.hInicio);
+            }
+
+            // 2. Orden: fallidos primero, resto variado en intentos sucesivos
+            const failingArr = [...failingSet];
+            const otrosArr   = todosBloques.filter(b => !failingSet.has(b));
+            if (intento > 0) shuffleArray(otrosArr);
+            const ordenados  = [...failingArr, ...otrosArr];
+
+            // 3. Reasignar; los fallidos obtienen relajaciones extra si es necesario
+            const sinColocar = new Set();
+            for (const b of ordenados) {
+                const esFallido = failingSet.has(b);
+                let ok = intentarAsignar(b, false, false, false, false)
+                      || intentarAsignar(b, false, true,  false, false);
+                if (!ok && esFallido) {
+                    ok = intentarAsignar(b, true, true, false, false)
+                      || intentarAsignar(b, true, true, true,  false);
+                }
+                if (!ok) sinColocar.add(b);
+            }
+
+            // 4. Aceptar solo si: menos fallos Y sin crear nuevos fallos
+            const hayNuevasFallas = [...sinColocar].some(b => !failingSet.has(b));
+            if (!hayNuevasFallas && sinColocar.size < failingSet.size) {
+                const otrasFallas = mejorFallos.filter(b => b.docente !== docente);
+                mejorFallos = [...otrasFallas, ...sinColocar];
+                mejorSnap   = tomarSnapshot();
+                progreso    = true;
+            } else {
+                restaurarSnapshot(snap);
+            }
+        }
+    }
+
+    restaurarSnapshot(mejorSnap);
+    return mejorFallos;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CSP POR DOCENTES BOTTLENECK
+// Para docentes con bloques fallidos, usa backtracking con fail-first +
+// forward checking para encontrar una asignación global válida para TODOS
+// sus bloques simultáneamente — evita los deadlocks por orden de colocación.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Genera candidatos (dia, hInicio) para un bloque con el tablero en estado
+ *  limpio (todos los bloques del docente ya desasignados). */
+function _cspCandidatosBase(bloque) {
+    const g       = bloque.grupo;
+    const d       = bloque.docente;
+    const baseSet = new Set(g.baseHoras);
+    const lista   = [];
+
+    for (const dia of diasSemana) {
+        if (dia === 'sabado' && d.disponibilidad['sabado'].size === 0) continue;
+        // sesionesDia ya fue decrementado por quitarAsignacion → refleja solo otros docentes
+        if ((g.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloque)) continue;
+
+        for (const hInicio of g.baseHoras) {
+            let valido = true;
+            for (let h = hInicio; h < hInicio + bloque.duracion; h++) {
+                if (!baseSet.has(h))               { valido = false; break; }
+                if (g.horario[dia][h] !== null)    { valido = false; break; } // otro docente
+                if (d.asignado[dia][h])             { valido = false; break; } // bloque preAsignado
+                if (!d.disponibilidad[dia].has(h)) { valido = false; break; }
+            }
+            if (valido) lista.push({ dia, hInicio });
+        }
+    }
+    return lista;
+}
+
+/**
+ * Backtracking CSP PARCIAL — branch & bound de MÁXIMA COLOCACIÓN.
+ * Los bloques pueden pertenecer a VARIOS docentes (cada bloque trae su
+ * propio b.docente) — permite resolver bloqueos mutuos: dos docentes que
+ * comparten grupo y cuyos huecos libres están ocupados por bloques del otro.
+ *
+ * Ya NO es todo-o-nada: cada bloque tiene una rama extra "saltarlo", y la
+ * búsqueda recuerda en `mejor` la asignación con MÁS HORAS colocadas vista
+ * hasta el momento (algoritmo anytime). La primera inmersión —colocar en el
+ * primer candidato viable, saltar lo que no quepa— garantiza una solución
+ * base aunque el tiempo se agote de inmediato; el resto del tiempo se usa
+ * en mejorarla. Poda por cota optimista: si ni colocando TODOS los bloques
+ * restantes se supera `mejor.horas`, la rama se corta.
+ * (El forward-checking todo-o-nada se eliminó: en el modo parcial un bloque
+ * futuro sin candidatos ya no invalida la rama — simplemente se saltará.)
+ *
+ * Estado mutable (se pasa por referencia y se deshace en backtrack):
+ *   ocDoc      – docente → Set("dia|h")  → slots de ESE docente ocupados en el CSP
+ *   ocGrupo    – "grupo|dia|h"           → slot del grupo ocupado en el CSP
+ *   sesiones   – "grupo|dia|materia"     → sesiones comprometidas en el CSP
+ *   diasUsados – docente → Set(dia)      → días nuevos usados por ESE docente en el CSP
+ *
+ * @param {Array}  actual – asignación en construcción ({dia,hInicio} | null por bloque)
+ * @param {Object} mejor  – { horas, asignacion } mejor solución encontrada (se muta)
+ * @param {Array}  sufijo – sufijo[i] = Σ duraciones de bloques[i..fin] (cota optimista)
+ * @returns {boolean} true = CORTAR toda la búsqueda (timeout o solución perfecta)
+ */
+function _cspBacktrackParcial(bloques, candidatos, actual, mejor, sufijo,
+                              ocDoc, ocGrupo, sesiones, diasUsados, idx, horas, tFin) {
+    if (idx === bloques.length) {
+        if (horas > mejor.horas) {
+            mejor.horas      = horas;
+            mejor.asignacion = actual.slice();
+        }
+        return mejor.horas >= sufijo[0]; // solución perfecta → no hay nada mejor
+    }
+    if (Date.now() > tFin) return true; // timeout → cortar, mejor ya tiene lo logrado
+    // Cota optimista: ni colocando TODOS los bloques restantes se supera el mejor
+    if (horas + sufijo[idx] <= mejor.horas) return false;
+
+    const b    = bloques[idx];
+    const doc  = b.docente;
+    const gNom = b.grupo.nombre_grupo;
+    const mNom = b.materia.nombre_materia;
+    const esPA = doc.tipo_docente === 2;
+
+    let docOc = ocDoc.get(doc);
+    if (!docOc) { docOc = new Set(); ocDoc.set(doc, docOc); }
+    let docDias = diasUsados.get(doc);
+    if (!docDias) { docDias = new Set(); diasUsados.set(doc, docDias); }
+
+    for (const { dia, hInicio } of candidatos[idx]) {
+
+        // ── maxDias para PAs (duro) ───────────────────────────────────────────
+        if (esPA) {
+            const diaYaActivoTotal = doc.diasActivos.has(dia) || docDias.has(dia);
+            if (!diaYaActivoTotal) {
+                const totalDias = doc.diasActivos.size + docDias.size;
+                if (totalDias >= doc.maxDias) continue;
+            }
+        }
+
+        // ── máx. sesiones por materia/día/grupo en el CSP (inglés 1-7: 2) ───
+        const sesKey = `${gNom}|${dia}|${mNom}`;
+        if ((sesiones.get(sesKey) || 0) >= maxSesionesPorDia(b)) continue;
+
+        // ── docente libre y slot de grupo libre (CSP interno) ────────────────
+        const clvDoc   = [];
+        const clvGrupo = [];
+        let libre = true;
+        for (let h = hInicio; h < hInicio + b.duracion; h++) {
+            const kD = `${dia}|${h}`;
+            const kG = `${gNom}|${dia}|${h}`;
+            if (docOc.has(kD) || ocGrupo.has(kG)) { libre = false; break; }
+            clvDoc.push(kD);
+            clvGrupo.push(kG);
+        }
+        if (!libre) continue;
+
+        // ── Comprometer ───────────────────────────────────────────────────────
+        clvDoc.forEach(k => docOc.add(k));
+        clvGrupo.forEach(k => ocGrupo.set(k, true));
+        sesiones.set(sesKey, (sesiones.get(sesKey) || 0) + 1);
+        const diaEraNuevo = !docDias.has(dia);
+        if (diaEraNuevo) docDias.add(dia);
+        actual[idx] = { dia, hInicio };
+
+        const cortar = _cspBacktrackParcial(bloques, candidatos, actual, mejor, sufijo,
+            ocDoc, ocGrupo, sesiones, diasUsados, idx + 1, horas + b.duracion, tFin);
+
+        // ── Deshacer ──────────────────────────────────────────────────────────
+        clvDoc.forEach(k => docOc.delete(k));
+        clvGrupo.forEach(k => ocGrupo.delete(k));
+        const sv = sesiones.get(sesKey) - 1;
+        if (sv <= 0) sesiones.delete(sesKey); else sesiones.set(sesKey, sv);
+        if (diaEraNuevo) docDias.delete(dia);
+        actual[idx] = null;
+
+        if (cortar) return true;
+    }
+
+    // ── Rama "saltar este bloque": sacrificarlo puede liberar huecos que
+    // valen más horas en los bloques siguientes (o simplemente no cabe).
+    actual[idx] = null;
+    return _cspBacktrackParcial(bloques, candidatos, actual, mejor, sufijo,
+        ocDoc, ocGrupo, sesiones, diasUsados, idx + 1, horas, tFin);
+}
+
+/**
+ * Agrupa los docentes con bloques fallidos en "clusters": dos docentes caen
+ * en el mismo cluster si AMBOS tienen un bloque fallido en el MISMO grupo
+ * (posible bloqueo mutuo — el hueco que necesita uno está ocupado por un
+ * bloque del otro). Para cada cluster (1 o más docentes):
+ *  1. Desasigna TODOS los bloques no-preAsignados de TODOS sus docentes,
+ *     liberando a la vez los huecos que se bloqueaban entre sí.
+ *  2. Genera candidatos (dia, hInicio) para cada bloque.
+ *  3. Ordena TODOS los bloques del cluster (de cualquier docente) por número
+ *     de candidatos ASC (fail-first global), con prioridad a los 0/Nh.
+ *  4. Ejecuta backtracking CSP conjunto PARCIAL (branch & bound de máxima
+ *     colocación): siempre produce la mejor asignación parcial encontrada.
+ *  5. Gate por HORAS: la aplica solo si el total de horas colocadas del
+ *     tablero SUBE estrictamente; si no → restaura estado previo.
+ */
+async function planificarDocentesBottleneck(bloquesFallidos, progFn = null) {
+    if (bloquesFallidos.length === 0) return [];
+
+    const docentesFallidos = [...new Set(bloquesFallidos.map(b => b.docente))];
+    let mejorFallos = [...bloquesFallidos];
+    let mejorSnap   = tomarSnapshot();
+
+    // ── Agrupar en clusters: misma componente conexa si comparten grupo ──────
+    const gruposPorDocente = new Map();
+    bloquesFallidos.forEach(b => {
+        if (!gruposPorDocente.has(b.docente)) gruposPorDocente.set(b.docente, new Set());
+        gruposPorDocente.get(b.docente).add(b.grupo.nombre_grupo);
+    });
+    const padre = new Map(docentesFallidos.map(d => [d, d]));
+    const raiz = d => { while (padre.get(d) !== d) d = padre.get(d); return d; };
+    for (let i = 0; i < docentesFallidos.length; i++) {
+        for (let j = i + 1; j < docentesFallidos.length; j++) {
+            const di = docentesFallidos[i], dj = docentesFallidos[j];
+            let comparten = false;
+            gruposPorDocente.get(di).forEach(g => { if (gruposPorDocente.get(dj).has(g)) comparten = true; });
+            if (comparten) padre.set(raiz(di), raiz(dj));
+        }
+    }
+    const clustersMap = new Map();
+    docentesFallidos.forEach(d => {
+        const r = raiz(d);
+        if (!clustersMap.has(r)) clustersMap.set(r, []);
+        clustersMap.get(r).push(d);
+    });
+    const clusters = [...clustersMap.values()];
+
+    for (const cluster of clusters) {
+        const fallosCluster = mejorFallos.filter(b => cluster.includes(b.docente));
+        if (fallosCluster.length === 0) continue;
+
+        // 0a. Docentes-OBSTÁCULO: ocupan slots donde un fallido del cluster
+        // tiene disponibilidad y el grupo no tiene sesión de esa materia ese
+        // día (es decir, los huecos que el fallido NECESITA). Incluir a los 3
+        // más frecuentes en el cluster permite al CSP moverlos también, en vez
+        // de tratarlos como muro. El gate por horas protege de empeorar.
+        const obstaculos = new Map();
+        fallosCluster.forEach(b => {
+            const g = b.grupo, d = b.docente;
+            diasSemana.forEach(dia => {
+                if ((g.sesionesDia[dia][b.materia.nombre_materia] || 0) >= maxSesionesPorDia(b)) return;
+                for (let idx = 0; idx <= g.baseHoras.length - b.duracion; idx++) {
+                    const h0 = g.baseHoras[idx];
+                    let dispOk = true;
+                    for (let o = 0; o < b.duracion; o++) {
+                        if (!d.disponibilidad[dia].has(h0 + o) || d.asignado[dia][h0 + o]) {
+                            dispOk = false; break;
+                        }
+                    }
+                    if (!dispOk) continue;
+                    for (let o = 0; o < b.duracion; o++) {
+                        const occ = g.horario[dia][h0 + o];
+                        if (occ && occ.docente !== d && !occ.preAsignado && !cluster.includes(occ.docente))
+                            obstaculos.set(occ.docente, (obstaculos.get(occ.docente) || 0) + 1);
+                    }
+                }
+            });
+        });
+        const topObstaculos = [...obstaculos.entries()]
+            .sort((a, b) => b[1] - a[1]).slice(0, 3).map(e => e[0]);
+        const clusterAmpliado = [...cluster, ...topObstaculos];
+
+        // Todos los bloques no-preAsignados de TODOS los docentes del cluster ampliado
+        const todosBloques = [];
+        MAPA_GRUPOS.forEach(g => {
+            g.bloques.forEach(b => {
+                if (clusterAmpliado.includes(b.docente) && !b.preAsignado) todosBloques.push(b);
+            });
+        });
+
+        if (progFn) {
+            const nombres = clusterAmpliado.map(d => d.nombre_docente).join(' + ');
+            progFn(`🔍 CSP [${nombres}] ${fallosCluster.length} fallidos / ${todosBloques.length} bloq.`);
+            await cederControlUI();
+        }
+
+        // 0. ¿Qué bloques estaban completamente vacíos (0/Nh) ANTES de tocar nada?
+        //    Son los "recurrentes" más graves y deben tener prioridad de colocación.
+        const estabaVacio = todosBloques.map(b => encontrarPosicionBloque(b) === null);
+
+        const horasAntes = contarHorasColocadasTotales();
+        const snapAntes  = tomarSnapshot();
+
+        // 1. Desasignar todos los bloques del cluster → libera huecos compartidos
+        for (const b of todosBloques) {
+            const pos = encontrarPosicionBloque(b);
+            if (pos) quitarAsignacion(b.grupo, b, pos.dia, pos.hInicio);
+        }
+
+        // 2. Candidatos base (tablero libre de TODOS los docentes del cluster)
+        const candidatosRaw = todosBloques.map(b => _cspCandidatosBase(b));
+
+        // 3. Prioridad: primero los que estaban en 0/Nh (recurrentes más graves);
+        //    dentro de cada grupo, fail-first por número de candidatos.
+        const orden = todosBloques.map((_, i) => i)
+            .sort((a, b) => {
+                if (estabaVacio[a] !== estabaVacio[b]) return estabaVacio[a] ? -1 : 1;
+                return candidatosRaw[a].length - candidatosRaw[b].length;
+            });
+
+        const bloquesOrd    = orden.map(i => todosBloques[i]);
+        const candidatosOrd = orden.map(i => candidatosRaw[i]);
+
+        // 4. CSP conjunto PARCIAL (más tiempo si el cluster involucra más docentes)
+        const tLimite = Math.min(8000 + (clusterAmpliado.length - 1) * 4000, 25000);
+        const sufijo  = new Array(bloquesOrd.length + 1).fill(0);
+        for (let i = bloquesOrd.length - 1; i >= 0; i--)
+            sufijo[i] = sufijo[i + 1] + bloquesOrd[i].duracion;
+        const mejor = { horas: -1, asignacion: null };
+        _cspBacktrackParcial(
+            bloquesOrd, candidatosOrd, new Array(bloquesOrd.length).fill(null), mejor, sufijo,
+            new Map(), new Map(), new Map(), new Map(),
+            0, 0, Date.now() + tLimite
+        );
+
+        if (mejor.asignacion) {
+            // 5. Aplicar la mejor asignación parcial (los null quedan sin colocar)
+            for (let i = 0; i < bloquesOrd.length; i++) {
+                const pos = mejor.asignacion[i];
+                if (pos) aplicarAsignacion(bloquesOrd[i].grupo, bloquesOrd[i], pos.dia, pos.hInicio);
+            }
+            // 6. Gate por HORAS: aceptar solo si el total colocado del tablero
+            //    sube estrictamente (misma métrica que el trinquete global).
+            const horasDespues = contarHorasColocadasTotales();
+            const nombres = clusterAmpliado.map(d => d.nombre_docente.split(' ')[0]).join('+');
+            if (horasDespues > horasAntes) {
+                console.log(`[CSP cluster] ${nombres}: ${horasAntes}h → ${horasDespues}h (aceptado)`);
+                _bitacoraCSP.push(`${nombres}: ${horasAntes}→${horasDespues}h ✓`);
+                // Fallos del cluster ya colocados salen de la lista...
+                mejorFallos = mejorFallos.filter(b =>
+                    !clusterAmpliado.includes(b.docente) || encontrarPosicionBloque(b) === null
+                );
+                // ...y los bloques saltados por el CSP entran (siguen sin colocar)
+                for (let i = 0; i < bloquesOrd.length; i++) {
+                    if (!mejor.asignacion[i] && !mejorFallos.includes(bloquesOrd[i]))
+                        mejorFallos.push(bloquesOrd[i]);
+                }
+                mejorSnap = tomarSnapshot();
+            } else {
+                console.log(`[CSP cluster] ${nombres}: ${horasAntes}h → ${horasDespues}h (revertido)`);
+                _bitacoraCSP.push(`${nombres}: sin mejora (${horasAntes}h) ✗`);
+                restaurarSnapshot(snapAntes);
+            }
+        } else {
+            // Ni siquiera la inmersión greedy terminó (no debería pasar) → restaurar
+            restaurarSnapshot(snapAntes);
         }
     }
 
@@ -4667,6 +5261,10 @@ async function ejecutarAlgoritmoFinal() {
         g.bloques.forEach(b => { delete b.preAsignado; delete b.consensoFijado; delete b.nombreStrRender; });
     });
     MAPA_DOCENTES.forEach(d => d.reset());
+
+    // ── Fase 1: determinar maxDias de cada docente antes de iterar ────────────
+    calcularDiasDocentes();
+
     const inglesGlobalFijados = preAsignarInglesSimultaneo(); // ← única ejecución
     const snapInglesGlobal    = tomarSnapshot();              // ← posiciones fijas
 
@@ -4685,9 +5283,15 @@ async function ejecutarAlgoritmoFinal() {
     try {
     // ── Fase 1: arranques greedy en PARALELO con Web Workers ────────────────
     {
-        // Crear el blob-worker la primera vez (extrae el script de esta misma página)
+        // Crear el blob-worker la primera vez (extrae el script de esta misma página).
+        // Filtramos por el script que define IS_WORKER para excluir snippets inyectados
+        // por herramientas de desarrollo (ej. Live Server) que acceden a `window`/`document`
+        // en contexto de worker y causan ReferenceError.
         if (!_workerUrl) {
-            const src = [...document.querySelectorAll('script:not([src])')].map(s => s.textContent).join('\n');
+            const allScripts = [...document.querySelectorAll('script:not([src])')];
+            const mainScript = allScripts.find(s => s.textContent.includes('const IS_WORKER'));
+            const src = mainScript ? mainScript.textContent
+                                   : allScripts.map(s => s.textContent).join('\n');
             _workerUrl = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
         }
 
@@ -4730,7 +5334,9 @@ async function ejecutarAlgoritmoFinal() {
         pool.forEach(w => w.terminate());
 
         // Elegir mejor resultado y restaurar estado en hilo principal
-        const mejor = resultados.filter(Boolean).sort((a, b) => a.fallosCount - b.fallosCount)[0];
+        const mejores = resultados.filter(Boolean).sort((a, b) => a.fallosCount - b.fallosCount);
+        if (mejores.length === 0) throw new Error('Todos los arranques greedy fallaron — recarga la página e intenta de nuevo.');
+        const mejor = mejores[0];
         restaurarDesdeWorker(mejor);
         let mejorFallosCount = mejor.fallosCount;
         mejorFallos = mejor.fallosIndices.map(i => _wBArr[i]).filter(Boolean);
@@ -4847,12 +5453,68 @@ async function ejecutarAlgoritmoFinal() {
         await cederControlUI();
     }
 
+    // ── Reinicio dirigido por docente (rompe ciclos de dependencia) ─────────
+    if (mejorFallos.length > 0) {
+        setProgreso(94, `🔄 Reinicio por docente — <b>${mejorFallos.length}</b> sin ubicar...`);
+        await cederControlUI();
+        mejorFallos = await rescateReinicioDocente(mejorFallos, msg => {
+            setProgreso(94, msg);
+        });
+        { const { fallos: _vf, resumen: _vr } = validarYLimpiar(mejorFallos);
+          mejorFallos = _vf; mejorSnap = tomarSnapshot();
+          setProgreso(94, `✅ Reinicio docente — <b>${mejorFallos.length}</b> sin ubicar${_tagValidacion(_vr)}`); }
+        await cederControlUI();
+    }
+
     // ── Solver exacto (backtracking MCV) para los últimos ≤12 bloques ────────
     if (CFG.solver > 0 && mejorFallos.length > 0 && mejorFallos.length <= 12) {
         mejorFallos = await solverExacto(mejorFallos, CFG.solver, (s, msg) => {
             setProgreso(94, `🔬 Solver exacto &nbsp;·&nbsp; ${msg}`);
         });
         setProgreso(94, `✅ Solver exacto — <b>${mejorFallos.length}</b> sin ubicar`);
+        await cederControlUI();
+    }
+
+    // ── CSP por docentes bottleneck: rompe deadlocks de ordenamiento ─────────
+    // Agrupa docentes que comparten grupo en clusters (posibles bloqueos
+    // mutuos), desasigna TODOS sus bloques y encuentra asignación conjunta
+    // PARCIAL de máxima colocación (branch & bound).
+    //
+    // IMPORTANTE: alimentarlo con TODOS los incompletos reales del tablero
+    // (scan exhaustivo), no solo con los que el pipeline reporta como
+    // fallidos: los bloques parcialmente colocados (3/5h, 2/7h...) son
+    // invisibles para mejorFallos en esta etapa y son justo el grueso del
+    // déficit que el CSP de clusters puede recuperar.
+    {
+        // Liberar preAsignados rotos ANTES del scan: así entran al CSP y a
+        // todas las reparaciones posteriores en vez de perderse en silencio.
+        const liberados = liberarPreAsignadosIncompletos();
+        const set = new Set(mejorFallos);
+        MAPA_GRUPOS.forEach(g => {
+            g.bloques.forEach(b => {
+                if (b.preAsignado) return;
+                let n = 0;
+                diasSemana.forEach(dia => {
+                    g.baseHoras.forEach(h => { if (g.horario[dia][h] === b) n++; });
+                });
+                if (n < b.duracion) set.add(b);
+            });
+        });
+        mejorFallos = [...set];
+        _bitacoraCSP = [`1ª pasada: ${mejorFallos.length} incompletos` +
+            (liberados ? ` (${liberados} preAsig liberados)` : '') +
+            `, ${contarHorasColocadasTotales()}h en tablero`];
+        console.log(`[CSP bottleneck] ${mejorFallos.length} incompletos, ${liberados} preAsignados liberados`);
+    }
+    if (mejorFallos.length > 0) {
+        setProgreso(95, `🔍 CSP bottleneck — <b>${mejorFallos.length}</b> sin ubicar...`);
+        await cederControlUI();
+        mejorFallos = await planificarDocentesBottleneck(mejorFallos, msg => {
+            setProgreso(95, msg);
+        });
+        { const { fallos: _vf, resumen: _vr } = validarYLimpiar(mejorFallos);
+          mejorFallos = _vf; mejorSnap = tomarSnapshot();
+          setProgreso(95, `✅ CSP bottleneck — <b>${mejorFallos.length}</b> sin ubicar${_tagValidacion(_vr)}`); }
         await cederControlUI();
     }
 
@@ -4868,10 +5530,16 @@ async function ejecutarAlgoritmoFinal() {
     // Actualizar bloques recurrentemente fallidos → prioridad en la próxima corrida
     bloquesRecurrentesFallidos = new Set(mejorFallos);
 
-    // A: Guardar el mejor snapshot global para warm start en la próxima ejecución
-    if (mejorSnapGlobal === null || mejorFallos.length < mejorFallosGlobal.length) {
-        mejorSnapGlobal   = tomarSnapshot();
-        mejorFallosGlobal = [...mejorFallos];
+    // A: Guardar el mejor snapshot global (métrica: HORAS colocadas, no nº de
+    // bloques — un 4/5h no pesa igual que un 0/5h). La comparación definitiva
+    // ocurre en exportarYListo, después de las fases de reparación.
+    {
+        const horasAhora = contarHorasColocadasTotales();
+        if (mejorSnapGlobal === null || horasAhora > mejorHorasGlobal) {
+            mejorSnapGlobal   = tomarSnapshot();
+            mejorFallosGlobal = [...mejorFallos];
+            mejorHorasGlobal  = horasAhora;
+        }
     }
 
     // Acumular frecuencias EDA solo si el resultado es cercano al mejor histórico
@@ -5421,7 +6089,7 @@ function detectarNecesidadesExtraDia(bloques) {
                 if (g.horario[dia][h] !== null)          continue; // grupo ocupado
                 if (d.asignado[dia][h])                  continue; // docente ocupado
                 if (!d.disponibilidad[dia].has(h))       continue; // sin disponibilidad
-                if ((g.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= 1) continue;
+                if ((g.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloque)) continue;
                 haySlot = true; break outer;
             }
         }
@@ -5451,7 +6119,7 @@ function encontrarSlotForzado(bloque) {
         if (activaNuevoDia && docente.tipo_docente === 2 &&
             docente.diasActivos.size >= docente.maxDias) return;
         // No sesión doble de misma materia en el mismo día
-        if ((grupo.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= 1) return;
+        if ((grupo.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloque)) return;
 
         const base      = grupo.baseHoras;
         const dispHoras = docente.disponibilidad[dia];
@@ -5653,7 +6321,7 @@ function mostrarPanelImposibles(bloquesImposibles, onConfirmar) {
         let diasConDispSinSesionConSlots = 0; // as above + group has at least 1 free slot that day
 
         diasSemana.forEach(dia => {
-            const tieneSesion = (g.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= 1;
+            const tieneSesion = (g.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloque);
             const tieneDisp   = g.baseHoras.some(h => d.disponibilidad[dia].has(h));
             if (tieneSesion) sesionesMismaMateria++;
             if (tieneSesion && tieneDisp) diasConDispYSesion++;
@@ -5692,9 +6360,34 @@ function mostrarPanelImposibles(bloquesImposibles, onConfirmar) {
             }
         });
 
+        // 3b. Ventanas ESTRUCTURALES: ignorando por completo la ocupación
+        // actual (como si el grupo estuviera vacío), ¿en cuántas posiciones
+        // (día, hora) cabe una ventana de bloque.duracion horas contiguas
+        // dentro del horario del grupo con disponibilidad declarada del
+        // docente? Si es 0, NINGÚN algoritmo puede colocarlo: es un problema
+        // de datos, no de búsqueda.
+        let ventanasEstructurales = 0;
+        diasSemana.forEach(dia => {
+            const dispDia = d.disponibilidad[dia];
+            for (let idx = 0; idx <= g.baseHoras.length - bloque.duracion; idx++) {
+                const h = g.baseHoras[idx];
+                let ok = true;
+                for (let o = 0; o < bloque.duracion; o++) {
+                    if (!dispDia.has(h + o)) { ok = false; break; }
+                }
+                if (ok) ventanasEstructurales++;
+            }
+        });
+
         // 4. Determinar motivo principal
         let motivo, motivoColor = '#C62828';
-        if (!haySlotGrupo) {
+        if (ventanasEstructurales === 0) {
+            motivo = `🔴 Estructuralmente imposible: incluso con el grupo completamente VACÍO `
+                   + `no existe ninguna ventana de ${bloque.duracion}h contiguas dentro del horario `
+                   + `del grupo cubierta por la disponibilidad declarada del docente. `
+                   + `<b>Problema de datos, no de algoritmo: ampliar la disponibilidad del docente `
+                   + `a ≥${bloque.duracion}h continuas en el turno del grupo, o dividir el bloque.</b>`;
+        } else if (!haySlotGrupo) {
             motivo = '🔴 El grupo no tiene horas libres. Reducir carga de otras materias.';
         } else if (!hayDispDoc && diasConDispYSesion > 0 && diasConDispSinSesion === 0) {
             // Docente SOLO tiene disponibilidad en días que ya tienen sesión de esta materia
@@ -5711,11 +6404,40 @@ function mostrarPanelImposibles(bloquesImposibles, onConfirmar) {
                    + `de esta materia, pero todos los slots de esos días están ocupados por otros docentes. `
                    + `<b>El algoritmo no pudo liberar espacio. Considera reducir la carga del grupo o ampliar el horario base.</b>`;
         } else if (!hayDispDoc && diasConDispYSesion > 0) {
-            // Días sin sesión existen pero no con slots/disponibilidad suficiente
-            motivo = `🔴 Días disponibles insuficientes: el docente tiene ${diasConDispYSesion} día(s) con disponibilidad `
-                   + `ya ocupados por sesiones de esta materia, y ${diasConDispSinSesion} día(s) sin sesión `
-                   + `pero sin hueco libre compatible. `
-                   + `Ampliar disponibilidad o reducir horas de la materia.`;
+            // Días sin sesión existen pero ninguno tiene una ventana de `bloque.duracion`
+            // horas consecutivas donde AMBAS condiciones se cumplan: grupo libre Y docente con
+            // disponibilidad declarada en esas horas.
+            // Calcular la ventana máxima por día para dar al usuario información accionable.
+            const detalleDias = [];
+            diasSemana.forEach(dia => {
+                const tieneSesionDia = (g.sesionesDia[dia][bloque.materia.nombre_materia] || 0) >= maxSesionesPorDia(bloque);
+                if (tieneSesionDia) return; // ya tiene sesión → ya contado aparte
+                if (!g.baseHoras.some(h => d.disponibilidad[dia].has(h))) return; // sin disp
+                let maxVentana = 0, racha = 0;
+                g.baseHoras.forEach(h => {
+                    if (g.horario[dia][h] === null && d.disponibilidad[dia].has(h)) {
+                        racha++;
+                        if (racha > maxVentana) maxVentana = racha;
+                    } else {
+                        racha = 0;
+                    }
+                });
+                detalleDias.push({ dia, maxVentana });
+            });
+            const necesita   = bloque.duracion;
+            const esPTC      = d.tipo_docente !== 2;
+            const detalleStr = detalleDias.length
+                ? detalleDias.map(({ dia, maxVentana }) =>
+                    `<b>${dia}</b>: máx ${maxVentana}h libre${maxVentana >= necesita ? ' ✓' : ` (faltan ${necesita - maxVentana}h)`}`
+                  ).join(' · ')
+                : 'ningún día con disponibilidad';
+            motivo = `🔴 Sin ventana de ${necesita}h consecutivas: el bloque necesita ${necesita}h seguidas `
+                   + `donde el grupo esté libre <em>y</em> el docente tenga disponibilidad declarada. `
+                   + `Días candidatos (sin sesión de esta materia): ${detalleStr}. `
+                   + (esPTC
+                       ? `Como PTC el docente puede usar cualquier día; el límite real es la <b>ventana horaria</b> `
+                       + `dentro de su disponibilidad. Agregar ${necesita}h continuas en al menos uno de esos días.`
+                       : `Ampliar disponibilidad a bloques continuos de ≥${necesita}h.`);
         } else if (!hayDispDoc) {
             motivo = '🔴 El docente no tiene disponibilidad en ningún hueco libre del grupo. Ampliar su disponibilidad en los datos.';
         } else if (docOcupadoEnDisp) {
@@ -5741,7 +6463,7 @@ function mostrarPanelImposibles(bloquesImposibles, onConfirmar) {
                 <strong>${bloque.materia.nombre_materia}</strong>
                 <span style="color:var(--color-dim-gray)">[${g.nombre_grupo}]</span>
                 <span style="color:var(--color-dim-gray);font-size:0.75rem">
-                    · Disp: ${horasDisp}h · Asignadas: ${horasTotAsign}h
+                    · Disp: ${horasDisp}h · Asignadas: ${horasTotAsign}h · Ventanas estructurales: ${ventanasEstructurales}
                 </span>
             </div>
             <div style="color:${motivoColor};font-size:0.76rem;margin-top:0.3rem">
@@ -5886,15 +6608,281 @@ function mostrarPanelExpansion(necesidades, onAplicar) {
 function manejarFallos(bloquesFallidos, errDiv, prefijo, onDone) {
 
     // ── Paso final: exportar y mostrar estado ────────────────────────────────
+
+    // Genera una tabla HTML con todos los grupos que tienen horas sin colocar,
+    // con el mismo cálculo que el panel "Clases del grupo" de la vista inferior.
+    // Se embebe en el recuadro de estado (errDiv) para que el usuario vea de un
+    // vistazo qué faltó en cada grupo sin tener que navegar pestaña a pestaña.
+    function generarResumenGruposIncompletos() {
+        const secciones = [];
+        MAPA_GRUPOS.forEach((grupo, nombreGrupo) => {
+            // Replicar el cálculo de _renderHorarioActivo (requeridas/colocadas)
+            const invMap = new Map();
+            grupo.bloques.forEach(b => {
+                const key = b.materia.nombre_materia + '§' + b.docente.nombre_docente;
+                if (!invMap.has(key)) invMap.set(key, {
+                    materia: b.materia.nombre_materia, docente: b.docente.nombre_docente,
+                    requeridas: 0, colocadas: 0, bloques: []
+                });
+                invMap.get(key).requeridas += b.duracion;
+                invMap.get(key).bloques.push(b);
+            });
+            diasSemana.forEach(dia => {
+                if (!grupo.horario[dia]) return;
+                grupo.baseHoras.forEach(h => {
+                    const bl = grupo.horario[dia][h];
+                    if (!bl) return;
+                    const key = bl.materia.nombre_materia + '§' + bl.docente.nombre_docente;
+                    if (invMap.has(key)) invMap.get(key).colocadas++;
+                });
+            });
+            const totalReq = [...invMap.values()].reduce((s, v) => s + v.requeridas, 0);
+            const totalCol = [...invMap.values()].reduce((s, v) => s + v.colocadas, 0);
+            // Ventanas ESTRUCTURALES de un bloque: posiciones (día, hInicio)
+            // donde cabría con el grupo VACÍO, solo mirando la disponibilidad
+            // declarada del docente y la contiguidad. 0 = imposible por datos.
+            const ventanasDe = (b) => {
+                let n = 0;
+                diasSemana.forEach(dia => {
+                    const dispDia = b.docente.disponibilidad[dia];
+                    for (let idx = 0; idx <= grupo.baseHoras.length - b.duracion; idx++) {
+                        const h = grupo.baseHoras[idx];
+                        let ok = true;
+                        for (let o = 0; o < b.duracion; o++) {
+                            if (!dispDia.has(h + o)) { ok = false; break; }
+                        }
+                        if (ok) n++;
+                    }
+                });
+                return n;
+            };
+            const incompletos = [...invMap.values()]
+                .filter(v => v.colocadas < v.requeridas)
+                .sort((a, b) => (a.colocadas / a.requeridas) - (b.colocadas / b.requeridas));
+            // El cuello de botella estructural de la entrada es su PEOR bloque
+            incompletos.forEach(v => {
+                v.ventanas = Math.min(...v.bloques.map(ventanasDe));
+                // 📌 = tiene bloques preAsignado (inglés sync / PA fijado / forzado):
+                // invisibles para los scans de reparación → si aparece incompleto
+                // aquí, las horas se perdieron en un punto ciego del pipeline.
+                v.preAsig  = v.bloques.some(b => b.preAsignado);
+            });
+            if (incompletos.length > 0)
+                secciones.push({ grupo: nombreGrupo, totalCol, totalReq, incompletos });
+        });
+        if (secciones.length === 0) return '';
+
+        let rows = '';
+        secciones.forEach(({ grupo, totalCol, totalReq, incompletos }) => {
+            const pctG = totalReq > 0 ? Math.round(totalCol / totalReq * 100) : 100;
+            // Fila separadora con el nombre del grupo
+            rows += `<tr><td colspan="5" style="padding:0.25rem 0.5rem;background:#221F20;
+                color:var(--color-yellow);font-size:0.67rem;font-weight:bold;
+                letter-spacing:0.03em">${grupo} &mdash; ${totalCol}/${totalReq}h&nbsp;(${pctG}%)</td></tr>`;
+            incompletos.forEach(v => {
+                const pct = Math.round(v.colocadas / v.requeridas * 100);
+                const col = v.colocadas === 0 ? '#e65100' : 'var(--color-cerulean)';
+                const colVent = v.ventanas === 0 ? '#C62828' : '#888';
+                rows += `<tr class="${v.colocadas === 0 ? 'inv-vacio' : 'inv-parcial'}">
+                    <td style="padding:0.22rem 0.5rem;font-size:0.73rem">${v.materia}${v.preAsig ? ' <span title="Bloque preAsignado (inglés sync / PA fijado / forzado): invisible para las reparaciones">📌</span>' : ''}</td>
+                    <td style="padding:0.22rem 0.5rem;font-size:0.73rem;color:#555">${v.docente}</td>
+                    <td style="padding:0.22rem 0.5rem;text-align:right">
+                        <span style="font-size:0.73rem;font-weight:600;color:${col}">${v.colocadas}/${v.requeridas}h</span>
+                    </td>
+                    <td style="padding:0.22rem 0.5rem;font-size:0.73rem;text-align:right;color:#888">${pct}%</td>
+                    <td style="padding:0.22rem 0.5rem;font-size:0.73rem;text-align:right;font-weight:${v.ventanas === 0 ? '700' : '400'};color:${colVent}">${v.ventanas === 0 ? '0 ⚠️' : v.ventanas}</td>
+                </tr>`;
+            });
+        });
+        return `<div style="margin-top:0.7rem;overflow-x:auto">
+            <table class="inventario-tabla">
+                <thead><tr>
+                    <th>Materia</th><th>Docente</th>
+                    <th style="text-align:right">Horas</th>
+                    <th style="text-align:right">%</th>
+                    <th style="text-align:right" title="Posiciones (día, hora) donde el bloque cabría con el grupo VACÍO, según disponibilidad declarada. 0 = imposible por datos.">Ventanas</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>`;
+    }
+
+    // ── Garantía de monotonía entre corridas ─────────────────────────────────
+    // SA/RPA son estocásticos: una corrida con mala suerte puede terminar mucho
+    // peor que la anterior. Si esta corrida colocó MENOS horas que el mejor
+    // resultado histórico, restauramos ese tablero; si colocó más, pasa a ser
+    // el nuevo mejor. Idempotente: tras restaurar/guardar, una segunda llamada
+    // ve horas iguales y no hace nada. Se invoca ANTES del panel de imposibles
+    // (para que panel, resumen y Excel describan el mismo tablero) y de nuevo
+    // en exportarYListo como red de seguridad para los caminos sin panel.
+    let _notaMonotonia = '';
+    function aplicarMonotonia() {
+        const horasAhora = contarHorasColocadasTotales();
+        if (mejorSnapGlobal === null || horasAhora > mejorHorasGlobal) {
+            mejorSnapGlobal   = tomarSnapshot();
+            mejorFallosGlobal = recolectarTodosIncompletos([]);
+            mejorHorasGlobal  = horasAhora;
+        } else if (horasAhora < mejorHorasGlobal) {
+            restaurarSnapshot(mejorSnapGlobal);
+            // Los incompletos del mejor tablero pasan a ser los recurrentes
+            // (sesgo de prioridad) de la próxima corrida.
+            bloquesRecurrentesFallidos = new Set(recolectarTodosIncompletos([]));
+            _notaMonotonia =
+                `<br><small style="color:#1565C0">♻️ Esta corrida colocó ${horasAhora}h, ` +
+                `menos que el mejor histórico (${mejorHorasGlobal}h); se restauró el mejor ` +
+                `horario logrado hasta ahora y las reparaciones continuaron sobre él.</small>`;
+            console.log(`[monotonía] corrida ${horasAhora}h < mejor ${mejorHorasGlobal}h → restaurado mejor histórico`);
+        }
+    }
+
     function exportarYListo(msg, color) {
+        aplicarMonotonia(); // red de seguridad (no-op si ya se aplicó antes del panel)
         exportarExcel();
-        errDiv.innerText  = msg;
-        errDiv.style.color = color;
+        // Re-renderizar el horario/panel "Clases del grupo" con el resultado YA
+        // CONSOLIDADO: durante las fases de reparación (reconfigurarSesiones,
+        // paseForzadoCruzado, etc.) el panel se va actualizando en vivo vía
+        // cederControlUI() y puede quedar "congelado" en un estado transitorio
+        // (con más huecos de los que realmente quedan al terminar). Forzamos un
+        // último render aquí para que ambos contadores —el mensaje final y el
+        // panel por grupo— reflejen exactamente el mismo estado.
+        _forzarRenderHorario();
+        const resumen = generarResumenGruposIncompletos();
+        // Si la tabla tiene faltantes, cambiar el ✔ por una advertencia aunque
+        // el algoritmo creyera que colocó todo (falso positivo por parciales).
+        let msgFinal    = msg;
+        let colorFinal  = color;
+        if (resumen !== '' && color === 'green') {
+            msgFinal   = `⚠️ ${prefijo}Horarios generados con horas sin completar.`;
+            colorFinal = '#e65100';
+        }
+        errDiv.style.color = '#221F20';
+        // Bitácora del CSP de clusters: visible en el mensaje final para poder
+        // diagnosticar qué hizo (o no hizo) sin depender de la consola.
+        _bitacoraCSP.push(`export: ${contarHorasColocadasTotales()}h`);
+        const bitacora = _bitacoraCSP.length
+            ? `<br><small style="color:#777">🔍 CSP: ${_bitacoraCSP.join(' · ')}</small>`
+            : '';
+        errDiv.innerHTML =
+            `<span style="font-weight:600;color:${colorFinal}">${msgFinal}</span>${_notaMonotonia}${bitacora}${resumen}`;
         onDone();
     }
 
     // ── Fase 3: bloques verdaderamente imposibles ────────────────────────────
-    function faseImposibles(imposibles) {
+    async function faseImposibles(imposibles) {
+        // ── Auditoría final: bloques ausentes O parcialmente colocados ────────
+        // Soluciona la discrepancia "panel dice 30/37h pero contador global dice
+        // 0 sin solución".  Hay dos casos que el scan anterior no cubría bien:
+        //
+        //  (a) Bloque AUSENTE (slotsOcupados = 0): el scan anterior sí lo veía.
+        //  (b) Bloque PARCIALMENTE colocado (0 < slotsOcupados < b.duracion):
+        //      el scan anterior encontraba la referencia y decía "está en
+        //      horario"; sin embargo el panel suma b.duracion en requeridas y
+        //      cuenta solo slots reales en colocadas → horas faltantes en panel
+        //      pero contador global = 0 (falso positivo).
+        //      Causa raíz: aplicarAsignacion tiene un early-return guard
+        //      ("si el bloque ya aparece en algún slot, no duplicar") que
+        //      impide completar la colocación sobre referencias obsoletas.
+        {
+            const contarSlots = (g, b) => {
+                let n = 0;
+                diasSemana.forEach(dia => {
+                    g.baseHoras.forEach(h => {
+                        if (g.horario[dia][h] === b) n++;
+                    });
+                });
+                return n;
+            };
+            // Total de horas ocupadas en TODO el horario (todos los grupos).
+            // Sirve para aceptar/rechazar un reintento por su efecto GLOBAL,
+            // en vez de "todo o nada" sobre un solo bloque.
+            const totalHorasColocadas = () => {
+                let n = 0;
+                MAPA_GRUPOS.forEach(g => {
+                    diasSemana.forEach(dia => {
+                        g.baseHoras.forEach(h => { if (g.horario[dia][h] !== null) n++; });
+                    });
+                });
+                return n;
+            };
+            // Recolectar primero la lista de incompletos para poder iterar con
+            // cesiones de control (await): con 40+ bloques este lazo síncrono
+            // congelaba la pestaña varios minutos y parecía colgado.
+            const porReparar = [];
+            MAPA_GRUPOS.forEach(g => {
+                g.bloques.forEach(b => {
+                    if (b.preAsignado) return;
+                    if (contarSlots(g, b) < b.duracion) porReparar.push({ g, b });
+                });
+            });
+            const tFinAuditoria = Date.now() + 30000; // presupuesto duro: 30 s
+            for (let i = 0; i < porReparar.length; i++) {
+                if (Date.now() > tFinAuditoria) break; // lo restante lo ve el CSP/panel
+                const { g, b } = porReparar[i];
+                if (contarSlots(g, b) >= b.duracion) continue; // reparado de rebote ✓
+                errDiv.style.color = '#221F20';
+                errDiv.innerHTML = `🔧 Reparación final ${i + 1}/${porReparar.length}…`;
+                await cederControlUI();
+                // Las funciones de swap/cadena pueden devolver "true" sin
+                // colocar las b.duracion horas completas, o incluso dejar
+                // el bloque peor que antes. Solo aceptamos el resultado si
+                // el total de horas colocadas en TODO el horario aumenta
+                // estrictamente (mejora real, aunque b no quede al 100% o
+                // la mejora venga de un efecto colateral en otro bloque);
+                // si no mejora, revertimos todo.
+                const snapPrevio = tomarSnapshot();
+                const totalAntes = totalHorasColocadas();
+                // Limpiar refs parciales/huérfanas: sin esto aplicarAsignacion
+                // haría early-return al encontrar la referencia obsoleta y
+                // el reintento dejaría el bloque igual de incompleto.
+                if (contarSlots(g, b) > 0) quitarAsignacion(g, b, diasSemana[0], g.baseHoras[0]);
+                // Reintentar con el arsenal completo (swaps, BFS, etc.)
+                reintentarBloque(b)
+                    || intentarAsignar(b, true,  false, false, false)
+                    || intentarAsignar(b, true,  true,  false, false)
+                    || intentarAsignar(b, true,  true,  true,  false);
+                if (totalHorasColocadas() <= totalAntes) {
+                    restaurarSnapshot(snapPrevio);
+                }
+            }
+        }
+        // ── Segunda pasada del CSP de clusters, sobre el tablero YA reparado:
+        // tras swaps/expansiones/forzados quedan menos obstáculos y el branch
+        // & bound puede recuperar horas que la primera pasada (al 95%) no pudo.
+        // Su gate interno por horas garantiza que solo mejora o queda igual.
+        {
+            const incompletosAhora = recolectarTodosIncompletos([]);
+            if (incompletosAhora.length > 0) {
+                console.log(`[CSP 2ª pasada] ${incompletosAhora.length} incompleto(s) al CSP de clusters`);
+                _bitacoraCSP.push(`2ª pasada: ${incompletosAhora.length} incompletos, ${contarHorasColocadasTotales()}h`);
+                // progFn: muestra avance Y cede el control al navegador entre
+                // clusters (sin esto la pestaña se congela durante la búsqueda)
+                await planificarDocentesBottleneck(incompletosAhora, msg => {
+                    errDiv.style.color = '#221F20';
+                    errDiv.innerHTML = msg;
+                });
+            }
+        }
+        // ── Último recurso: dividir en piezas de 1h los bloques que siguen
+        // atascados tras el CSP (típico: necesitan 2h contiguas y el grupo,
+        // ~97% lleno, solo tiene huecos sueltos de 1h en días distintos).
+        {
+            const atascados = recolectarTodosIncompletos([]);
+            for (const b of atascados) {
+                if (intentarDividirBloqueEn1h(b)) {
+                    _bitacoraCSP.push(`split 1h: ${b.materia.nombre_materia} [${b.grupo.nombre_grupo}] ✓`);
+                    console.log(`[split 1h] ${b.materia.nombre_materia} [${b.grupo.nombre_grupo}] — ${b.docente.nombre_docente} dividido y colocado`);
+                }
+            }
+        }
+        // ── Decidir AQUÍ el tablero definitivo (mejor histórico vs corrida
+        // actual) y reconstruir la lista del panel desde ese tablero: así
+        // panel, resumen y Excel describen exactamente el mismo estado, y
+        // CUALQUIER bloque incompleto llega al panel (sin importar qué fase
+        // lo dio por resuelto).
+        aplicarMonotonia();
+        imposibles = recolectarTodosIncompletos([]);
+        // ─────────────────────────────────────────────────────────────────────
+        console.log(`[faseImposibles] ${imposibles.length} bloque(s) al panel:`,
+            imposibles.map(b => `${b.materia.nombre_materia} [${b.grupo.nombre_grupo}] — ${b.docente.nombre_docente} (${b.duracion}h)`));
         if (imposibles.length === 0) {
             exportarYListo(`✔ ${prefijo}Horarios generados correctamente.`, 'green');
             return;
@@ -5907,8 +6895,93 @@ function manejarFallos(bloquesFallidos, errDiv, prefijo, onDone) {
         });
     }
 
+    // ── Re-scan exhaustivo: cualquier bloque (de cualquier grupo) que no
+    // tenga sus b.duracion horas en g.horario se considera "pendiente",
+    // sin importar si fases anteriores (reconfigurarSesiones, swaps, etc.)
+    // lo dieron por resuelto. Evita que un pedazo de bloque (p.ej. tras un
+    // split [3,2]) se pierda entre fases y nunca llegue a faseForzado ni a
+    // faseImposibles, quedando invisible en los paneles pero visible en el
+    // resumen de horas faltantes.
+    function recolectarTodosIncompletos(pendientesExistentes) {
+        // Los preAsignado incompletos son estados rotos: liberarlos aquí
+        // garantiza que NINGUNA fase de reparación los pase por alto.
+        liberarPreAsignadosIncompletos();
+        const set = new Set(pendientesExistentes);
+        MAPA_GRUPOS.forEach(g => {
+            g.bloques.forEach(b => {
+                if (b.preAsignado) return;
+                let n = 0;
+                diasSemana.forEach(dia => {
+                    g.baseHoras.forEach(h => { if (g.horario[dia][h] === b) n++; });
+                });
+                if (n < b.duracion) set.add(b);
+            });
+        });
+        return [...set];
+    }
+
+    // ── Último recurso para un bloque atascado: dividirlo en piezas de 1h ───
+    // Caso típico del final de pipeline: la pieza necesita 2h CONTIGUAS pero
+    // el grupo (~97% lleno) solo tiene huecos sueltos de 1h en días distintos.
+    // A diferencia de reconfigurarSesiones (todo-o-nada sobre el combo entero
+    // de la materia), aquí solo se divide EL bloque atascado y el resto del
+    // tablero no se toca. Acepta solo si las horas totales SUBEN; si no,
+    // revierte estructura y horario por completo.
+    function intentarDividirBloqueEn1h(b) {
+        if (b.preAsignado || esIngles(b) || b.duracion < 2) return false;
+        const g   = b.grupo;
+        const dur = b.duracion;
+        const snapEst    = tomarSnapshotEstructura();
+        const snapSch    = tomarSnapshot();
+        const horasAntes = contarHorasColocadasTotales();
+
+        const pos = encontrarPosicionBloque(b);
+        if (pos) quitarAsignacion(g, b, pos.dia, pos.hInicio);
+
+        // El bloque original se convierte en la primera pieza de 1h; el resto
+        // se crea con tracking completo (g.bloques + índice worker _wi).
+        b.duracion = 1;
+        const piezas = [b];
+        const nuevasEnWArr = [];
+        for (let i = 1; i < dur; i++) {
+            const nb = {
+                materia: b.materia, docente: b.docente, grupo: g,
+                duracion: 1,
+                nombreStr: b.nombreStr
+            };
+            if (typeof _wBArr !== 'undefined' && Array.isArray(_wBArr)) {
+                nb._wi = _wBArr.length;
+                _wBArr.push(nb);
+                nuevasEnWArr.push(nb);
+            }
+            g.bloques.push(nb);
+            piezas.push(nb);
+        }
+
+        // Colocar cada pieza: la regla 1 sesión/día las reparte en días distintos
+        for (const p of piezas) {
+            intentarAsignar(p, false, false, false, false)
+                || intentarAsignar(p, false, true,  false, false)
+                || intentarAsignar(p, true,  true,  false, false)
+                || intentarAsignar(p, true,  true,  true,  false)
+                || reintentarBloque(p);
+        }
+
+        if (contarHorasColocadasTotales() > horasAntes) return true;
+
+        // Sin mejora → revertir estructura (quita piezas, restaura duracion)
+        // y tablero. Sacar también las piezas nuevas del array de workers.
+        restaurarSnapshotEstructura(snapEst);
+        restaurarSnapshot(snapSch);
+        nuevasEnWArr.forEach(() => _wBArr.pop());
+        return false;
+    }
+
     // ── Fase 2: colocaciones FORZADAS ────────────────────────────────────────
     function faseForzado(pendientes) {
+        pendientes = recolectarTodosIncompletos(pendientes);
+        console.log(`[faseForzado] ${pendientes.length} bloque(s) incompletos:`,
+            pendientes.map(b => `${b.materia.nombre_materia} [${b.grupo.nombre_grupo}] — ${b.docente.nombre_docente} (${b.duracion}h)`));
         if (pendientes.length === 0) { faseImposibles([]); return; }
 
         const forzables  = [];
@@ -5969,6 +7042,11 @@ function manejarFallos(bloquesFallidos, errDiv, prefijo, onDone) {
             // resuelve "docente disponible pero ocupado en otro grupo" sin necesitar días extra.
             tras_reconf = await paseForzadoCruzado(tras_reconf);
 
+            // Reinicio por docente: rompe ciclos que los swaps locales no resuelven
+            if (tras_reconf.length > 0) {
+                tras_reconf = await rescateReinicioDocente(tras_reconf);
+            }
+
             if (tras_reconf.length === 0) { faseForzado([]); return; }
 
             const necesidades = detectarNecesidadesExtraDia(tras_reconf);
@@ -5999,6 +7077,14 @@ function manejarFallos(bloquesFallidos, errDiv, prefijo, onDone) {
     }
 
     // ── Punto de entrada ─────────────────────────────────────────────────────
+    // Decidir ANTES de reparar sobre qué tablero trabajar: si esta corrida
+    // venía peor que el mejor histórico, se restaura el mejor y las fases de
+    // reparación (expansión, forzados, CSP 2ª pasada) intentan mejorarlo A ÉL,
+    // acumulando avances entre corridas. Además, así los paneles de forzados
+    // e imposibles siempre describen el tablero que realmente se exporta
+    // (antes podían proponer forzados de una corrida que luego se descartaba).
+    aplicarMonotonia();
+    bloquesFallidos = recolectarTodosIncompletos([]);
     if (bloquesFallidos.length === 0) {
         exportarYListo(`✔ ${prefijo}Horarios generados correctamente.`, 'green');
         return;
@@ -6172,6 +7258,7 @@ function resetearAprendizaje() {
     bloquesRecurrentesFallidos = new Set();
     mejorSnapGlobal            = null;
     mejorFallosGlobal          = [];
+    mejorHorasGlobal           = -1;
     _edaBloqueado              = false;
     actualizarBotonReset();
 }
@@ -6238,6 +7325,25 @@ if (!IS_WORKER) {
         errDiv.style.color = "var(--color-dim-gray)";
         errDiv.innerText = "Aprendizaje borrado. El próximo intento explorará desde cero.";
     };
+
+    // ── Auto-expandir caja de errores cuando el contenido desborda ───────────
+    (function () {
+        const mainEl = document.querySelector('main');
+        const errDiv = document.getElementById('span_error');
+        if (!mainEl || !errDiv) return;
+
+        function ajustar() {
+            requestAnimationFrame(() => {
+                const desborda = errDiv.scrollHeight > errDiv.clientHeight + 4;
+                mainEl.classList.toggle('error-expandido', desborda);
+            });
+        }
+
+        new MutationObserver(ajustar).observe(errDiv, {
+            childList: true, subtree: true, characterData: true
+        });
+    })();
+
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -6397,6 +7503,9 @@ if (IS_WORKER) {
                 nombreStr: mArr[b.mi].nombre_materia + ' (' + dArr[b.di].nombre_docente + ')'
             };
             gArr[b.gi].bloques.push(bloque); bArr[b.i] = bloque;
+            // Reconstruir turnosAsignados (no viaja serializado): necesario para
+            // la regla institucional de prioridad a docentes con ambos turnos.
+            dArr[b.di].turnosAsignados.add(gArr[b.gi].turno);
         });
         return bArr;
     }
