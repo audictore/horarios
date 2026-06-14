@@ -625,7 +625,8 @@
         </label>
         <button class="button_accion" id="button_accion">Generar horarios</button>
         <button id="button_reset_aprendizaje" disabled style="opacity:0.4">Sin aprendizaje</button>
-        
+        <button class="button_accion" id="button_csp" style="margin-left:0.4rem" title="Valida y resuelve con el solver de restricciones (beta)">Motor CSP (beta)</button>
+
         <div class="span_error" id="span_error"></div>
     </main>
 
@@ -643,6 +644,10 @@
         <div class="horario-tabla-wrap" id="horario_tabla_wrap"></div>
     </section>
 
+    <section id="seccion_csp">
+        <div id="csp_resultado"></div>
+    </section>
+
     <footer>
         <a class="a_que_es" href="./que_es.html">¿Que es FROM SCHEDULE?</a>
         <img class="img_logo_FI" src="./assets/LOGO-FI-BRUTO-YELLOW.png" alt="">
@@ -653,6 +658,13 @@
     <!-- xlsx-js-style: fork de SheetJS que restaura escritura de estilos de celda
          (fill, font, border) en .xlsx — API idéntica a SheetJS. -->
     <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <!-- Motor CSP (beta): módulos JS puros, sin dependencias (UMD-lite → globales window.*).
+         Deben cargarse antes del script principal. Ver docs/arquitectura-csp.md. -->
+    <script src="./src/preproceso.js"></script>
+    <script src="./src/invariantes.js"></script>
+    <script src="./src/calidad.js"></script>
+    <script src="./src/prechecks.js"></script>
+    <script src="./src/engine.js"></script>
     <script>
         // ── Detección de contexto: Worker vs hilo principal ──────────────────────
         const IS_WORKER = typeof document === 'undefined';
@@ -7311,6 +7323,163 @@ function acumularFrecuenciasDesde(snap) {
     freqTotalRuns++;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// MOTOR CSP (beta) — integración no destructiva del engine de restricciones (JS puro)
+// Convierte las estructuras ya parseadas (MAPA_*) al formato del engine, corre los
+// pre-checks de capacidad (escalan a datos reales) y, acotado por tamaño, el solver CP.
+// No interfiere con el pipeline metaheurístico de ejecutarAlgoritmoFinal().
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Adapta MAPA_DOCENTES / MAPA_GRUPOS al formato { grupos, docentes, cargas } del engine. */
+function construirDatosCSP() {
+    const grupos = {}, docentes = {}, cargasMap = new Map();
+    MAPA_GRUPOS.forEach((g, gn) => {
+        grupos[gn] = { turno: g.turno };
+        g.bloques.forEach(b => {
+            const dn = b.docente.nombre_docente;
+            if (!docentes[dn]) {
+                const disp = {};
+                diasSemana.forEach((dia, i) => {
+                    const hrs = [...b.docente.disponibilidad[dia]];
+                    if (hrs.length) disp[i] = hrs;
+                });
+                // tipo del docente: 2 = PA (días por escalón); 1/otros = según disponibilidad.
+                docentes[dn] = { disponibilidad: disp, tipo: b.docente.tipo_docente };
+            }
+            // La carga total de un (grupo,materia,docente) = suma de las duraciones de sus bloques.
+            const key = gn + '|' + b.materia.nombre_materia + '|' + dn;
+            const cur = cargasMap.get(key);
+            if (cur) {
+                cur.horas += b.duracion;
+            } else {
+                // Inglés simultáneo: mismo cuatrimestre (grado) → misma hora en todos los grupos,
+                // salvo 8° y 9° que NO se sincronizan. La clave `sync` agrupa por cuatrimestre.
+                const grado = b.materia.grado_materia;
+                const esIngles = normalizarNombre(b.materia.nombre_materia).includes('ingles');
+                const nc = { grupo: gn, materia: b.materia.nombre_materia, docente: dn, turno: g.turno, horas: b.duracion };
+                if (esIngles && grado !== 8 && grado !== 9) nc.sync = 'INGLES|' + grado;
+                cargasMap.set(key, nc);
+            }
+        });
+    });
+    return { grupos, docentes, cargas: [...cargasMap.values()] };
+}
+
+function _abrevCSP(nombre) {
+    return String(nombre).replace(/\s+/g, ' ').trim().slice(0, 7);
+}
+
+/** Dibuja una rejilla neo-brutalista por grupo a partir de los bloques colocados por el engine. */
+function renderGridCSP(bloques) {
+    const porGrupo = new Map();
+    bloques.forEach(b => { if (!porGrupo.has(b.grupo)) porGrupo.set(b.grupo, []); porGrupo.get(b.grupo).push(b); });
+    let html = '';
+    [...porGrupo.keys()].sort().forEach(gn => {
+        const blks = porGrupo.get(gn);
+        const g = MAPA_GRUPOS.get(gn) || {};
+        const base = g.baseHoras || [];
+        const cel = {};
+        blks.forEach(b => { for (let h = b.inicio; h < b.inicio + b.duracion; h++) cel[b.dia + '|' + h] = b; });
+        html += `<table class="csp-grid"><caption>${gn} · ${g.turno || ''}</caption><thead><tr><th></th>` +
+            diasSemana.map(d => `<th>${d.slice(0, 3)}</th>`).join('') + `</tr></thead><tbody>`;
+        base.forEach(h => {
+            html += `<tr><th>${h}:00</th>`;
+            diasSemana.forEach((d, i) => {
+                const b = cel[i + '|' + h];
+                html += b
+                    ? `<td class="ocupado" title="${b.materia} · ${b.docente}">${_abrevCSP(b.materia)}</td>`
+                    : `<td></td>`;
+            });
+            html += `</tr>`;
+        });
+        html += `</tbody></table>`;
+    });
+    return html;
+}
+
+/** Orquesta la corrida del motor CSP y vuelca el reporte en #csp_resultado. */
+function ejecutarMotorCSP() {
+    const out = document.getElementById('csp_resultado');
+    const ESTILO = `<style>
+#csp_resultado{margin:1rem 0;font-family:var(--font-roboto-mono,monospace)}
+.csp-box{border:3px solid var(--color-black,#221F20);box-shadow:4px 4px 0 var(--color-black,#221F20);background:#fff;padding:0.6rem 0.8rem;margin:0.5rem 0;border-radius:4px;font-size:0.85rem}
+.csp-ok{background:var(--color-yellow,#FFD60A)}.csp-err{background:#ffd9d4}.csp-warn{background:#fff3c4}
+.csp-box ul{margin:0.4rem 0 0;padding-left:1.1rem}.csp-box code{background:#221F20;color:#fff;padding:0 0.3rem;border-radius:3px}
+table.csp-grid{border-collapse:collapse;margin:0.6rem 0;font-size:0.7rem;background:#fff}
+table.csp-grid caption{text-align:left;font-weight:bold;margin-bottom:0.3rem}
+table.csp-grid th,table.csp-grid td{border:2px solid var(--color-black,#221F20);padding:0.2rem 0.35rem;min-width:2.2rem;text-align:center}
+table.csp-grid td.ocupado{background:var(--color-yellow,#FFD60A);font-weight:bold}
+</style>`;
+
+    if (!window.Engine || !window.Prechecks) {
+        out.innerHTML = ESTILO + `<div class="csp-box csp-err">Módulos CSP no cargados (revisa /src/*.js).</div>`;
+        return;
+    }
+    let cant = 0; MAPA_GRUPOS.forEach(g => cant += g.bloques.length);
+    if (cant === 0) {
+        out.innerHTML = ESTILO + `<div class="csp-box csp-err">Carga una plantilla válida primero.</div>`;
+        return;
+    }
+
+    // Ventanas alineadas a baseHoras del app: matutino 7–15h y vespertino 12–20h utilizables.
+    const ventanas = { matutino: [7, 16], vespertino: [12, 21] };
+    const datos = construirDatosCSP();
+
+    let html = ESTILO +
+        `<div class="csp-box"><b>Motor CSP (beta)</b> · ${datos.cargas.length} cargas · ` +
+        `${Object.keys(datos.docentes).length} docentes · ${Object.keys(datos.grupos).length} grupos</div>`;
+
+    // 1) Pre-checks de capacidad (Nivel 1): escalan a datos reales y nombran al culpable.
+    const problemas = Prechecks.verificarCapacidad(datos, { ventanas });
+    if (problemas.length) {
+        html += `<div class="csp-box csp-err"><b>⛔ ${problemas.length} problema(s) de datos (Nivel 1):</b><ul>` +
+            problemas.map(p => `<li><code>${p.id}</code> ${p.mensaje}</li>`).join('') + `</ul></div>`;
+        out.innerHTML = html;
+        return;
+    }
+    html += `<div class="csp-box csp-ok">✅ Pre-checks Nivel 1 superados (sin datos imposibles).</div>`;
+
+    // 2) Solver CP (beta): acotado por tamaño — el backtracking sin propagación aún no escala.
+    let sesiones;
+    try { sesiones = Engine.construirSesiones(datos, { ventanas }); }
+    catch (e) { out.innerHTML = html + `<div class="csp-box csp-err">⛔ ${e.message}</div>`; return; }
+
+    const LIMITE_SOLVER = 300;
+    if (sesiones.length > LIMITE_SOLVER) {
+        html += `<div class="csp-box csp-warn">⏸ Solver beta omitido: <b>${sesiones.length}</b> sesiones (> ${LIMITE_SOLVER}). ` +
+            `El solver usa MRV + forward-checking (escala a ~cientos de sesiones), pero por seguridad ante datasets muy grandes ` +
+            `o muy acoplados se omite; los pre-checks sí corrieron sobre tus datos reales.</div>`;
+        out.innerHTML = html;
+        return;
+    }
+
+    // Solver rápido (MRV + forward-checking) + mejora de calidad por búsqueda local.
+    const t0 = performance.now();
+    let r;
+    try { r = Engine.resolverConCalidad(datos, { ventanas }); }
+    catch (e) { out.innerHTML = html + `<div class="csp-box csp-err">⛔ ${e.message}</div>`; return; }
+    const ms = Math.round(performance.now() - t0);
+
+    if (!r.ok) {
+        html += `<div class="csp-box csp-err">⛔ INFEASIBLE — no existe horario bajo las restricciones duras ` +
+            `(${sesiones.length} sesiones, ${ms} ms). Es una <b>prueba</b>, no un fallo de búsqueda.</div>`;
+        out.innerHTML = html;
+        return;
+    }
+    html += `<div class="csp-box csp-ok">✅ Solución factible · ${r.horario.bloques.length} bloques · ${sesiones.length} sesiones · ${ms} ms</div>`;
+    html += `<div class="csp-box">📉 Calidad — horas muertas de grupos: <b>${r.calidadInicial.huecos} → ${r.calidad.huecos}</b> · ` +
+        `desbalance diario: ${r.calidadInicial.desbalance} → ${r.calidad.desbalance}</div>`;
+
+    if (sesiones.length <= 18) {
+        const u = Engine.verificarUnicidad(datos, { ventanas });
+        html += `<div class="csp-box">` +
+            (u.unica ? '🔒 Solución <b>única</b> (verificada por no-good cut)' : `↔ ${u.total} soluciones canónicas (no única)`) +
+            `</div>`;
+    }
+    html += renderGridCSP(r.horario.bloques);
+    out.innerHTML = html;
+}
+
 if (!IS_WORKER) {
     document.getElementById("button_accion").onclick = () => {
         let cantBloques = 0;
@@ -7318,6 +7487,9 @@ if (!IS_WORKER) {
         if (cantBloques === 0) return alert("Por favor, carga una plantilla válida primero.");
         ejecutarAlgoritmoFinal();
     };
+
+    const _btnCSP = document.getElementById("button_csp");
+    if (_btnCSP) _btnCSP.onclick = ejecutarMotorCSP;
 
     document.getElementById("button_reset_aprendizaje").onclick = () => {
         resetearAprendizaje();
