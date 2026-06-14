@@ -7527,6 +7527,11 @@ async function _correrMotorCSP(out) {
 }
 
 if (!IS_WORKER) {
+    // Marcador de versión: si NO ves esto en la consola (F12), tu navegador corre código viejo en
+    // caché → haz hard-refresh (Ctrl+Shift+R). El inglés 5° solo se sincroniza con esta versión.
+    console.log('%c From Schedule FI · build 2026-06: inglés simultáneo ESTRICTO (5° sincronizado) ',
+        'background:#FFD60A;color:#221F20;font-weight:bold;padding:2px 6px');
+
     document.getElementById("button_accion").onclick = () => {
         let cantBloques = 0;
         MAPA_GRUPOS.forEach(g => cantBloques += g.bloques.length);
