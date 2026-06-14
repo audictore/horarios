@@ -2378,7 +2378,10 @@ function preAsignarInglesSimultaneo() {
     // declarada y NINGÚN grupo ha usado ya esa materia ese día.
     // Los grupos cuyo bloque se agotó simplemente se omiten en slots posteriores
     // (para manejar distintas cargas de inglés entre cuatrimestres).
-    function sincronizarGrupos(porGrupo, maxSesionesDia = 1) {
+    // `estricto`: solo coloca en slots donde TODOS los grupos pendientes caben simultáneamente
+    // (intersección de disponibilidades de sus docentes). Garantiza sincronización completa aunque
+    // los profes de inglés del cuatrimestre tengan disponibilidades distintas.
+    function sincronizarGrupos(porGrupo, maxSesionesDia = 1, estricto = false) {
         if (porGrupo.size === 0) return;
 
         let grupos   = [...porGrupo.keys()];
@@ -2410,11 +2413,15 @@ function preAsignarInglesSimultaneo() {
         // Resultado: máxima sincronización posible con los datos de disponibilidad.
         let baseHorasRev = [...baseHoras].reverse();
         while (quedanBloques()) {
+            // En modo estricto, solo sirven los slots que cubren a TODOS los grupos aún pendientes
+            // (misma hora para todos = intersección de disponibilidades de sus docentes).
+            const pendientes = grupos.filter(g => idx.get(g) < porGrupo.get(g).length).length;
             let mejorDia = null, mejorH = null, mejorGrupos = [], mejorAdy = -1, mejorRec = -1;
             for (let dia of diasSemana) {
                 for (let h of baseHorasRev) {
                     const disp = gruposDisponibles(dia, h);
                     if (disp.length === 0) continue;
+                    if (estricto && disp.length < pendientes) continue; // exige cobertura total
                     // Desempates tras la cobertura:
                     //  1) recurrentes: slots que sirven a grupos cuyo bloque
                     //     pendiente falló la corrida anterior van primero
@@ -2462,7 +2469,7 @@ function preAsignarInglesSimultaneo() {
             let nm = b.materia.nombre_materia.toUpperCase()
                 .normalize("NFD").replace(/[̀-ͯ]/g, "");
             if (!nm.includes('INGLES')) return;
-            let t = grupo.turno;
+            let t = c + '|' + grupo.turno; // sincronizar SOLO entre grupos del MISMO cuatrimestre
             if (!inglesPorTurno.has(t)) inglesPorTurno.set(t, new Map());
             let pm = inglesPorTurno.get(t);
             if (!pm.has(grupo)) pm.set(grupo, []);
@@ -2473,7 +2480,7 @@ function preAsignarInglesSimultaneo() {
     // maxSesionesDia=3: permite hasta 3 sesiones de inglés por día en grupos 1-7
     // (regla del coordinador: docentes con disponibilidad concentrada en pocos
     //  días pueden dar hasta 3h juntas). Los grupos 8+ conservan el límite de 1.
-    inglesPorTurno.forEach(porGrupo => sincronizarGrupos(porGrupo, 3));
+    inglesPorTurno.forEach(porGrupo => sincronizarGrupos(porGrupo, 3, true));
 
     // CUATRIMESTRES 8+: no se sincronizan — se tratan como docentes normales
     // y sus bloques de inglés se colocan por el algoritmo greedy estándar.
