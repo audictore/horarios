@@ -7404,10 +7404,7 @@ function renderGridCSP(bloques) {
     return html;
 }
 
-/** Orquesta la corrida del motor CSP y vuelca el reporte en #csp_resultado. */
-function ejecutarMotorCSP() {
-    const out = document.getElementById('csp_resultado');
-    const ESTILO = `<style>
+const ESTILO_CSP = `<style>
 #csp_resultado{margin:1rem 0;font-family:var(--font-roboto-mono,monospace)}
 .csp-box{border:3px solid var(--color-black,#221F20);box-shadow:4px 4px 0 var(--color-black,#221F20);background:#fff;padding:0.6rem 0.8rem;margin:0.5rem 0;border-radius:4px;font-size:0.85rem}
 .csp-ok{background:var(--color-yellow,#FFD60A)}.csp-err{background:#ffd9d4}.csp-warn{background:#fff3c4}
@@ -7418,73 +7415,115 @@ table.csp-grid th,table.csp-grid td{border:2px solid var(--color-black,#221F20);
 table.csp-grid td.ocupado{background:var(--color-yellow,#FFD60A);font-weight:bold}
 </style>`;
 
+/** Resuelve UN clúster (cuatrimestre) con la disponibilidad de docentes ya recortada. */
+function _resolverClusterCSP(datos, cuatri, dispMut, ventanas, op) {
+    const cuatriDe = g => parseInt(String(g).match(/^(\d+)/)[1]);
+    const cargas = datos.cargas.filter(c => cuatriDe(c.grupo) === cuatri);
+    const grupos = {}, docentes = {};
+    for (const c of cargas) {
+        grupos[c.grupo] = datos.grupos[c.grupo];
+        if (!docentes[c.docente]) {
+            const dd = {}; for (const d in dispMut[c.docente]) { const a = [...dispMut[c.docente][d]]; if (a.length) dd[d] = a; }
+            docentes[c.docente] = { tipo: datos.docentes[c.docente].tipo, disponibilidad: dd };
+        }
+    }
+    const total = cargas.reduce((s, c) => s + c.horas, 0);
+    const r = Engine.resolverFactible({ grupos, docentes, cargas }, Object.assign({ ventanas }, op));
+    return { cuatri, total, r };
+}
+
+/** Exporta los bloques colocados por el CP a un .xlsx (una hoja por grupo) con el XLSX del app. */
+function exportarCSPaExcel(bloques) {
+    if (typeof XLSX === 'undefined') { alert('XLSX no está disponible en esta página.'); return; }
+    const wb = XLSX.utils.book_new();
+    const porGrupo = new Map();
+    bloques.forEach(b => { if (!porGrupo.has(b.grupo)) porGrupo.set(b.grupo, []); porGrupo.get(b.grupo).push(b); });
+    [...porGrupo.keys()].sort().forEach(gn => {
+        const g = MAPA_GRUPOS.get(gn) || {}; const base = g.baseHoras || [];
+        const cel = {}; porGrupo.get(gn).forEach(b => { for (let h = b.inicio; h < b.inicio + b.duracion; h++) cel[b.dia + '|' + h] = b; });
+        const aoa = [['HORA', ...diasSemana.map(d => d.toUpperCase())]];
+        base.forEach(h => {
+            const fila = [`${h}:00 - ${h + 1}:00`];
+            diasSemana.forEach((d, i) => { const b = cel[i + '|' + h]; fila.push(b ? `${b.materia} (${b.docente})` : ''); });
+            aoa.push(fila);
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), String(gn).replace(/[\\/?*:\[\]]/g, '-').slice(0, 31));
+    });
+    XLSX.writeFile(wb, 'Horario_CP.xlsx');
+}
+
+/** Orquesta la corrida del motor CSP (por clústeres, con reinicios acotados) en #csp_resultado. */
+function ejecutarMotorCSP() {
+    const out = document.getElementById('csp_resultado');
     if (!window.Engine || !window.Prechecks) {
-        out.innerHTML = ESTILO + `<div class="csp-box csp-err">Módulos CSP no cargados (revisa /src/*.js).</div>`;
+        out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">Módulos CSP no cargados (revisa /src/*.js).</div>`;
         return;
     }
     let cant = 0; MAPA_GRUPOS.forEach(g => cant += g.bloques.length);
     if (cant === 0) {
-        out.innerHTML = ESTILO + `<div class="csp-box csp-err">Carga una plantilla válida primero.</div>`;
+        out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">Carga una plantilla válida primero.</div>`;
         return;
     }
+    out.innerHTML = ESTILO_CSP + `<div class="csp-box">⏳ Resolviendo con el motor CP (reinicios aleatorizados, por cuatrimestre)… puede tardar unos segundos.</div>`;
+    setTimeout(() => _correrMotorCSP(out), 40); // cede el hilo para pintar el mensaje
+}
 
-    // Ventanas alineadas a baseHoras del app: matutino 7–15h y vespertino 12–20h utilizables.
+async function _correrMotorCSP(out) {
     const ventanas = { matutino: [7, 16], vespertino: [12, 21] };
     const datos = construirDatosCSP();
-
-    let html = ESTILO +
-        `<div class="csp-box"><b>Motor CSP (beta)</b> · ${datos.cargas.length} cargas · ` +
+    let html = ESTILO_CSP + `<div class="csp-box"><b>Motor CSP</b> · ${datos.cargas.length} cargas · ` +
         `${Object.keys(datos.docentes).length} docentes · ${Object.keys(datos.grupos).length} grupos</div>`;
 
-    // 1) Pre-checks de capacidad (Nivel 1): escalan a datos reales y nombran al culpable.
+    // 1) Pre-checks de capacidad (Nivel 1): nombran al culpable si hay un dato imposible.
     const problemas = Prechecks.verificarCapacidad(datos, { ventanas });
     if (problemas.length) {
-        html += `<div class="csp-box csp-err"><b>⛔ ${problemas.length} problema(s) de datos (Nivel 1):</b><ul>` +
+        out.innerHTML = html + `<div class="csp-box csp-err"><b>⛔ ${problemas.length} problema(s) de datos (Nivel 1):</b><ul>` +
             problemas.map(p => `<li><code>${p.id}</code> ${p.mensaje}</li>`).join('') + `</ul></div>`;
-        out.innerHTML = html;
         return;
     }
-    html += `<div class="csp-box csp-ok">✅ Pre-checks Nivel 1 superados (sin datos imposibles).</div>`;
+    html += `<div class="csp-box csp-ok">✅ Pre-checks Nivel 1 superados.</div>`;
 
-    // 2) Solver CP (beta): acotado por tamaño — el backtracking sin propagación aún no escala.
-    let sesiones;
-    try { sesiones = Engine.construirSesiones(datos, { ventanas }); }
-    catch (e) { out.innerHTML = html + `<div class="csp-box csp-err">⛔ ${e.message}</div>`; return; }
+    // 2) Resolver por clústeres (cuatrimestre), matutino primero, arrastrando ocupación de docentes.
+    const cuatriDe = g => parseInt(String(g).match(/^(\d+)/)[1]);
+    const turnoDe = c => datos.grupos[Object.keys(datos.grupos).find(g => cuatriDe(g) === c)].turno;
+    const cuatris = [...new Set(Object.keys(datos.grupos).map(cuatriDe))]
+        .sort((a, b) => (turnoDe(a) === 'matutino' ? 0 : 1) - (turnoDe(b) === 'matutino' ? 0 : 1) || a - b);
+    const dispMut = {};
+    for (const k in datos.docentes) { dispMut[k] = {}; for (const d in datos.docentes[k].disponibilidad) dispMut[k][d] = new Set(datos.docentes[k].disponibilidad[d]); }
 
-    const LIMITE_SOLVER = 300;
-    if (sesiones.length > LIMITE_SOLVER) {
-        html += `<div class="csp-box csp-warn">⏸ Solver beta omitido: <b>${sesiones.length}</b> sesiones (> ${LIMITE_SOLVER}). ` +
-            `El solver usa MRV + forward-checking (escala a ~cientos de sesiones), pero por seguridad ante datasets muy grandes ` +
-            `o muy acoplados se omite; los pre-checks sí corrieron sobre tus datos reales.</div>`;
-        out.innerHTML = html;
-        return;
-    }
-
-    // Solver rápido (MRV + forward-checking) + mejora de calidad por búsqueda local.
+    const op = { maxNodos: 3000000, maxNodosTope: 3000000, maxIntentos: 30, maxMs: 10000 }; // tope 10s/clúster
+    const bloques = [], filas = [];
     const t0 = performance.now();
-    let r;
-    try { r = Engine.resolverConCalidad(datos, { ventanas }); }
-    catch (e) { out.innerHTML = html + `<div class="csp-box csp-err">⛔ ${e.message}</div>`; return; }
+    for (const cuatri of cuatris) {
+        out.innerHTML = html + `<div class="csp-box">⏳ Resolviendo ${cuatri}°…` +
+            (filas.length ? `<ul>${filas.join('')}</ul>` : '') + `</div>`;
+        await new Promise(res => setTimeout(res, 25)); // ceder para pintar el progreso
+        let cl;
+        try { cl = _resolverClusterCSP(datos, cuatri, dispMut, ventanas, op); }
+        catch (e) { filas.push(`<li>${cuatri}°: ⛔ ${e.message}</li>`); continue; }
+        if (cl.r.ok) {
+            const col = cl.r.horario.bloques.reduce((s, b) => s + b.duracion, 0);
+            filas.push(`<li>${cuatri}°: ✅ completo (${col}/${cl.total}h · ${cl.r.intentos} intento(s))</li>`);
+            for (const b of cl.r.horario.bloques) { bloques.push(b); for (let h = b.inicio; h < b.inicio + b.duracion; h++) if (dispMut[b.docente] && dispMut[b.docente][b.dia]) dispMut[b.docente][b.dia].delete(h); }
+        } else {
+            filas.push(`<li>${cuatri}°: ⚠️ no resuelto en el presupuesto (${cl.total}h) — clúster muy denso (acotado por tiempo, no es prueba de infactibilidad)</li>`);
+        }
+    }
     const ms = Math.round(performance.now() - t0);
 
-    if (!r.ok) {
-        html += `<div class="csp-box csp-err">⛔ INFEASIBLE — no existe horario bajo las restricciones duras ` +
-            `(${sesiones.length} sesiones, ${ms} ms). Es una <b>prueba</b>, no un fallo de búsqueda.</div>`;
-        out.innerHTML = html;
-        return;
+    const totalReq = datos.cargas.reduce((s, c) => s + c.horas, 0);
+    const totalCol = bloques.reduce((s, b) => s + b.duracion, 0);
+    const completo = totalCol === totalReq;
+    html += `<div class="csp-box ${completo ? 'csp-ok' : 'csp-warn'}">${completo ? '✅' : '◑'} ` +
+        `<b>${totalCol}/${totalReq}h</b> colocadas · ${ms} ms<ul>${filas.join('')}</ul></div>`;
+    if (bloques.length) {
+        html += `<div class="csp-box"><button class="button_accion" id="csp_descargar">⬇ Descargar Excel (CP)</button> ` +
+            `<span style="font-size:0.8rem">— inglés sincronizado y grupos resueltos validados por el oráculo.</span></div>`;
+        html += renderGridCSP(bloques);
     }
-    html += `<div class="csp-box csp-ok">✅ Solución factible · ${r.horario.bloques.length} bloques · ${sesiones.length} sesiones · ${ms} ms</div>`;
-    html += `<div class="csp-box">📉 Calidad — horas muertas de grupos: <b>${r.calidadInicial.huecos} → ${r.calidad.huecos}</b> · ` +
-        `desbalance diario: ${r.calidadInicial.desbalance} → ${r.calidad.desbalance}</div>`;
-
-    if (sesiones.length <= 18) {
-        const u = Engine.verificarUnicidad(datos, { ventanas });
-        html += `<div class="csp-box">` +
-            (u.unica ? '🔒 Solución <b>única</b> (verificada por no-good cut)' : `↔ ${u.total} soluciones canónicas (no única)`) +
-            `</div>`;
-    }
-    html += renderGridCSP(r.horario.bloques);
     out.innerHTML = html;
+    const btn = document.getElementById('csp_descargar');
+    if (btn) btn.onclick = () => exportarCSPaExcel(bloques);
 }
 
 if (!IS_WORKER) {

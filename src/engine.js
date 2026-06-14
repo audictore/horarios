@@ -173,16 +173,24 @@
     /** Enumera hasta `limite` soluciones con forward-checking. `modo`: 'canonico' | 'mrv'.
      *  `maxNodos` (opcional) corta la búsqueda tras N nodos y marca `soluciones.agotado = true`,
      *  para no colgarse en instancias muy duras (devuelve lo hallado, sin probar infactibilidad). */
-    function buscar(limite, modo, maxNodos) {
+    function buscar(limite, modo, maxNodos, seed, maxMs) {
       const soluciones = [];
       soluciones.agotado = false;
+      const tIni = maxMs ? Date.now() : 0;
       const asign = new Array(n).fill(null);
       const asignado = new Array(n).fill(false);
       const dom = dominios.map((d) => d.slice()); // dominios vivos (mutables, se podan/restauran)
+      if (seed != null) {
+        // Aleatoriza el orden de valores (para reinicios): misma semilla → mismo orden (determinista).
+        let s = seed >>> 0;
+        const rnd = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+        for (const dd of dom) for (let i = dd.length - 1; i > 0; i--) { const j = (rnd() * (i + 1)) | 0; const t = dd[i]; dd[i] = dd[j]; dd[j] = t; }
+      }
       let nAsig = 0, nodos = 0;
 
       function dfs() {
         if (maxNodos && ++nodos > maxNodos) { soluciones.agotado = true; return true; } // presupuesto agotado
+        if (maxMs && (nodos & 8191) === 0 && Date.now() - tIni > maxMs) { soluciones.agotado = true; return true; } // tope de tiempo
         if (nAsig === n) {
           soluciones.push({
             bloques: sesiones.map((s, i) => ({
@@ -222,6 +230,7 @@
       }
 
       dfs();
+      soluciones.nodos = nodos;
       return soluciones;
     }
 
@@ -237,14 +246,40 @@
       : { ok: true, horario: sol[0], sesiones: solver.sesiones };
   }
 
-  /** Solución FACTIBLE rápida (MRV + forward-checking) — escala a datasets grandes. No lex-mínima.
-   *  `opciones.maxNodos` acota la búsqueda; si se agota, devuelve ok:false con agotado:true. */
+  /** Bucle de REINICIOS aleatorizados sobre un solver ya creado.
+   *  Intento 0 = orden canónico (determinista). Si agota su presupuesto de nodos sin hallar
+   *  solución (instancia dura que se atora), reinicia con otro orden de valores (semilla 1, 2, …).
+   *  El presupuesto crece (dobla cada 4 intentos) pero está ACOTADO por `maxNodosTope`, así cada
+   *  reinicio es rápido — lo que destraca ramas patológicas (8°) y aprieta instancias densas (2°).
+   *  Determinista: misma entrada → misma secuencia de semillas → mismo resultado. */
+  function buscarReinicios(solver, op) {
+    const base = op.maxNodos || 600000;
+    const tope = op.maxNodosTope || 4000000;
+    const maxIntentos = op.maxIntentos || 200;
+    const maxMs = op.maxMs || 0;            // tope de reloj total (0 = sin tope) — clave para el navegador
+    const tIni = Date.now();
+    let totalNodos = 0;
+    for (let intento = 0; intento < maxIntentos; intento++) {
+      if (maxMs && Date.now() - tIni > maxMs) break;
+      const seed = intento === 0 ? null : intento;
+      const presupuesto = Math.min(base * Math.pow(2, Math.floor(intento / 4)), tope);
+      const restanteMs = maxMs ? Math.max(1, maxMs - (Date.now() - tIni)) : 0;
+      const sol = solver.buscar(1, 'mrv', presupuesto, seed, restanteMs);
+      totalNodos += sol.nodos || 0;
+      if (sol.length > 0) return { sol, intentos: intento + 1, nodos: totalNodos, agotado: false };
+      if (!sol.agotado) return { sol: null, intentos: intento + 1, nodos: totalNodos, agotado: false }; // exploró todo → infactible
+    }
+    return { sol: null, intentos: maxIntentos, nodos: totalNodos, agotado: true };
+  }
+
+  /** Solución FACTIBLE rápida (MRV + forward-checking + reinicios). No lex-mínima. */
   function resolverFactible(datos, opciones) {
-    const solver = crearSolver(datos, opciones);
-    const sol = solver.buscar(1, 'mrv', (opciones || {}).maxNodos);
-    return sol.length === 0
-      ? { ok: false, horario: null, sesiones: solver.sesiones, agotado: !!sol.agotado }
-      : { ok: true, horario: sol[0], sesiones: solver.sesiones, agotado: false };
+    const op = opciones || {};
+    const solver = crearSolver(datos, op);
+    const { sol, intentos, nodos, agotado } = buscarReinicios(solver, op);
+    return sol
+      ? { ok: true, horario: sol[0], sesiones: solver.sesiones, intentos, nodos, agotado: false }
+      : { ok: false, horario: null, sesiones: solver.sesiones, intentos, nodos, agotado };
   }
 
   /** Enumera hasta `limite` soluciones canónicas (para verificación de unicidad). */
@@ -307,13 +342,14 @@
    * y final para poder mostrar la mejora.
    */
   function resolverConCalidad(datos, opciones) {
-    const solver = crearSolver(datos, opciones);
-    const sol = solver.buscar(1, 'mrv');
-    if (!sol.length) return { ok: false, horario: null, sesiones: solver.sesiones, calidad: null };
+    const op = opciones || {};
+    const solver = crearSolver(datos, op);
+    const { sol, intentos, nodos, agotado } = buscarReinicios(solver, op); // acotado: no congela
+    if (!sol) return { ok: false, horario: null, sesiones: solver.sesiones, calidad: null, intentos, nodos, agotado };
 
     const calidadInicial = C.evaluarCalidad(sol[0]);
     const asign = sol[0].bloques.map((b) => ({ dia: b.dia, inicio: b.inicio }));
-    optimizarCalidad(solver.sesiones, solver.dominios, asign, opciones);
+    optimizarCalidad(solver.sesiones, solver.dominios, asign, op);
 
     const horario = {
       bloques: solver.sesiones.map((s, i) => ({
@@ -321,7 +357,7 @@
         dia: asign[i].dia, inicio: asign[i].inicio, duracion: s.duracion,
       })),
     };
-    return { ok: true, horario, sesiones: solver.sesiones, calidad: C.evaluarCalidad(horario), calidadInicial };
+    return { ok: true, horario, sesiones: solver.sesiones, calidad: C.evaluarCalidad(horario), calidadInicial, intentos, nodos };
   }
 
   // --- Simetría de grupos idénticos (mismas materias y horas) ---
