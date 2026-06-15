@@ -1304,6 +1304,12 @@ function aplicarAsignacion(grupo, bloque, dia, horaInicio, esForzado = false) {
         for (const h of grupo.baseHoras)
             if (grupo.horario[dd][h] === bloque) return;
 
+    // No sobrescribir el inglés simultáneo fijo: lo protege de ser pisado por una reparación.
+    for (let h = horaInicio; h < horaInicio + bloque.duracion; h++) {
+        const occ = grupo.horario[dia][h];
+        if (occ && occ !== bloque && esInglesFijo(occ, grupo)) return; // inglés inamovible: rechaza
+    }
+
     for (let h = horaInicio; h < horaInicio + bloque.duracion; h++) {
         grupo.horario[dia][h] = bloque;
         let marca = esForzado ? " [⚠️ FORZADO]" : "";
@@ -1312,6 +1318,15 @@ function aplicarAsignacion(grupo, bloque, dia, horaInicio, esForzado = false) {
     }
     bloque.docente.diasActivos.add(dia);
     grupo.sesionesDia[dia][bloque.materia.nombre_materia] = (grupo.sesionesDia[dia][bloque.materia.nombre_materia] || 0) + 1;
+}
+
+/** ¿Es inglés simultáneo FIJO (cuatri 1-7)? Las reparaciones no deben moverlo: si lo mueven,
+ *  queda desincronizado. Tratan su slot como ocupado-inamovible (buscan otra opción, sin bucle). */
+function esInglesFijo(bloque, grupo) {
+    if (!bloque || !bloque.preAsignado || !esIngles(bloque)) return false;
+    const m = String((grupo || bloque.grupo).nombre_grupo).match(/^(\d+)/);
+    const c = m ? parseInt(m[1]) : 0;
+    return c >= 1 && c <= 7;
 }
 
 /**
@@ -1567,6 +1582,7 @@ function intentarSwapDeHorarios(bloquePendiente, queue) {
                 let existente = grupo.horario[diaP][h];
                 if (existente === null) continue;
                 if (existente.docente === docentePendiente) { slotsValidos = false; break; }
+                if (esInglesFijo(existente, grupo)) { slotsValidos = false; break; } // inglés fijo: no desplazar
                 if (!bloquesDesplazar.has(existente)) {
                     bloquesDesplazar.set(existente, h);
                 }
@@ -1839,6 +1855,7 @@ function intentarCadenaSwap(bloquePendiente, profMaxCruzado = 0, visitadosCruzad
                 const ex = grupo.horario[diaP][hP + o];
                 if (ex === null) continue;
                 if (ex.docente === docente) { slotValido = false; break; }
+                if (esInglesFijo(ex, grupo)) { slotValido = false; break; } // inglés fijo: no desplazar
                 if (!obstaculos.has(ex)) {
                     // Buscar la hora de inicio del obstáculo
                     let hObs = hP + o;
@@ -1991,6 +2008,7 @@ function intentarReestructuracionCruzada(bloquePendiente, profMax = 2, visitados
             }
             if (!bloqueConflicto) continue;
             if (misVisitados.has(bloqueConflicto)) continue; // anti-ciclo
+            if (esInglesFijo(bloqueConflicto, grupoConflicto)) continue; // inglés fijo: no desplazar
 
             const posConflicto = encontrarPosicionBloque(bloqueConflicto);
             if (!posConflicto) continue;
@@ -2317,6 +2335,7 @@ function compactarHuecosPAs() {
 
                     const b = grupo.horario[dia][base[afterIdx]];
                     if (!b) break;
+                    if (esInglesFijo(b, grupo)) continue; // no mover inglés sincronizado fijo
 
                     // Buscar el inicio real del bloque b en este día
                     let bStartIdx = afterIdx;
@@ -2618,7 +2637,7 @@ async function rescateBacktracking(bloquesFallidos, progFn = null) {
         todosDocentes.forEach(doc => {
             MAPA_GRUPOS.forEach(g => {
                 g.bloques.forEach(b => {
-                    if (b.docente === doc && !fallidosSet.has(b)) {
+                    if (b.docente === doc && !fallidosSet.has(b) && !esInglesFijo(b, g)) {
                         const pos = encontrarPosicionBloque(b);
                         if (pos) bloquesMover.push({ bloque: b, pos });
                     }
@@ -7529,7 +7548,7 @@ async function _correrMotorCSP(out) {
 if (!IS_WORKER) {
     // Marcador de versión: si NO ves esto en la consola (F12), tu navegador corre código viejo en
     // caché → haz hard-refresh (Ctrl+Shift+R). El inglés 5° solo se sincroniza con esta versión.
-    console.log('%c From Schedule FI · build 2026-06: inglés simultáneo ESTRICTO (5° sincronizado) ',
+    console.log('%c From Schedule FI · build 2026-06b: inglés simultáneo BLINDADO (2° y 5° sincronizados, inamovible) ',
         'background:#FFD60A;color:#221F20;font-weight:bold;padding:2px 6px');
 
     document.getElementById("button_accion").onclick = () => {
