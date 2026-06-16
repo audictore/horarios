@@ -23,11 +23,19 @@
             --font-size-md : 5rem;
             --font-size-sm : 2rem;
             --font-size-xsm : 1rem;
+            /* ── Sistema neo-brutalista (geometría) ── */
+            --radius: 0;
+            --borde-fuerte: 3px solid var(--color-black);   /* contenedores, inputs, botones grandes */
+            --borde-medio:  2px solid var(--color-black);   /* botones chicos, badges */
+            --borde-fino:   1px solid var(--color-black);   /* divisores de tabla */
+            --sombra-lg: 6px 6px 0 0 var(--color-gray-olive); /* botones/contenedores grandes */
+            --sombra-sm: 3px 3px 0 0 var(--color-black);      /* botones/elementos chicos */
         }
         body{
             width: 100%;
+            min-height: 100dvh;
             display: flex;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             flex-direction: column;
             padding: 0;
@@ -42,6 +50,7 @@
             align-items: center;
             position: sticky;
             top: 0;
+            z-index: 10;
             background-color: var(--color-yellow);
             padding: 0;
             margin: 0;
@@ -595,6 +604,125 @@
             color: var(--color-ghost-white);
         }
 
+        /* ── Layout en dos columnas: controles a la IZQUIERDA, info/resultados a la DERECHA ── */
+        .app-layout {
+            display: flex;
+            gap: 1.4rem;
+            align-items: flex-start;
+            width: 100%;
+            flex: 1 1 auto;
+            min-height: calc(100dvh - 56px); /* llena el viewport bajo el header; el footer queda abajo */
+            box-sizing: border-box;
+            padding: 1.2rem 1.5rem;
+            background-color: var(--color-ghost-white);
+        }
+        main {
+            display: flex !important;
+            flex-direction: column;
+            gap: 0.85rem;
+            width: auto;
+            height: auto !important;
+            flex: 0 0 250px;
+            position: sticky;
+            top: calc(7dvh + 0.8rem); /* pega DEBAJO del header (7dvh), no encima */
+            padding: 0;
+            margin: 0;
+        }
+        main > .label_carga,
+        main > .label_disp,
+        main > .button_accion,
+        main > button {
+            width: 100%;
+            min-height: 3.4rem;
+            grid-area: auto !important;
+            margin: 0 !important;
+        }
+        .panel-info {
+            flex: 1 1 auto;
+            min-width: 0;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .panel-info > .span_error {
+            width: 100%;
+            /* Alto FIJO (no se expande con el contenido): siempre respeta su espacio y hace scroll dentro. */
+            height: calc(100dvh - 7dvh - 2.4rem);
+            overflow-y: auto;
+            flex: 0 0 auto;
+            grid-area: auto;
+        }
+        .panel-info > section { margin: 0; }
+        @media (max-width: 860px) {
+            .app-layout { flex-direction: column; }
+            main { position: static; flex: 0 0 auto; width: 100%; }
+        }
+
+        /* ═══════════ SISTEMA NEO-BRUTALISTA · radius 0 · bordes duros · sombras sólidas ═══════════ */
+        *, *::before, *::after { border-radius: 0 !important; }
+
+        /* Botones grandes + labels de archivo (columna izquierda) */
+        main .button_accion,
+        main .label_carga,
+        main .label_disp {
+            border: var(--borde-fuerte);
+            box-shadow: var(--sombra-lg);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: transform .06s ease, box-shadow .06s ease;
+        }
+        main .button_accion:hover,
+        main .label_carga:hover,
+        main .label_disp:hover {
+            transform: translate(6px, 6px);     /* efecto "presionado" brutalista */
+            box-shadow: 0 0 0 0 var(--color-gray-olive);
+        }
+        #button_reset_aprendizaje {
+            border: var(--borde-medio) !important;
+            box-shadow: var(--sombra-sm);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Caja de info / estado: contenedor duro */
+        .panel-info > .span_error {
+            border: 3px solid var(--color-tomato) !important;
+            box-shadow: 6px 6px 0 0 var(--color-black);
+        }
+
+        /* Títulos de módulo: jerarquía del spec (extra-bold, uppercase, tracking) */
+        #seccion_desglose h2,
+        #seccion_horarios h2 {
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 800;
+        }
+
+        /* Badges: cuadrados, borde negro, uppercase */
+        .badge-cat, .badge-en-curso {
+            border: var(--borde-medio);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 800;
+        }
+
+        /* Tabla de desglose: borde exterior duro + divisores negros */
+        .desglose-tabla { border: var(--borde-fuerte); }
+        .desglose-tabla tr.asig-row td { border-bottom: var(--borde-fino) !important; }
+
+        /* Caja de resultados CSP: sombra dura sólida */
+        .csp-box { box-shadow: 4px 4px 0 0 var(--color-black) !important; }
+
+        /* Paneles de info dentro de la caja (forzado/imposibles/expansión): listas COMPACTAS */
+        #panel_forzado_disp, #panel_imposibles, #panel_expansion_dias { font-size: 0.78rem !important; line-height: 1.35; white-space: normal !important; }
+        #panel_forzado_disp h3, #panel_imposibles h3, #panel_expansion_dias h3 { margin: 0 0 0.4rem !important; font-size: 0.9rem !important; }
+        #panel_forzado_disp p, #panel_imposibles p, #panel_expansion_dias p { margin: 0 0 0.6rem !important; line-height: 1.4; }
+        #panel_forzado_disp label, #panel_imposibles label, #panel_expansion_dias label { padding: 0.3rem 0 !important; gap: 0.5rem !important; }
+        /* el contenido usa el ancho completo (no se encoge ni se envuelve en una columna angosta) */
+        #panel_forzado_disp label > span, #panel_imposibles label > span, #panel_expansion_dias label > span { flex: 1 1 auto; min-width: 0; }
+
     </style>
 
 </head>
@@ -613,40 +741,45 @@
         
     </header>
 
-    <main>
+    <div class="app-layout">
 
-        <input class="input_excel" id="input_carga" type="file" accept=".xlsx,.xls">
-        <label for="input_carga" class="label_carga">
-            <span>Carga Académica</span>
-        </label>
-        <input class="input_excel" id="input_disp" type="file" accept=".xlsx,.xls">
-        <label for="input_disp" class="label_disp">
-            <span>Disponibilidades</span>
-        </label>
-        <button class="button_accion" id="button_accion">Generar horarios</button>
-        <button id="button_reset_aprendizaje" disabled style="opacity:0.4">Sin aprendizaje</button>
-        <button class="button_accion" id="button_csp" style="margin-left:0.4rem" title="Valida y resuelve con el solver de restricciones (beta)">Motor CSP (beta)</button>
+        <main>
+            <input class="input_excel" id="input_carga" type="file" accept=".xlsx,.xls">
+            <label for="input_carga" class="label_carga">
+                <span>Carga Académica</span>
+            </label>
+            <input class="input_excel" id="input_disp" type="file" accept=".xlsx,.xls">
+            <label for="input_disp" class="label_disp">
+                <span>Disponibilidades</span>
+            </label>
+            <button class="button_accion" id="button_accion">Generar horarios</button>
+            <button class="button_accion" id="button_csp" title="Valida y resuelve con el solver de restricciones (beta)">Motor CSP (beta)</button>
+            <button id="button_reset_aprendizaje" disabled style="opacity:0.4">Sin aprendizaje</button>
+        </main>
 
-        <div class="span_error" id="span_error"></div>
-    </main>
+        <div class="panel-info">
+            <div class="span_error" id="span_error"></div>
 
-    <section id="seccion_desglose">
-        <h2>Desglose · Grupo &mdash; Materia &mdash; Horas</h2>
-        <div id="desglose_contenido"></div>
-    </section>
+            <section id="seccion_desglose">
+                <h2>Desglose · Grupo &mdash; Materia &mdash; Horas</h2>
+                <div id="desglose_contenido"></div>
+            </section>
 
-    <section id="seccion_horarios">
-        <h2>
-            Horarios
-            <span class="badge-en-curso" id="badge_en_curso">● EN CURSO</span>
-        </h2>
-        <div class="horario-tabs" id="horario_tabs"></div>
-        <div class="horario-tabla-wrap" id="horario_tabla_wrap"></div>
-    </section>
+            <section id="seccion_horarios">
+                <h2>
+                    Horarios
+                    <span class="badge-en-curso" id="badge_en_curso">● EN CURSO</span>
+                </h2>
+                <div class="horario-tabs" id="horario_tabs"></div>
+                <div class="horario-tabla-wrap" id="horario_tabla_wrap"></div>
+            </section>
 
-    <section id="seccion_csp">
-        <div id="csp_resultado"></div>
-    </section>
+            <section id="seccion_csp">
+                <div id="csp_resultado"></div>
+            </section>
+        </div>
+
+    </div>
 
     <footer>
         <a class="a_que_es" href="./que_es.html">¿Que es FROM SCHEDULE?</a>
@@ -6223,10 +6356,8 @@ function mostrarPanelForzado(bloquesForzables, onAplicar) {
     const panel = document.createElement('div');
     panel.id = 'panel_forzado_disp';
     panel.style.cssText = `
-        margin:1.5rem 3rem; background:#fff;
-        border:2px solid #FFAB91; border-radius:1rem;
-        padding:1.5rem; font-family:var(--font-roboto-mono); font-size:0.85rem;
-        box-shadow:0 4px 16px rgba(0,0,0,0.08);
+        margin-top:1rem; background:transparent; padding:0; box-sizing:border-box;
+        font-family:var(--font-roboto-mono); font-size:0.85rem;
     `;
 
     let rows = '';
@@ -6248,20 +6379,15 @@ function mostrarPanelForzado(bloquesForzables, onAplicar) {
         }
 
         rows += `
-        <label style="display:flex;align-items:flex-start;gap:0.7rem;padding:0.55rem 0;
-                       border-bottom:1px solid #f0f0f0;cursor:pointer">
+        <label style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.3rem 0;
+                       border-bottom:1px solid #eee;cursor:pointer;line-height:1.35">
             <input type="checkbox" data-idx="${i}" checked
-                   style="margin-top:0.15rem;accent-color:#FFAB91;width:1rem;height:1rem">
-            <span>
+                   style="margin-top:0.15rem;accent-color:#FFAB91;width:0.95rem;height:0.95rem;flex:none">
+            <span style="flex:1 1 auto;min-width:0">
                 <strong>${d.nombre_docente}</strong>
-                <span style="color:var(--color-dim-gray);font-size:0.78rem"> (${tipo})</span>
-                &nbsp;—&nbsp;
-                <strong>${bloque.materia.nombre_materia}</strong>
-                [${bloque.grupo.nombre_grupo}]
-                <div style="color:#E65100;font-size:0.75rem;margin-top:0.2rem">
-                    Posición propuesta: <em>${slot.dia} ${slot.hInicio}:00–${hFin}:00</em>
-                    &nbsp;(${impactoStr})
-                </div>
+                <span style="color:var(--color-dim-gray)">(${tipo})</span> ·
+                <strong>${bloque.materia.nombre_materia}</strong> [${bloque.grupo.nombre_grupo}]
+                <span style="color:#E65100;display:block;margin-top:0.1rem">→ ${slot.dia} ${slot.hInicio}:00–${hFin}:00 (${impactoStr})</span>
             </span>
         </label>`;
     });
@@ -6275,7 +6401,7 @@ function mostrarPanelForzado(bloquesForzables, onAplicar) {
             Aprueba los que deseas conservar (quedarán marcados como <em>FORZADO</em>)
             o desmarca los que dejarás sin asignar.
         </p>
-        <div style="max-height:260px;overflow-y:auto">${rows}</div>
+        <div style="margin-top:0.5rem">${rows}</div>
         <div style="margin-top:1rem;display:flex;gap:0.8rem;flex-wrap:wrap">
             <button id="btn_aplicar_forz"
                 style="background:#FFAB91;border:none;padding:0.5rem 1.4rem;
@@ -6291,8 +6417,8 @@ function mostrarPanelForzado(bloquesForzables, onAplicar) {
             </button>
         </div>`;
 
-    const ancla = document.getElementById('seccion_desglose') || document.body;
-    ancla.before(panel);
+    const caja = document.getElementById('span_error') || document.body;
+    caja.appendChild(panel);
 
     panel.querySelector('#btn_aplicar_forz').onclick = () => {
         const aprobados = new Set();
@@ -6319,11 +6445,10 @@ function mostrarPanelImposibles(bloquesImposibles, onConfirmar) {
 
     const panel = document.createElement('div');
     panel.id = 'panel_imposibles';
+    // Se renderiza DENTRO de la caja de info/errores (#span_error): transparente, sin caja propia.
     panel.style.cssText = `
-        margin:1.5rem 3rem; background:#fff;
-        border:2px solid #EF9A9A; border-radius:1rem;
-        padding:1.5rem; font-family:var(--font-roboto-mono); font-size:0.85rem;
-        box-shadow:0 4px 16px rgba(0,0,0,0.08);
+        margin-top:1rem; background:transparent; padding:0; box-sizing:border-box;
+        font-family:var(--font-roboto-mono); font-size:0.85rem;
     `;
 
     let rows = '';
@@ -6489,24 +6614,15 @@ function mostrarPanelImposibles(bloquesImposibles, onConfirmar) {
         }
 
         rows += `
-        <div style="padding:0.7rem 0;border-bottom:1px solid #f0f0f0;">
-            <div style="display:flex;align-items:baseline;gap:0.4rem;flex-wrap:wrap">
+        <div style="padding:0.35rem 0;border-bottom:1px solid #eee;line-height:1.35;font-size:0.8rem">
+            <div>
                 <strong>${d.nombre_docente}</strong>
-                <span style="background:${tipo==='PA'?'#E3F2FD':'#F3E5F5'};
-                    color:${tipo==='PA'?'#1565C0':'#6A1B9A'};
-                    border-radius:0.3rem;padding:0 0.35rem;font-size:0.72rem">
-                    ${tipo}
-                </span>
-                <span style="color:#555">→</span>
+                <span style="color:var(--color-dim-gray)">(${tipo})</span> ·
                 <strong>${bloque.materia.nombre_materia}</strong>
                 <span style="color:var(--color-dim-gray)">[${g.nombre_grupo}]</span>
-                <span style="color:var(--color-dim-gray);font-size:0.75rem">
-                    · Disp: ${horasDisp}h · Asignadas: ${horasTotAsign}h · Ventanas estructurales: ${ventanasEstructurales}
-                </span>
+                <span style="color:var(--color-dim-gray);font-size:0.72rem">· ${horasDisp}h disp · ${horasTotAsign}h asig · ${ventanasEstructurales} vent.</span>
             </div>
-            <div style="color:${motivoColor};font-size:0.76rem;margin-top:0.3rem">
-                ${motivo}
-            </div>
+            <div style="color:${motivoColor};font-size:0.74rem;margin-top:0.1rem">${motivo}</div>
         </div>`;
     });
 
@@ -6519,7 +6635,7 @@ function mostrarPanelImposibles(bloquesImposibles, onConfirmar) {
             ni siquiera fuera de la disponibilidad declarada.
             Revisa la carga o disponibilidad del docente y regenera el horario para incluirlos.
         </p>
-        <div style="max-height:260px;overflow-y:auto">${rows}</div>
+        <div style="margin-top:0.5rem">${rows}</div>
         <div style="margin-top:1rem">
             <button id="btn_confirmar_imp"
                 style="background:#EF9A9A;border:none;padding:0.5rem 1.4rem;
@@ -6529,8 +6645,8 @@ function mostrarPanelImposibles(bloquesImposibles, onConfirmar) {
             </button>
         </div>`;
 
-    const ancla = document.getElementById('seccion_desglose') || document.body;
-    ancla.before(panel);
+    const caja = document.getElementById('span_error') || document.body;
+    caja.appendChild(panel);
 
     panel.querySelector('#btn_confirmar_imp').onclick = () => {
         panel.remove();
@@ -6551,10 +6667,8 @@ function mostrarPanelExpansion(necesidades, onAplicar) {
     const panel = document.createElement('div');
     panel.id = 'panel_expansion_dias';
     panel.style.cssText = `
-        margin:1.5rem 3rem; background:#fff;
-        border:2px solid var(--color-yellow); border-radius:1rem;
-        padding:1.5rem; font-family:var(--font-roboto-mono); font-size:0.85rem;
-        box-shadow:0 4px 16px rgba(0,0,0,0.08);
+        margin-top:1rem; background:transparent; padding:0; box-sizing:border-box;
+        font-family:var(--font-roboto-mono); font-size:0.85rem;
     `;
 
     let rows = '';
@@ -6589,7 +6703,7 @@ function mostrarPanelExpansion(necesidades, onAplicar) {
             Selecciona los docentes a quienes deseas permitir un día extra y haz clic en
             <em>Reintentar</em>. Esta acción solo afecta a la generación actual.
         </p>
-        <div style="max-height:260px;overflow-y:auto">${rows}</div>
+        <div style="margin-top:0.5rem">${rows}</div>
         <div style="margin-top:1rem;display:flex;gap:0.8rem;flex-wrap:wrap">
             <button id="btn_aplicar_exp"
                 style="background:var(--color-yellow);border:none;padding:0.5rem 1.4rem;
@@ -6606,8 +6720,8 @@ function mostrarPanelExpansion(necesidades, onAplicar) {
         </div>`;
 
     // Insertar justo antes del desglose (o al final del body si no existe)
-    const ancla = document.getElementById('seccion_desglose') || document.body;
-    ancla.before(panel);
+    const caja = document.getElementById('span_error') || document.body;
+    caja.appendChild(panel);
 
     panel.querySelector('#btn_aplicar_exp').onclick = () => {
         const aprobados = new Set();
