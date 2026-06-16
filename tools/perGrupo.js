@@ -12,11 +12,12 @@ const d = cargarDatos(process.argv[2], process.argv[3]);
 const ven = { matutino: [7, 16], vespertino: [12, 21] };
 
 const setDe = (p) => { const s = new Set(); const dd = d.docentes[p].disponibilidad; for (const k in dd) for (const h of dd[k]) s.add(k + ':' + h); return s; };
-const inter = (profs) => { const sets = profs.map(setDe); return [...sets[0]].filter((x) => sets.every((s) => s.has(x))); };
-const forced = {
-  2: inter(['Profe ingles 1', 'Profe ingles 2', 'Profe ingles 3']),
-  5: inter(['Profe ingles 4', 'Daniela Placido Soriano', 'Profe ingles 5']),
-};
+const inter = (profs) => { if (!profs.length) return []; const sets = profs.map(setDe); return [...sets[0]].filter((x) => sets.every((s) => s.has(x))); };
+// Slots forzados por cuatrimestre = intersección de la disponibilidad de SUS docentes de inglés
+// sincronizado, derivados de los datos (no hardcodeados).
+const forced = {};
+{ const porC = {}; for (const c of d.cargas) if (c.sync) { const k = +c.sync.split('|')[1]; (porC[k] = porC[k] || new Set()).add(c.docente); }
+  for (const k in porC) forced[k] = inter([...porC[k]]); }
 const aDisp = (slots) => { const disp = {}; for (const x of slots) { const [k, h] = x.split(':').map(Number); (disp[k] || (disp[k] = [])).push(h); } return disp; };
 
 for (const g of Object.keys(d.grupos).sort()) {
