@@ -127,21 +127,11 @@
             align-items: center;
         }
 
+        /* main base — el layout en 2 columnas (line 619) sobreescribe estas reglas. */
         main{
-            width: 100%;
-            height: 93dvh;
-            display: grid;
-            grid-template-rows: repeat(10, 1fr);
-            grid-template-columns: repeat(13, 1fr);
             background-color: var(--color-ghost-white);
             padding: 0;
             margin: 0;
-        }
-
-        /* Se activa por JS cuando el contenido de #span_error desborda */
-        main.error-expandido {
-            height: auto;
-            grid-template-rows: repeat(7, 9.3dvh) 37dvh 37dvh 9.3dvh;
         }
 
         main img{
@@ -261,15 +251,12 @@
 
         .span_error{
             width: 100%;
-            height: 100%;
-            grid-area: 8/2/10/13;
             font-size: 1.2rem;
             color: var(--color-black);
             font-weight: bold;
 
             background-color: #ffffff;
             border: 2px solid var(--color-tomato);
-            border-radius: 1rem;
             padding: 1rem;
             box-sizing: border-box;
 
@@ -753,12 +740,11 @@
                 <span>Disponibilidades</span>
             </label>
             <button class="button_accion" id="button_accion">Generar horarios</button>
-            <button class="button_accion" id="button_csp" title="Valida y resuelve con el solver de restricciones (beta)">Motor CSP (beta)</button>
             <button id="button_reset_aprendizaje" disabled style="opacity:0.4">Sin aprendizaje</button>
         </main>
 
         <div class="panel-info">
-            <div class="span_error" id="span_error"></div>
+            <div class="span_error" id="span_error" style="color:var(--color-dim-gray);font-weight:normal">⌛ Esperando archivos: <strong>Carga Académica</strong> y <strong>Disponibilidades</strong>.</div>
 
             <section id="seccion_desglose">
                 <h2>Desglose · Grupo &mdash; Materia &mdash; Horas</h2>
@@ -774,9 +760,6 @@
                 <div class="horario-tabla-wrap" id="horario_tabla_wrap"></div>
             </section>
 
-            <section id="seccion_csp">
-                <div id="csp_resultado"></div>
-            </section>
         </div>
 
     </div>
@@ -801,6 +784,9 @@
     <script>
         // ── Detección de contexto: Worker vs hilo principal ──────────────────────
         const IS_WORKER = typeof document === 'undefined';
+
+        // Wrapper de compatibilidad: rand() = Math.random() (sin sistema de semillas).
+        function rand() { return Math.random(); }
 
         const diasSemana = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
 let MAPA_DOCENTES = new Map(), MAPA_GRUPOS = new Map(), PLANTILLAS_MATERIAS = [];
@@ -902,9 +888,18 @@ function esIngles(b) {
  *  con límite 1 sería matemáticamente incompletable. El coordinador permite
  *  hasta 3h de inglés el mismo día (todas juntas, p.ej. 7:00-9:00) cuando la
  *  disponibilidad del docente está concentrada en pocos días → límite 3.
+ *  Tutorías se splittean en bloques de 1h por carga → necesitan 2/día para
+ *  caber sin colgar piezas (mismo patrón que inglés 1-7).
  *  Las demás materias (incluido inglés 8/9) conservan el límite duro de 1. */
+function esTutoria(b) {
+    const nm = b.materia.nombre_materia.toUpperCase()
+        .normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return nm.includes("TUTORIA");
+}
 function maxSesionesPorDia(b) {
-    return esIngles(b) ? 3 : 1;
+    if (esIngles(b))  return 3;
+    if (esTutoria(b)) return 2;
+    return 1;
 }
 
 // ─── Paleta de colores por materia (Excel + vista desglose) ────────────────
@@ -995,7 +990,7 @@ class Grupo {
     constructor(n, t) { this.nombre_grupo = n.trim(); this.turno = t.toLowerCase(); this.bloques = []; this.reset(); }
     reset() {
         this.horario = {}; this.sesionesDia = {};
-        this.baseHoras = (this.turno === "matutino") ? [7,8,9,10,11,12,13,14,15] : [12,13,14,15,16,17,18,19,20];
+        this.baseHoras = (this.turno === "matutino") ? [7,8,9,10,11,12,13,14,15,16] : [12,13,14,15,16,17,18,19,20];
         diasSemana.forEach(d => {
             this.horario[d] = {};
             this.sesionesDia[d] = {};
@@ -1141,14 +1136,17 @@ function parsearCargaAcademica(wb) {
             // materia de 7h en [2,2,2,1] (necesitaría 4 días) → usa sesiones más
             // largas. Tablas del método tradicional validado:
             //   2 días: 7→[4,3]   6→[3,3]   5→[3,2]   4→[2,2] 3→[2,1] 2→[1,1]
-            //   3 días: 7→[3,2,2] 6→[2,2,2] 5→[2,2,1] 4→[2,2] 3→[2,1] 2→[1,1]
+            //   3 días: 7→[3,2,2] 6→[2,2,2] 5→[3,2]   4→[2,2] 3→[2,1] 2→[1,1]
             //   4+días: 7→[2,2,2,1] (resto igual que 3 días)
+            // Nota: 5h usa [3,2] (no [2,2,1]) en TODAS las tablas — la pieza de 1h
+            // suelta es el patrón #1 de horas faltantes; [3,2] cae en 2 días con
+            // bloques de 2-3h y elimina el problema estructuralmente.
             const diasDoc = d.tipo_docente === 2 ? d.maxDias : 5;
             const TABLA = diasDoc <= 2
-                ? { 7:[4,3],     6:[3,3],   5:[3,2],   4:[2,2], 3:[2,1], 2:[1,1], 1:[1] }
+                ? { 7:[4,3],     6:[3,3],   5:[3,2], 4:[2,2], 3:[2,1], 2:[1,1], 1:[1] }
                 : diasDoc === 3
-                ? { 7:[3,2,2],   6:[2,2,2], 5:[2,2,1], 4:[2,2], 3:[2,1], 2:[1,1], 1:[1] }
-                : { 7:[2,2,2,1], 6:[2,2,2], 5:[2,2,1], 4:[2,2], 3:[2,1], 2:[1,1], 1:[1] };
+                ? { 7:[3,2,2],   6:[2,2,2], 5:[3,2], 4:[2,2], 3:[2,1], 2:[1,1], 1:[1] }
+                : { 7:[2,2,2,1], 6:[2,2,2], 5:[3,2], 4:[2,2], 3:[2,1], 2:[1,1], 1:[1] };
             if (TABLA[h]) {
                 desglose = [...TABLA[h]];
             } else {
@@ -1224,6 +1222,27 @@ function actualizarEstado() {
     }
 }
 
+// ── Whitelist persistente de docentes con expansión por densidad ─────────────
+// El usuario marca manualmente qué docentes pueden subir días cuando la regla
+// de densidad lo pide. Se guarda en localStorage entre recargas.
+const WHITELIST_DENSIDAD_KEY = 'whitelist_densidad_v1';
+function obtenerWhitelistDensidad() {
+    try {
+        const raw = localStorage.getItem(WHITELIST_DENSIDAD_KEY);
+        if (!raw) return new Set();
+        return new Set(JSON.parse(raw));
+    } catch { return new Set(); }
+}
+function guardarWhitelistDensidad(set) {
+    try { localStorage.setItem(WHITELIST_DENSIDAD_KEY, JSON.stringify([...set])); }
+    catch {}
+}
+function toggleWhitelistDensidad(nombre, marcado) {
+    const wl = obtenerWhitelistDensidad();
+    if (marcado) wl.add(nombre); else wl.delete(nombre);
+    guardarWhitelistDensidad(wl);
+}
+
 // ── FASE 1: Determinar maxDias por docente ────────────────────────────────────
 // Contrasta la carga del docente con su disponibilidad real para decidir cuántos
 // días usará el algoritmo en la iteración (Fase 2).
@@ -1231,6 +1250,9 @@ function actualizarEstado() {
 // holgura sobre la carga media diaria, se suma 1 día más (hasta el tope).
 //   Ejemplo Abner 17h PA, disp=[10,5,5,4]:
 //     maxDias=3 → peorDia=5, cargaMedia=⌈17/3⌉=6 → 5<7 → maxDias=4 ✓
+// Si dispEfectiva está calculada (post-placas-inglés), también se aplica la
+// regla de densidad: díasMín = ⌈carga / dispPromDía × 1.20⌉ — la holgura del
+// 20% compensa la fragmentación por bloques de 2h y conflictos de grupo.
 function calcularDiasDocentes() {
     MAPA_DOCENTES.forEach(d => {
         // Partir siempre del valor base calculado por carga académica
@@ -1256,11 +1278,69 @@ function calcularDiasDocentes() {
             if (peorDia >= cargaMedia + 1) break;
             d.maxDias++;
         }
+
+        // Regla de densidad post-inglés: si las placas de inglés robaron mucha
+        // disponibilidad, exigir más días aunque exceda el tope institucional.
+        // Solo se aplica si dispEfectiva ya fue calculada (post-preAsignarInglés)
+        // Y el docente está en la lista blanca (decisión manual del usuario).
+        const whitelistDens = obtenerWhitelistDensidad();
+        if (d.dispEfectiva != null && diasConDisp > 0 && whitelistDens.has(d.nombre_docente)) {
+            const HOLGURA = 1.20; // 20% para bloques de 2h + colisiones de grupo
+            const dispPromDia = d.dispEfectiva / diasConDisp;
+            if (dispPromDia > 0) {
+                const diasMin = Math.ceil(d.horas_carga / dispPromDia * HOLGURA);
+                const nuevo = Math.min(diasMin, diasConDisp);
+                if (nuevo > d.maxDias) {
+                    console.log(`📌 ${d.nombre_docente}: ${d.maxDias}→${nuevo} días por densidad ` +
+                        `(carga ${d.horas_carga}h / dispEf ${d.dispEfectiva}h en ${diasConDisp} días)`);
+                    d.maxDias = nuevo;
+                }
+            }
+        }
     });
 
     // Docentes de inglés: sin restricción de días
     MAPA_DOCENTES.forEach(d => {
         if (d.esDocenteIngles) d.maxDias = diasSemana.length;
+    });
+}
+
+// Tras colocar las placas de inglés, recalcula la disponibilidad EFECTIVA de cada
+// docente no-inglés: ventanas donde declaró disponibilidad PERO al menos uno de sus
+// grupos ya tiene una placa de inglés ocupándola se descuentan. El resultado alimenta
+// la regla de densidad en calcularDiasDocentes() — un PA con disp aparente de 39h pero
+// con 7h robadas por inglés se trata como dispEfectiva=32h.
+function calcularDispEfectivaPostIngles() {
+    // Mapear docente → grupos que enseña (uno solo recorrido)
+    const gruposDeDoc = new Map();
+    MAPA_DOCENTES.forEach(d => gruposDeDoc.set(d, new Set()));
+    MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => {
+        if (gruposDeDoc.has(b.docente)) gruposDeDoc.get(b.docente).add(g);
+    }));
+
+    MAPA_DOCENTES.forEach(d => {
+        d.dispEfectiva = null;
+        if (d.esDocenteIngles || d.horas_carga === 0) return;
+        const grupos = gruposDeDoc.get(d);
+        if (!grupos || grupos.size === 0) return;
+
+        let total = 0, bloqueados = 0;
+        diasSemana.forEach(dia => {
+            d.disponibilidad[dia].forEach(h => {
+                total++;
+                // Bloqueado si ALGÚN grupo del docente ya tiene inglés en (día, hora):
+                // refleja que la placa de inglés "roba" capacidad real para sus grupos
+                // sincronizados, aunque otro grupo del docente quede libre.
+                let algunoConIngles = false;
+                for (const g of grupos) {
+                    const occ = g.horario[dia][h];
+                    if (occ && esIngles(occ)) { algunoConIngles = true; break; }
+                }
+                if (algunoConIngles) bloqueados++;
+            });
+        });
+        d.dispEfectiva = total - bloqueados;
+        d.dispTotal    = total;
     });
 }
 
@@ -1358,6 +1438,32 @@ function mostrarDesglose() {
         ${totalGrupos} grupos &nbsp;·&nbsp; ${totalHrsGlobal} horas totales asignadas
     </p>`;
 
+    // Panel: lista blanca de PAs con expansión por densidad (persistente)
+    const wl = obtenerWhitelistDensidad();
+    const pas = [];
+    MAPA_DOCENTES.forEach(d => {
+        if (d.tipo_docente === 2 && d.horas_carga > 0) pas.push(d);
+    });
+    pas.sort((a, b) => a.nombre_docente.localeCompare(b.nombre_docente));
+    if (pas.length > 0) {
+        html += `<details style="margin:0 0 1rem;border:2px solid var(--color-black,#221F20);background:#FFF8E0;padding:0.6rem 0.8rem;box-shadow:4px 4px 0 var(--color-black,#221F20);border-radius:4px">
+            <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem">
+                ⚙️ Docentes con expansión por densidad
+                <span style="color:var(--color-dim-gray);font-weight:normal;font-size:0.78rem">
+                    (${wl.size} marcados · permite subir días si la disponibilidad efectiva lo exige)
+                </span>
+            </summary>
+            <div style="margin-top:0.5rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0.3rem 0.8rem;font-size:0.82rem">`;
+        pas.forEach(d => {
+            const checked = wl.has(d.nombre_docente) ? 'checked' : '';
+            html += `<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer">
+                <input type="checkbox" ${checked} data-doc="${d.nombre_docente.replace(/"/g, '&quot;')}" class="chk-densidad">
+                <span>${d.nombre_docente} <small style="color:var(--color-dim-gray)">(${d.horas_carga}h)</small></span>
+            </label>`;
+        });
+        html += `</div></details>`;
+    }
+
     html += `<table class="desglose-tabla">
         <thead>
             <tr>
@@ -1403,6 +1509,12 @@ function mostrarDesglose() {
 
     document.getElementById("desglose_contenido").innerHTML = html;
     document.getElementById("seccion_desglose").style.display = "block";
+    // Persistir cambios de la whitelist de densidad
+    document.querySelectorAll('#desglose_contenido .chk-densidad').forEach(chk => {
+        chk.addEventListener('change', e => {
+            toggleWhitelistDensidad(e.target.dataset.doc, e.target.checked);
+        });
+    });
     crearTabsHorarios();
 }
 
@@ -1422,6 +1534,7 @@ if (!IS_WORKER) {
             if (wbCarga && wbDisp) parsearTodo();
         });
     };
+
 }
 
 function horasAsignadasEnDia(grupo, dia) {
@@ -3436,7 +3549,7 @@ async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null, 
         }
 
         // ── Elegir tipo de movimiento (60% Tipo B dirigido, 40% Tipo A general) ─
-        const usarDirigido = fallidosSet.size > 0 && Math.random() < 0.60;
+        const usarDirigido = fallidosSet.size > 0 && rand() < 0.60;
 
         let bMover = null;
         let posActual = null;
@@ -3445,7 +3558,7 @@ async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null, 
         if (usarDirigido) {
             // Tipo B: buscar el docente de un bloque fallido y mover su bloque en otro grupo
             const fallidosArr = [...fallidosSet];
-            const bFallido = fallidosArr[Math.floor(Math.random() * fallidosArr.length)];
+            const bFallido = fallidosArr[Math.floor(rand() * fallidosArr.length)];
             const doc = bFallido.docente;
 
             // Encontrar el bloque del docente que ocupa un slot que bFallido necesita
@@ -3479,7 +3592,7 @@ async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null, 
                 if (posActual) {
                     const libres = slotsLibres(bMover, posActual);
                     if (libres.length > 0)
-                        destino = libres[Math.floor(Math.random() * libres.length)];
+                        destino = libres[Math.floor(rand() * libres.length)];
                 }
             }
         }
@@ -3488,12 +3601,12 @@ async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null, 
             // Tipo A: mover un bloque colocado aleatorio
             const colocados = getColocados();
             if (colocados.length === 0) { T *= ALPHA; continue; }
-            bMover    = colocados[Math.floor(Math.random() * colocados.length)];
+            bMover    = colocados[Math.floor(rand() * colocados.length)];
             posActual = encontrarPosicionBloque(bMover);
             if (!posActual) { T *= ALPHA; continue; }
             const libres = slotsLibres(bMover, posActual);
             if (libres.length === 0) { T *= ALPHA; continue; }
-            destino = libres[Math.floor(Math.random() * libres.length)];
+            destino = libres[Math.floor(rand() * libres.length)];
         }
 
         // ── Aplicar movimiento ──────────────────────────────────────────────────
@@ -3508,7 +3621,7 @@ async function recocidoSimulado(bloquesFallidos, tiempoLimiteMs, progFn = null, 
 
         // ── Criterio SA ────────────────────────────────────────────────────────
         const delta = energiaNueva - energiaActual;
-        if (delta < 0 || Math.random() < Math.exp(-delta / T)) {
+        if (delta < 0 || rand() < Math.exp(-delta / T)) {
             // Aceptar movimiento
             aceptados++;
             energiaActual = energiaNueva;
@@ -4429,7 +4542,7 @@ async function busquedaVecinoGrande(bloquesFallidos, tiempoLimiteMs, progFn = nu
 
         // Elegir bloque fallido y estrategia de vecindad (rotar entre las 3)
         const fallidosArr = [...fallidosSet];
-        const bFallido    = fallidosArr[Math.floor(Math.random() * fallidosArr.length)];
+        const bFallido    = fallidosArr[Math.floor(rand() * fallidosArr.length)];
         const vecindad    = estrategias[iter % estrategias.length](bFallido);
 
         if (vecindad.length <= 1) continue;
@@ -5289,6 +5402,38 @@ function _tagValidacion({ multiplicaciones, dobles, perdidos, disponibilidad }) 
 /** Compatibilidad: llamada al final del algoritmo sin tracking de fallidos. */
 function normalizarHorasMaterias() { validarYLimpiar([]); }
 
+/**
+ * Saneo "seguro" para usar al exportar.
+ * SOLO reconstruye los contadores derivados (sesionesDia, asignado, diasActivos)
+ * desde g.horario, que es la fuente única de verdad. NO borra ningún bloque
+ * del horario — preserva todas las colocaciones legítimas de las fases de
+ * reparación (BT, absorción, min-conflicts). El único efecto observable es
+ * matar los "fantasmas" de docente.asignado (Marco 5h hoja vs 4h grupo).
+ */
+function sanitizarSeguro() {
+    MAPA_GRUPOS.forEach(g => diasSemana.forEach(d => { g.sesionesDia[d] = {}; }));
+    MAPA_DOCENTES.forEach(d => {
+        diasSemana.forEach(dia => { d.asignado[dia] = {}; });
+        d.diasActivos = new Set();
+    });
+    MAPA_GRUPOS.forEach(g => {
+        diasSemana.forEach(dia => {
+            const yaContados = new Set();
+            g.baseHoras.forEach(h => {
+                const b = g.horario[dia][h];
+                if (!b) return;
+                b.docente.asignado[dia][h] = `${b.materia.nombre_materia} [${g.nombre_grupo}]`;
+                b.docente.diasActivos.add(dia);
+                if (!yaContados.has(b)) {
+                    yaContados.add(b);
+                    g.sesionesDia[dia][b.materia.nombre_materia] =
+                        (g.sesionesDia[dia][b.materia.nombre_materia] || 0) + 1;
+                }
+            });
+        });
+    });
+}
+
 // ── SA en islas: lanza N Workers con distintos parámetros T/α en paralelo ────
 // Cada isla explora el espacio de forma independiente desde el mismo punto de
 // arranque. El hilo principal toma el mejor resultado al finalizar todas las islas.
@@ -5338,7 +5483,7 @@ async function recocidoSimuladoIslas(bloquesFallidos, tiempoLimiteMs, progFn = n
 
 // ── RPA paralelo: N Workers exploran distintas fracciones de liberación en paralelo ──
 // Cada Worker parte del mismo snapshot óptimo pero usa un random diferente
-// (cada Worker tiene su propio estado de Math.random()), garantizando diversidad.
+// (cada Worker tiene su propio estado de rand()), garantizando diversidad.
 async function reinicioParcialAgresivoParalelo(bloquesFallidos, tiempoLimiteMs, progFn = null) {
     if (bloquesFallidos.length === 0) return [];
     if (!_workerUrl) return reinicioParcialAgresivo(bloquesFallidos, tiempoLimiteMs, progFn);
@@ -5390,13 +5535,21 @@ async function ejecutarAlgoritmoFinal() {
     // "invertir" = true → menos restringidos van primero
     const ESTRATEGIAS = [
         { ruido: 0,    invertir: false }, //  1: determinista
-        { ruido: 0.08, invertir: false }, //  2: micro-ruido
-        { ruido: 0.25, invertir: false }, //  3: leve-medio
-        { ruido: 0.5,  invertir: false }, //  4: agresivo
-        { ruido: 1.0,  invertir: false }, //  5: completamente aleatorio   ← élite desde aquí
-        { ruido: 0,    invertir: true  }, //  6: determinista invertido
-        { ruido: 0.3,  invertir: true  }, //  7: invertido medio
+        { ruido: 0.04, invertir: false }, //  2: nano-ruido
+        { ruido: 0.08, invertir: false }, //  3: micro-ruido
+        { ruido: 0.15, invertir: false }, //  4: leve
+        { ruido: 0.25, invertir: false }, //  5: leve-medio
+        { ruido: 0.40, invertir: false }, //  6: medio
+        { ruido: 0.50, invertir: false }, //  7: agresivo                  ← élite desde aquí
         { ruido: 0.75, invertir: false }, //  8: casi-aleatorio
+        { ruido: 1.0,  invertir: false }, //  9: completamente aleatorio
+        { ruido: 0,    invertir: true  }, // 10: determinista invertido
+        { ruido: 0.08, invertir: true  }, // 11: micro invertido
+        { ruido: 0.25, invertir: true  }, // 12: leve invertido
+        { ruido: 0.50, invertir: true  }, // 13: agresivo invertido
+        { ruido: 0.75, invertir: true  }, // 14: casi-aleatorio invertido
+        { ruido: 1.0,  invertir: true  }, // 15: aleatorio invertido
+        { ruido: 0.30, invertir: false }, // 16: medio-bajo
     ];
     const N_STARTS = ESTRATEGIAS.length;
     const errDiv   = document.getElementById("span_error");
@@ -5433,11 +5586,16 @@ async function ejecutarAlgoritmoFinal() {
     });
     MAPA_DOCENTES.forEach(d => d.reset());
 
-    // ── Fase 1: determinar maxDias de cada docente antes de iterar ────────────
-    calcularDiasDocentes();
-
+    // ── Orden crítico: placas de inglés PRIMERO ───────────────────────────────
+    // 1) Colocar inglés (fijo, inamovible para todo el run).
+    // 2) Recalcular disponibilidad EFECTIVA de cada docente descontando ventanas
+    //    robadas por las placas.
+    // 3) Determinar maxDias con la regla de densidad post-inglés (los PAs con
+    //    disponibilidad robada ganan días automáticamente).
     const inglesGlobalFijados = preAsignarInglesSimultaneo(); // ← única ejecución
     const snapInglesGlobal    = tomarSnapshot();              // ← posiciones fijas
+    calcularDispEfectivaPostIngles();
+    calcularDiasDocentes();
 
     // Mostrar qué aprendizaje hay activo antes de empezar
     {
@@ -5816,7 +5974,7 @@ function calcularFitness(noAsignadosCount) {
 /** Fisher-Yates in-place shuffle. */
 function shuffleArray(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
-        let j = Math.floor(Math.random() * (i + 1));
+        let j = Math.floor(rand() * (i + 1));
         [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;
@@ -5826,8 +5984,8 @@ function shuffleArray(arr) {
 function shuffleConRuido(arr, ruido) {
     let swaps = Math.floor(arr.length * ruido);
     for (let i = 0; i < swaps; i++) {
-        let a = Math.floor(Math.random() * arr.length);
-        let b = Math.floor(Math.random() * arr.length);
+        let a = Math.floor(rand() * arr.length);
+        let b = Math.floor(rand() * arr.length);
         [arr[a], arr[b]] = [arr[b], arr[a]];
     }
     return arr;
@@ -5837,8 +5995,8 @@ function shuffleConRuido(arr, ruido) {
  *  Garantiza que cada índice aparezca exactamente una vez. */
 function crossoverOX(padreA, padreB) {
     let n = padreA.length;
-    let i = Math.floor(Math.random() * n);
-    let j = Math.floor(Math.random() * n);
+    let i = Math.floor(rand() * n);
+    let j = Math.floor(rand() * n);
     if (i > j) [i, j] = [j, i];
     let hijo = new Array(n).fill(-1);
     let enSegmento = new Set();
@@ -5853,8 +6011,8 @@ function crossoverOX(padreA, padreB) {
 function mutar(cromosoma, tasa) {
     let c = cromosoma.slice();
     for (let i = 0; i < c.length; i++) {
-        if (Math.random() < tasa) {
-            let j = Math.floor(Math.random() * c.length);
+        if (rand() < tasa) {
+            let j = Math.floor(rand() * c.length);
             [c[i], c[j]] = [c[j], c[i]];
         }
     }
@@ -5865,7 +6023,7 @@ function mutar(cromosoma, tasa) {
 function seleccionTorneo(evaluados, k = 3) {
     let mejor = null;
     for (let i = 0; i < k; i++) {
-        let c = evaluados[Math.floor(Math.random() * evaluados.length)];
+        let c = evaluados[Math.floor(rand() * evaluados.length)];
         if (!mejor || c.fitness < mejor.fitness) mejor = c;
     }
     return mejor.crom;
@@ -6757,6 +6915,257 @@ function mostrarPanelExpansion(necesidades, onAplicar) {
  * @param {string}   prefijo          – texto para iniciar el mensaje (e.g. "AG en 34s. ")
  * @param {Function} onDone           – callback sin argumentos, llamado al terminar
  */
+
+/**
+ * BT acotado con desplazamiento (Opción C, modo determinista).
+ * Para cada bloque incompleto, enumera TODOS los slots de su dominio. Si el slot
+ * tiene ocupantes desplazables (no preAsignado, no inglés), los retira, coloca
+ * el bloque ahí y recursivamente intenta reubicar a los desplazados (profundidad
+ * limitada). A diferencia de CSP residual (solo huecos), este sí mueve ya-colocados
+ * para abrir espacio. Es lo que el caso Horacio-2c necesita: las 2h libres están
+ * en slots ocupados por otras materias móviles. Presupuesto: 15s.
+ */
+function intentarBTDesplazamiento(incompletos, presupuestoMs = 15000) {
+    if (!incompletos || incompletos.length === 0) return false;
+    const tIni = Date.now();
+    const horasAntes = contarHorasColocadasTotales();
+    const snapInicial = tomarSnapshot();
+    const DEPTH_MAX = 5;
+
+    function tryPlace(b, depth) {
+        if (Date.now() - tIni > presupuestoMs) return false;
+        if (b.preAsignado || esIngles(b)) return false;
+        const g = b.grupo, d = b.docente, nm = b.materia.nombre_materia;
+        // Si ya está colocado completo, listo
+        let yaColocadas = 0;
+        for (const dia of diasSemana)
+            for (const h of g.baseHoras)
+                if (g.horario[dia][h] === b) yaColocadas++;
+        if (yaColocadas >= b.duracion) return true;
+
+        const baseSet = new Set(g.baseHoras);
+        // Enumerar slots candidatos del dominio (con o sin desplazamiento)
+        const cands = [];
+        for (const dia of diasSemana) {
+            const disp = d.disponibilidad[dia];
+            if (!disp || disp.size === 0) continue;
+            if ((g.sesionesDia[dia]?.[nm] || 0) >= maxSesionesPorDia(b)) continue;
+            if (d.tipo_docente === 2 && !d.diasActivos.has(dia)
+                && d.diasActivos.size >= d.maxDias) continue;
+            for (const hInicio of g.baseHoras) {
+                let ok = true;
+                const ocupantes = [];
+                for (let h = hInicio; h < hInicio + b.duracion; h++) {
+                    if (!baseSet.has(h))                { ok = false; break; }
+                    if (!disp.has(h))                   { ok = false; break; }
+                    // Docente ocupado en otro grupo a esa hora: no se puede
+                    if (d.asignado[dia][h])             { ok = false; break; }
+                    const occ = g.horario[dia][h];
+                    if (occ === b) continue;
+                    if (occ) {
+                        if (occ.preAsignado || esIngles(occ)) { ok = false; break; }
+                        if (!ocupantes.includes(occ)) ocupantes.push(occ);
+                    }
+                }
+                if (ok) cands.push({ dia, hInicio, ocupantes });
+            }
+        }
+        // Probar huecos vacíos antes que slots a desplazar
+        cands.sort((a, b) => a.ocupantes.length - b.ocupantes.length);
+
+        for (const c of cands) {
+            if (Date.now() - tIni > presupuestoMs) return false;
+            if (c.ocupantes.length === 0) {
+                if (intentarAsignar(b, false, true, false, false)) return true;
+                continue;
+            }
+            if (depth <= 0) continue;
+            // Desplazar y recurrir
+            const snap = tomarSnapshot();
+            const posiciones = c.ocupantes.map(occ => ({ occ, pos: encontrarPosicionBloque(occ) }));
+            for (const x of posiciones) if (x.pos) quitarAsignacion(x.occ.grupo, x.occ, x.pos.dia, x.pos.hInicio);
+
+            if (intentarAsignar(b, false, true, false, false)) {
+                let allOk = true;
+                for (const occ of c.ocupantes) {
+                    if (!tryPlace(occ, depth - 1)) { allOk = false; break; }
+                }
+                if (allOk) return true;
+            }
+            restaurarSnapshot(snap);
+        }
+        return false;
+    }
+
+    for (const b of incompletos) {
+        if (Date.now() - tIni > presupuestoMs) break;
+        tryPlace(b, DEPTH_MAX);
+    }
+
+    const horasDespues = contarHorasColocadasTotales();
+    if (horasDespues > horasAntes) {
+        console.log(`[BT desplazamiento] ${incompletos.length} incompletos · +${horasDespues - horasAntes}h en ${Date.now() - tIni}ms`);
+        return true;
+    }
+    restaurarSnapshot(snapInicial);
+    return false;
+}
+
+/**
+ * Re-split por absorción (Opción 1).
+ * Cuando queda un bloque de 1h colgado (no cabe), intenta ABSORBERLO en una
+ * pieza hermana de 2h+ de la MISMA carga (mismo grupo+materia+docente) ya
+ * colocada. Hermana 2h + colgada 1h = nuevo 3h (si el slot adyacente está libre).
+ * Si no cabe el 3h, deshace todo. Soluciona el patrón "[2,2,1] con 1 colgado".
+ */
+function intentarAbsorber1h(incompletos) {
+    if (!incompletos || incompletos.length === 0) return false;
+    let ganancia = 0;
+    for (const b of incompletos) {
+        if (b.duracion !== 1 || b.preAsignado || esIngles(b)) continue;
+        const g = b.grupo, d = b.docente, nm = b.materia.nombre_materia;
+        // Hermana: misma carga, duracion >= 2, ya colocada
+        const hermana = g.bloques.find(x =>
+            x !== b && !x.preAsignado &&
+            x.docente === d && x.materia.nombre_materia === nm &&
+            x.duracion >= 2 && encontrarPosicionBloque(x));
+        if (!hermana) continue;
+        const posH = encontrarPosicionBloque(hermana);
+        if (!posH) continue;
+        // Intentar extender la hermana por 1h en alguna dirección
+        const snap = tomarSnapshot();
+        const snapEst = tomarSnapshotEstructura();
+        const durOrig = hermana.duracion;
+        const opciones = [];
+        const hAntes = posH.hInicio - 1;
+        const hDespues = posH.hInicio + durOrig;
+        if (g.baseHoras.includes(hAntes))
+            opciones.push({ inicio: hAntes, dur: durOrig + 1 });
+        if (g.baseHoras.includes(hDespues))
+            opciones.push({ inicio: posH.hInicio, dur: durOrig + 1 });
+
+        let ok = false;
+        for (const op of opciones) {
+            // Slot adyacente libre (en grupo y docente) y disp del docente
+            let libre = true;
+            const baseSet = new Set(g.baseHoras);
+            for (let h = op.inicio; h < op.inicio + op.dur; h++) {
+                if (!baseSet.has(h))                              { libre = false; break; }
+                if (!d.disponibilidad[op.inicio === posH.hInicio ? posH.dia : posH.dia].has(h)) { libre = false; break; }
+                const occ = g.horario[posH.dia][h];
+                if (occ && occ !== hermana)                       { libre = false; break; }
+                if (d.asignado[posH.dia][h] && g.horario[posH.dia][h] !== hermana) { libre = false; break; }
+            }
+            if (!libre) continue;
+            quitarAsignacion(g, hermana, posH.dia, posH.hInicio);
+            hermana.duracion = op.dur;
+            if (intentarAsignar(hermana, false, true, false, false)) {
+                // Eliminar el bloque b colgado del grupo
+                g.bloques = g.bloques.filter(x => x !== b);
+                if (Array.isArray(_wBArr) && b._wi != null) _wBArr[b._wi] = null;
+                ok = true;
+                ganancia++;
+                console.log(`[absorber 1h] ${nm} [${g.nombre_grupo}] — ${d.nombre_docente}: ${durOrig}h→${op.dur}h, +1h ✓`);
+                break;
+            }
+            hermana.duracion = durOrig;
+            restaurarSnapshot(snap);
+            restaurarSnapshotEstructura(snapEst);
+        }
+        if (!ok) {
+            restaurarSnapshot(snap);
+            restaurarSnapshotEstructura(snapEst);
+        }
+    }
+    return ganancia > 0;
+}
+
+/**
+ * Min-conflicts (Opción 2).
+ * Para cada bloque incompleto, busca el slot con MENOS bloques móviles que
+ * tendría que desplazar (conflicts count). Mueve ahí + desplaza ocupantes
+ * + intenta reubicarlos en el slot menos conflictivo del propio dominio.
+ * A diferencia del BT recursivo, no enumera profundidad; usa la heurística
+ * "menor conflicto" como guía determinista. Itera hasta convergencia o tope.
+ */
+function intentarMinConflicts(presupuestoMs = 10000, maxIter = 100) {
+    const tIni = Date.now();
+    const horasAntes = contarHorasColocadasTotales();
+    const snapPrev = tomarSnapshot();
+
+    function slotConflicts(b, dia, hInicio) {
+        const g = b.grupo, d = b.docente;
+        const disp = d.disponibilidad[dia];
+        if (!disp || !disp.size) return -1;
+        if ((g.sesionesDia[dia]?.[b.materia.nombre_materia] || 0) >= maxSesionesPorDia(b)) return -1;
+        const baseSet = new Set(g.baseHoras);
+        const ocupantes = new Set();
+        for (let h = hInicio; h < hInicio + b.duracion; h++) {
+            if (!baseSet.has(h))                return -1;
+            if (!disp.has(h))                   return -1;
+            if (d.asignado[dia][h])             return -1;
+            const occ = g.horario[dia][h];
+            if (occ === b) continue;
+            if (occ) {
+                if (occ.preAsignado || esIngles(occ)) return -1;
+                ocupantes.add(occ);
+            }
+        }
+        return ocupantes.size;
+    }
+
+    for (let iter = 0; iter < maxIter; iter++) {
+        if (Date.now() - tIni > presupuestoMs) break;
+        const incompletos = (function() {
+            const set = new Set();
+            MAPA_GRUPOS.forEach(g => g.bloques.forEach(b => {
+                if (b.preAsignado) return;
+                let n = 0;
+                diasSemana.forEach(dia => g.baseHoras.forEach(h => { if (g.horario[dia][h] === b) n++; }));
+                if (n < b.duracion) set.add(b);
+            }));
+            return [...set].filter(b => !esIngles(b));
+        })();
+        if (incompletos.length === 0) break;
+
+        let movido = false;
+        for (const b of incompletos) {
+            let mejor = null, mejorC = Infinity;
+            for (const dia of diasSemana) {
+                for (const hInicio of b.grupo.baseHoras) {
+                    const c = slotConflicts(b, dia, hInicio);
+                    if (c < 0) continue;
+                    if (c < mejorC) { mejorC = c; mejor = { dia, hInicio }; }
+                }
+            }
+            if (!mejor) continue;
+            if (mejorC === 0) {
+                if (intentarAsignar(b, false, true, false, false)) { movido = true; continue; }
+            } else {
+                const snap = tomarSnapshot();
+                // Desplazar ocupantes
+                for (let h = mejor.hInicio; h < mejor.hInicio + b.duracion; h++) {
+                    const occ = b.grupo.horario[mejor.dia][h];
+                    if (occ && occ !== b && !occ.preAsignado && !esIngles(occ)) {
+                        const pos = encontrarPosicionBloque(occ);
+                        if (pos) quitarAsignacion(occ.grupo, occ, pos.dia, pos.hInicio);
+                    }
+                }
+                if (intentarAsignar(b, false, true, false, false)) { movido = true; }
+                else restaurarSnapshot(snap);
+            }
+        }
+        if (!movido) break;
+    }
+    const horasDespues = contarHorasColocadasTotales();
+    if (horasDespues > horasAntes) {
+        console.log(`[min-conflicts] +${horasDespues - horasAntes}h en ${Date.now() - tIni}ms`);
+        return true;
+    }
+    restaurarSnapshot(snapPrev);
+    return false;
+}
+
 function manejarFallos(bloquesFallidos, errDiv, prefijo, onDone) {
 
     // ── Paso final: exportar y mostrar estado ────────────────────────────────
@@ -6888,6 +7297,9 @@ function manejarFallos(bloquesFallidos, errDiv, prefijo, onDone) {
 
     function exportarYListo(msg, color) {
         aplicarMonotonia(); // red de seguridad (no-op si ya se aplicó antes del panel)
+        // Saneo seguro: reconcilia docente.asignado contra g.horario (mata fantasmas
+        // de fases recientes) sin borrar colocaciones legítimas con relajaciones.
+        try { sanitizarSeguro(); } catch (e) { console.warn('[sanitizarSeguro]', e); }
         exportarExcel();
         // Re-renderizar el horario/panel "Clases del grupo" con el resultado YA
         // CONSOLIDADO: durante las fases de reparación (reconfigurarSesiones,
@@ -7013,6 +7425,21 @@ function manejarFallos(bloquesFallidos, errDiv, prefijo, onDone) {
                 });
             }
         }
+        // ── CSP residual completo (Opción 1): tras el CSP cluster al 95%, lanzar
+        // BT exhaustivo sobre los pocos bloques que aún faltan. Encuentra solución
+        // si existe; si no, prueba que es imposible. En modo determinista se da
+        // presupuesto extendido (30s) para garantizar exhaustividad sin reinicios
+        // aleatorios; en metaheurístico bastan 5s porque el azar suple cobertura.
+        {
+            const restantes = recolectarTodosIncompletos([]);
+            if (restantes.length > 0 && restantes.length <= 8) {
+                const horasA = contarHorasColocadasTotales();
+                if (intentarCSPResidual(restantes, 5000)) {
+                    const ganancia = contarHorasColocadasTotales() - horasA;
+                    _bitacoraCSP.push(`CSP residual: ${restantes.length} bloques · +${ganancia}h ✓`);
+                }
+            }
+        }
         // ── Último recurso: dividir en piezas de 1h los bloques que siguen
         // atascados tras el CSP (típico: necesitan 2h contiguas y el grupo,
         // ~97% lleno, solo tiene huecos sueltos de 1h en días distintos).
@@ -7129,34 +7556,132 @@ function manejarFallos(bloquesFallidos, errDiv, prefijo, onDone) {
         return false;
     }
 
+    // ── CSP residual completo (Opción 1): BT exhaustivo sobre los bloques
+    // todavía incompletos tras la 2ª pasada cluster. A diferencia del CSP
+    // de clusters (anytime al 95%), aquí se buscan TODAS las combinaciones
+    // posibles sobre un problema chico (≤8 bloques). Si encuentra solución
+    // garantiza completar; si no, prueba que no existe con los datos actuales.
+    // Respeta tope de tiempo (5s) para no congelar la UI; revierte si no mejora.
+    function intentarCSPResidual(restantes, presupuestoMs = 5000) {
+        const bloques = restantes.filter(b => !b.preAsignado && !esIngles(b));
+        if (bloques.length === 0 || bloques.length > 8) return false;
+
+        const horasAntes = contarHorasColocadasTotales();
+        const snapPrev   = tomarSnapshot();
+        const tIni       = Date.now();
+
+        // Slots factibles para `b` dado el estado actual + ocupados auxiliares
+        // (slots tomados por bloques previos del BT en esta misma corrida).
+        function slotsFeasibles(b, ocupadosAux) {
+            const g = b.grupo, d = b.docente, nm = b.materia.nombre_materia;
+            const out = [];
+            const baseSet = new Set(g.baseHoras);
+            for (const dia of diasSemana) {
+                const disp = d.disponibilidad[dia];
+                if (!disp || disp.size === 0) continue;
+                if ((g.sesionesDia[dia]?.[nm] || 0) >= maxSesionesPorDia(b)) continue;
+                // PA con tope de días: no abrir día nuevo si ya está al límite
+                if (d.tipo_docente === 2 && !d.diasActivos.has(dia)
+                    && d.diasActivos.size >= d.maxDias) continue;
+                for (const hInicio of g.baseHoras) {
+                    let ok = true;
+                    for (let h = hInicio; h < hInicio + b.duracion; h++) {
+                        if (!baseSet.has(h))                  { ok = false; break; }
+                        if (!disp.has(h))                     { ok = false; break; }
+                        if (g.horario[dia][h] !== null)       { ok = false; break; }
+                        if (d.asignado[dia][h])               { ok = false; break; }
+                        if (ocupadosAux.has(`G|${g.nombre_grupo}|${dia}|${h}`)) { ok = false; break; }
+                        if (ocupadosAux.has(`D|${d.nombre_docente}|${dia}|${h}`)) { ok = false; break; }
+                    }
+                    if (ok) out.push({ dia, hInicio });
+                }
+            }
+            return out;
+        }
+
+        // MRV: ordenar por # opciones iniciales (menor primero — fail-first)
+        const conSlots = bloques.map(b => ({ b, slots: slotsFeasibles(b, new Set()) }));
+        conSlots.sort((a, b) => a.slots.length - b.slots.length);
+        const ordenado = conSlots.map(x => x.b);
+
+        const ocupadosAux = new Set();
+        let mejorColocados = 0; // mejor parcial encontrado
+        const mejorPath    = [];
+        const pathActual   = [];
+        let agotado = false;
+
+        function dfs(idx) {
+            if (Date.now() - tIni > presupuestoMs) { agotado = true; return false; }
+            if (idx === ordenado.length) {
+                // Solución completa
+                if (pathActual.length > mejorColocados) {
+                    mejorColocados = pathActual.length;
+                    mejorPath.length = 0;
+                    mejorPath.push(...pathActual);
+                }
+                return true;
+            }
+            const b = ordenado[idx];
+            const slots = slotsFeasibles(b, ocupadosAux);
+
+            // Registrar mejor parcial actual (sin colocar este bloque)
+            if (pathActual.length > mejorColocados) {
+                mejorColocados = pathActual.length;
+                mejorPath.length = 0;
+                mejorPath.push(...pathActual);
+            }
+
+            for (const slot of slots) {
+                aplicarAsignacion(b.grupo, b, slot.dia, slot.hInicio, false);
+                const keys = [];
+                for (let h = slot.hInicio; h < slot.hInicio + b.duracion; h++) {
+                    keys.push(`G|${b.grupo.nombre_grupo}|${slot.dia}|${h}`);
+                    keys.push(`D|${b.docente.nombre_docente}|${slot.dia}|${h}`);
+                }
+                keys.forEach(k => ocupadosAux.add(k));
+                pathActual.push({ b, slot });
+
+                if (dfs(idx + 1)) return true;
+
+                keys.forEach(k => ocupadosAux.delete(k));
+                quitarAsignacion(b.grupo, b, slot.dia, slot.hInicio);
+                pathActual.pop();
+                if (agotado) return false;
+            }
+            // Probar "saltar" este bloque para hallar mejor parcial
+            if (idx + 1 < ordenado.length) {
+                if (dfs(idx + 1)) return true;
+            }
+            return false;
+        }
+
+        dfs(0);
+
+        // Reconstruir el mejor parcial encontrado (mejorPath puede estar revertido)
+        restaurarSnapshot(snapPrev);
+        for (const { b, slot } of mejorPath) {
+            aplicarAsignacion(b.grupo, b, slot.dia, slot.hInicio, false);
+        }
+
+        const horasDespues = contarHorasColocadasTotales();
+        if (horasDespues > horasAntes) {
+            console.log(`[CSP residual] colocó ${mejorPath.length}/${ordenado.length} bloques ` +
+                `(+${horasDespues - horasAntes}h, ${Date.now() - tIni}ms${agotado ? ', presupuesto agotado' : ', completo'})`);
+            return true;
+        }
+        restaurarSnapshot(snapPrev);
+        return false;
+    }
+
     // ── Fase 2: colocaciones FORZADAS ────────────────────────────────────────
+    // Desactivada por preferencia del usuario: la disponibilidad declarada se
+    // respeta de forma absoluta. Los bloques que no caben pasan directo a
+    // imposibles (sin panel de aprobación).
     function faseForzado(pendientes) {
         pendientes = recolectarTodosIncompletos(pendientes);
-        console.log(`[faseForzado] ${pendientes.length} bloque(s) incompletos:`,
+        console.log(`[faseForzado] ${pendientes.length} bloque(s) incompletos (forzados deshabilitados):`,
             pendientes.map(b => `${b.materia.nombre_materia} [${b.grupo.nombre_grupo}] — ${b.docente.nombre_docente} (${b.duracion}h)`));
-        if (pendientes.length === 0) { faseImposibles([]); return; }
-
-        const forzables  = [];
-        const imposibles = [];
-        pendientes.forEach(b => {
-            const slot = encontrarSlotForzado(b);
-            if (slot) forzables.push({ bloque: b, slot });
-            else      imposibles.push(b);
-        });
-
-        if (forzables.length === 0) { faseImposibles(imposibles); return; }
-
-        mostrarPanelForzado(forzables, aprobados => {
-            const aun_imposibles = [...imposibles];
-            forzables.forEach(({ bloque, slot }) => {
-                if (aprobados.has(bloque)) {
-                    aplicarAsignacion(bloque.grupo, bloque, slot.dia, slot.hInicio, true);
-                } else {
-                    aun_imposibles.push(bloque);
-                }
-            });
-            faseImposibles(aun_imposibles);
-        });
+        faseImposibles(pendientes);
     }
 
     // ── Helper: reintentar un bloque con todas las técnicas disponibles ─────────
@@ -7602,7 +8127,7 @@ function ejecutarMotorCSP() {
 }
 
 async function _correrMotorCSP(out) {
-    const ventanas = { matutino: [7, 16], vespertino: [12, 21] };
+    const ventanas = { matutino: [7, 17], vespertino: [12, 21] };
     const datos = construirDatosCSP();
     let html = ESTILO_CSP + `<div class="csp-box"><b>Motor CSP</b> · ${datos.cargas.length} cargas · ` +
         `${Object.keys(datos.docentes).length} docentes · ${Object.keys(datos.grupos).length} grupos</div>`;
@@ -7671,9 +8196,6 @@ if (!IS_WORKER) {
         if (cantBloques === 0) return alert("Por favor, carga una plantilla válida primero.");
         ejecutarAlgoritmoFinal();
     };
-
-    const _btnCSP = document.getElementById("button_csp");
-    if (_btnCSP) _btnCSP.onclick = ejecutarMotorCSP;
 
     document.getElementById("button_reset_aprendizaje").onclick = () => {
         resetearAprendizaje();
@@ -7972,6 +8494,7 @@ if (IS_WORKER) {
         const eliteBase = eliteBaseIdxs ? eliteBaseIdxs.map(i => bArr[i]).filter(Boolean) : null;
         const fallos = await construccionVorazCascada(null, ruido, null, invertir, eliteBase, inglesFixed);
 
+        // Incluir la semilla usada para reporte/replay en el hilo principal.
         self.postMessage(_serializar(fallos));
     };
 }
