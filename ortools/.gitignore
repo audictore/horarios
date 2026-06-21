@@ -1,0 +1,4 @@
+# Generados por el flujo (entrada/salida del solver) — no se versionan.
+datos_horarios.json
+*.xlsx
+__pycache__/
