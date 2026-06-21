@@ -5046,10 +5046,22 @@ async function planificarDocentesBottleneck(bloquesFallidos, progFn = null) {
         );
 
         if (mejor.asignacion) {
-            // 5. Aplicar la mejor asignación parcial (los null quedan sin colocar)
+            // 5. Aplicar la mejor asignación parcial (los null quedan sin colocar).
+            //    VALIDEZ inter-cluster: el backtrack evita solapes DENTRO del cluster (ocDoc),
+            //    pero como los clusters se resuelven por separado y un docente puede tocar
+            //    varios (vía obstáculos), una asignación podía pisar lo que otro cluster ya
+            //    colocó para ese docente → solape. Se verifica el estado REAL antes de aplicar
+            //    cada bloque: si el docente ya está ocupado o el slot del grupo está tomado, se
+            //    SALTA (la carga queda incompleta pero el tablero válido).
             for (let i = 0; i < bloquesOrd.length; i++) {
                 const pos = mejor.asignacion[i];
-                if (pos) aplicarAsignacion(bloquesOrd[i].grupo, bloquesOrd[i], pos.dia, pos.hInicio);
+                if (!pos) continue;
+                const bl = bloquesOrd[i];
+                let libre = true;
+                for (let h = pos.hInicio; h < pos.hInicio + bl.duracion; h++) {
+                    if (bl.docente.asignado[pos.dia][h] || bl.grupo.horario[pos.dia][h] !== null) { libre = false; break; }
+                }
+                if (libre) aplicarAsignacion(bl.grupo, bl, pos.dia, pos.hInicio);
             }
             // 6. Gate por HORAS: aceptar solo si el total colocado del tablero
             //    sube estrictamente (misma métrica que el trinquete global).
