@@ -6925,16 +6925,28 @@ function mostrarPanelExpansion(necesidades, onAplicar) {
  * para abrir espacio. Es lo que el caso Horacio-2c necesita: las 2h libres están
  * en slots ocupados por otras materias móviles. Presupuesto: 15s.
  */
-function intentarBTDesplazamiento(incompletos, presupuestoMs = 15000) {
+function intentarBTDesplazamiento(incompletos, presupuestoMs = 15000, agresivo = false) {
+    // `agresivo`: además de las materias móviles normales, permite REUBICAR los
+    // bloques PA pre-asignados (y el inglés 8/9, que no es sincronizado) para abrir
+    // hueco a las horas colgadas. Solo el inglés 1-7 sincronizado (esInglesFijo)
+    // permanece inamovible. Es el desbloqueo del óptimo local: los slots tardíos que
+    // el Inglés 8 necesita suelen estar tomados por otros PA pre-asignados.
     if (!incompletos || incompletos.length === 0) return false;
     const tIni = Date.now();
     const horasAntes = contarHorasColocadasTotales();
     const snapInicial = tomarSnapshot();
-    const DEPTH_MAX = 5;
+    // Sin tope artificial de profundidad: la cadena de desplazamientos se sigue HASTA
+    // que todo encaje. Lo que la mantiene finita y eficiente NO es un límite de niveles,
+    // sino el ANTI-CICLO: cada bloque se mueve como mucho una vez por cadena (un bloque
+    // que ya estamos reubicando no puede ser desplazado de nuevo), así que la cadena nunca
+    // supera el nº de bloques movibles y nunca gira en círculos. El único corte es el reloj.
+    const DEPTH_MAX = 100000;
 
-    function tryPlace(b, depth) {
+    // `cadena` = bloques que ya forman parte de la cascada de reubicación en curso.
+    function tryPlace(b, depth, cadena) {
         if (Date.now() - tIni > presupuestoMs) return false;
-        if (b.preAsignado || esIngles(b)) return false;
+        if (esInglesFijo(b, b.grupo)) return false;            // inglés 1-7 sincronizado: nunca se mueve
+        if (!agresivo && (b.preAsignado || esIngles(b))) return false;
         const g = b.grupo, d = b.docente, nm = b.materia.nombre_materia;
         // Si ya está colocado completo, listo
         let yaColocadas = 0;
@@ -6963,14 +6975,16 @@ function intentarBTDesplazamiento(incompletos, presupuestoMs = 15000) {
                     const occ = g.horario[dia][h];
                     if (occ === b) continue;
                     if (occ) {
-                        if (occ.preAsignado || esIngles(occ)) { ok = false; break; }
+                        if (esInglesFijo(occ, occ.grupo)) { ok = false; break; }   // inglés sincronizado 1-7: no desplazable
+                        if (!agresivo && (occ.preAsignado || esIngles(occ))) { ok = false; break; }
+                        if (cadena.has(occ)) { ok = false; break; }                // ANTI-CICLO: no re-desplazar un bloque ya en la cadena
                         if (!ocupantes.includes(occ)) ocupantes.push(occ);
                     }
                 }
                 if (ok) cands.push({ dia, hInicio, ocupantes });
             }
         }
-        // Probar huecos vacíos antes que slots a desplazar
+        // Probar huecos vacíos antes que slots a desplazar (menos desplazados = mejor)
         cands.sort((a, b) => a.ocupantes.length - b.ocupantes.length);
 
         for (const c of cands) {
@@ -6980,16 +6994,18 @@ function intentarBTDesplazamiento(incompletos, presupuestoMs = 15000) {
                 continue;
             }
             if (depth <= 0) continue;
-            // Desplazar y recurrir
+            // Desplazar los ocupantes y reubicarlos recursivamente (sigue la cadena).
             const snap = tomarSnapshot();
             const posiciones = c.ocupantes.map(occ => ({ occ, pos: encontrarPosicionBloque(occ) }));
             for (const x of posiciones) if (x.pos) quitarAsignacion(x.occ.grupo, x.occ, x.pos.dia, x.pos.hInicio);
 
             if (intentarAsignar(b, false, true, false, false)) {
+                c.ocupantes.forEach(o => cadena.add(o));   // marcarlos en la cadena (anti-ciclo) antes de reubicar
                 let allOk = true;
                 for (const occ of c.ocupantes) {
-                    if (!tryPlace(occ, depth - 1)) { allOk = false; break; }
+                    if (!tryPlace(occ, depth - 1, cadena)) { allOk = false; break; }
                 }
+                c.ocupantes.forEach(o => cadena.delete(o)); // liberar al desandar
                 if (allOk) return true;
             }
             restaurarSnapshot(snap);
@@ -6999,7 +7015,7 @@ function intentarBTDesplazamiento(incompletos, presupuestoMs = 15000) {
 
     for (const b of incompletos) {
         if (Date.now() - tIni > presupuestoMs) break;
-        tryPlace(b, DEPTH_MAX);
+        tryPlace(b, DEPTH_MAX, new Set([b])); // la cadena arranca con el propio bloque raíz
     }
 
     const horasDespues = contarHorasColocadasTotales();
@@ -7506,6 +7522,30 @@ function manejarFallos(bloquesFallidos, errDiv, prefijo, onDone) {
         // CUALQUIER bloque incompleto llega al panel (sin importar qué fase
         // lo dio por resuelto).
         aplicarMonotonia();
+        // ── Cierre "a toda costa" (Opción 3): se ejecuta DESPUÉS de la monotonía,
+        // sobre el TABLERO DEFINITIVO que se va a exportar (el mejor histórico), no
+        // sobre la corrida actual —que la monotonía podría descartar, perdiendo el
+        // trabajo del cierre. Dos fases, ambas monotónicas (revierten si no suben el
+        // total) y respetando las reglas duras (disponibilidad, no-solape, maxSesiones):
+        //   1) CONSERVADOR: reubica solo materias móviles (preserva la calidad).
+        //   2) AGRESIVO: si SIGUEN colgadas, también reubica los PA pre-asignados (e
+        //      inglés 8/9, no sincronizado) para liberar los slots tardíos que el
+        //      Inglés 8 / PA necesitan —el desbloqueo del óptimo local. Solo el inglés
+        //      1-7 sincronizado (esInglesFijo) queda intocable.
+        {
+            const horasA = contarHorasColocadasTotales();
+            let colgados = recolectarTodosIncompletos([]);
+            if (colgados.length > 0) intentarBTDesplazamiento(colgados, 6000, false);
+            colgados = recolectarTodosIncompletos([]);
+            if (colgados.length > 0) intentarBTDesplazamiento(colgados, 32000, true);
+            const ganancia = contarHorasColocadasTotales() - horasA;
+            if (ganancia > 0) {
+                _bitacoraCSP.push(`cierre desplazamiento: +${ganancia}h ✓`);
+                aplicarMonotonia(); // persiste la mejora como nuevo mejor histórico
+            } else {
+                _bitacoraCSP.push(`cierre desplazamiento: sin hueco (${recolectarTodosIncompletos([]).length} colgados) ✗`);
+            }
+        }
         imposibles = recolectarTodosIncompletos([]);
         // ─────────────────────────────────────────────────────────────────────
         console.log(`[faseImposibles] ${imposibles.length} bloque(s) al panel:`,
