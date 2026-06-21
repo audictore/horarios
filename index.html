@@ -1556,6 +1556,18 @@ function aplicarAsignacion(grupo, bloque, dia, horaInicio, esForzado = false) {
         if (occ && occ !== bloque && esInglesFijo(occ, grupo)) return; // inglés inamovible: rechaza
     }
 
+    // ── Guardia DURA de validez (vale para TODAS las fases) ──────────────────────
+    // No pisar otra clase del grupo y, sobre todo, no poner al docente en dos sitios a
+    // la vez: si el slot del grupo ya lo ocupa OTRO bloque, o el docente ya tiene clase
+    // en (dia,h) en cualquier grupo, se ABORTA sin colocar. Es la causa de los solapes
+    // que el recocido/CSP dejaban y que sanitizarSeguro tenía que borrar después (con
+    // pérdida de horas). Quien quiera REEMPLAZAR debe hacer quitarAsignacion primero.
+    for (let h = horaInicio; h < horaInicio + bloque.duracion; h++) {
+        const occG = grupo.horario[dia][h];
+        if (occG && occG !== bloque) return;          // slot del grupo ya ocupado por otro bloque
+        if (bloque.docente.asignado[dia][h]) return;  // docente ya da clase a esa hora → sería solape
+    }
+
     for (let h = horaInicio; h < horaInicio + bloque.duracion; h++) {
         grupo.horario[dia][h] = bloque;
         let marca = esForzado ? " [⚠️ FORZADO]" : "";
