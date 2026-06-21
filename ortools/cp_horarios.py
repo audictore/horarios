@@ -145,6 +145,30 @@ if ok:
     print(f'solapes_doc={sum(1 for v in oD.values() if v>1)}  solapes_grupo={sum(1 for v in oG.values() if v>1)}  incompletas={len(inc)}')
     for s in inc[:12]: print('   • ' + s)
 
+    # ── Garantía / diagnóstico: si NO se alcanzó el 100%, decir QUÉ dato corregir ──
+    if col < HREQ:
+        print('\n⚠ NO se alcanzó el 100%. El óptimo demostrado es ' + str(col) + '/' + str(HREQ) + 'h.')
+        print('  Causa (qué corregir en la plantilla):')
+        cargaDoc = defaultdict(int); turnosDoc = defaultdict(set)
+        for c in cargas: cargaDoc[c['docente']] += c['horas']; turnosDoc[c['docente']].add(c['turno'])
+        docs_inc = set(cargas[i]['docente'] for i, c in enumerate(cargas)
+                       if sum(solver.Value(x[(i, d, h)]) for d in DIAS for h in range(*ventanas[c['turno']]) if (i, d, h) in x) < c['horas'])
+        culpa = False
+        for doc in sorted(docs_inc):
+            disp = docentes[doc]['disponibilidad']; vts = [ventanas[t] for t in turnosDoc[doc]]
+            dispH = sum(1 for dia in DIAS for h in set(disp.get(str(dia), [])) if any(lo <= h < hi for lo, hi in vts))
+            if cargaDoc[doc] > dispH:
+                print(f'  ⛔ DATO: "{doc}" — {cargaDoc[doc]}h de carga pero solo {dispH}h disponibles en su turno (faltan {cargaDoc[doc]-dispH}h). Amplíale disponibilidad o quítale carga.')
+                culpa = True
+        if not culpa:
+            print('  Cada docente tiene capacidad suficiente por separado → el faltante es por INTERACCIÓN')
+            print('  (varias clases compiten por los mismos pocos slots; típico del inglés sincronizado, cuyos')
+            print('  profes deben coincidir en hora). Amplía disponibilidad en el cuatrimestre afectado o')
+            print('  reparte una carga entre dos docentes. CP-SAT recalcula el máximo en la siguiente corrida.')
+        print('  NOTA: el Excel generado es PARCIAL (no uses este horario hasta corregir y volver a 100%).')
+    else:
+        print('\n✅ 100% GARANTIZADO: 354/354h, óptimo demostrado. Horario completo y válido.')
+
     # ── Exportar a Excel (una hoja por grupo, formato HORA × DÍAS) ──
     wb = openpyxl.Workbook(); wb.remove(wb.active)
     for g, idxs in porGru.items():
