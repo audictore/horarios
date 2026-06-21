@@ -5411,6 +5411,25 @@ function normalizarHorasMaterias() { validarYLimpiar([]); }
  * matar los "fantasmas" de docente.asignado (Marco 5h hoja vs 4h grupo).
  */
 function sanitizarSeguro() {
+    // ── Pasada 0: ELIMINAR conflictos DUROS de g.horario antes de reconstruir nada.
+    // Un docente no puede estar en dos grupos a la misma hora (solape), ni dar clase fuera
+    // de su disponibilidad declarada. Si alguna fase dejó uno de esos estados inválidos
+    // (p. ej. una desincronización g.horario↔docente.asignado durante una cascada de
+    // desplazamientos), se libera ese slot: el horario pierde esa hora pero queda 100%
+    // VÁLIDO. Mejor faltar horas que exportar un horario físicamente imposible. Recorre en
+    // orden de grupos: el primero que reclama el slot lo conserva; los choques posteriores
+    // se descartan.
+    const _reclama = {}; // 'docente|dia|h' -> grupo que ya ocupa el slot
+    MAPA_GRUPOS.forEach(g => diasSemana.forEach(dia => g.baseHoras.forEach(h => {
+        const b = g.horario[dia][h]; if (!b) return;
+        const disp = b.docente.disponibilidad[dia];
+        const k = b.docente.nombre_docente + '|' + dia + '|' + h;
+        if ((_reclama[k] && _reclama[k] !== g) || (disp && !disp.has(h))) {
+            g.horario[dia][h] = null; // solape de docente o fuera de disponibilidad → liberar
+        } else {
+            _reclama[k] = g;
+        }
+    })));
     MAPA_GRUPOS.forEach(g => diasSemana.forEach(d => { g.sesionesDia[d] = {}; }));
     MAPA_DOCENTES.forEach(d => {
         diasSemana.forEach(dia => { d.asignado[dia] = {}; });
@@ -7533,13 +7552,38 @@ function manejarFallos(bloquesFallidos, errDiv, prefijo, onDone) {
         //      Inglés 8 / PA necesitan —el desbloqueo del óptimo local. Solo el inglés
         //      1-7 sincronizado (esInglesFijo) queda intocable.
         {
-            const horasA = contarHorasColocadasTotales();
+            // Conflictos DUROS del tablero (fuente de verdad = g.horario): un docente en dos
+            // grupos a la misma hora (solape), o una clase fuera de la disponibilidad declarada.
+            // El BT de cadena puede, en cascadas largas, desincronizar g.horario y docente.asignado
+            // y dejar un solape; este gate lo detecta sobre g.horario directamente.
+            const contarConflictos = () => {
+                const ocup = {}; let conf = 0;
+                MAPA_GRUPOS.forEach(g => diasSemana.forEach(dia => g.baseHoras.forEach(h => {
+                    const b = g.horario[dia][h]; if (!b) return;
+                    const k = b.docente.nombre_docente + '|' + dia + '|' + h;
+                    ocup[k] = (ocup[k] || 0) + 1;
+                    if (ocup[k] === 2) conf++;                                   // solape de docente
+                    const disp = b.docente.disponibilidad[dia];
+                    if (disp && !disp.has(h)) conf++;                            // fuera de disponibilidad
+                })));
+                return conf;
+            };
+            const snapPre   = tomarSnapshot();
+            const conflPre  = contarConflictos();
+            const horasA    = contarHorasColocadasTotales();
             let colgados = recolectarTodosIncompletos([]);
             if (colgados.length > 0) intentarBTDesplazamiento(colgados, 6000, false);
             colgados = recolectarTodosIncompletos([]);
             if (colgados.length > 0) intentarBTDesplazamiento(colgados, 32000, true);
-            const ganancia = contarHorasColocadasTotales() - horasA;
-            if (ganancia > 0) {
+            const ganancia  = contarHorasColocadasTotales() - horasA;
+            const conflPost = contarConflictos();
+            if (conflPost > conflPre) {
+                // El cierre completó horas pero rompió la validez (solape/disp): descartar TODO
+                // el cierre. Un horario con un docente en dos sitios no sirve; preferimos menos
+                // horas pero VÁLIDAS. Garantiza que jamás se exporta un tablero inválido.
+                restaurarSnapshot(snapPre);
+                _bitacoraCSP.push(`cierre: REVERTIDO — habría metido ${conflPost - conflPre} conflicto(s) (solape docente/fuera de disp) ✗`);
+            } else if (ganancia > 0) {
                 _bitacoraCSP.push(`cierre desplazamiento: +${ganancia}h ✓`);
                 aplicarMonotonia(); // persiste la mejora como nuevo mejor histórico
             } else {
