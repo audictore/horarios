@@ -11,7 +11,7 @@ Análisis para la migración del motor de generación de horarios hacia un model
 > Ambos documentos son **conceptuales**: describen el diseño objetivo. Sirven como base
 > metodológica para tesis y como especificación para la migración.
 
-## Implementación (JS puro, sin dependencias — `node --test`, 40/40 verde)
+## Implementación (JS puro, sin dependencias — `node --test`, 70/70 verde)
 
 | Módulo (`src/`) | Rol |
 |---|---|
@@ -21,7 +21,7 @@ Análisis para la migración del motor de generación de horarios hacia un model
 | `motor-min.js` | colocador greedy (regla de ambos turnos, *failing test* BT-3) |
 | `engine.js` | solver CP por backtracking canónico → solución lex-mínima + unicidad |
 
-**Integración en el SPA:** `index.html` carga estos módulos y expone el botón **“Motor CSP (beta)”**
-(`#button_csp`), que corre pre-checks + solver sobre los datos ya cargados y pinta el resultado en
-`#csp_resultado`, **sin alterar** el generador metaheurístico existente. El solver beta está acotado
-por tamaño (el backtracking aún no escala a datasets completos; los pre-checks sí).
+**Integración en el SPA:** `index.html` carga estos módulos (UMD-lite → globales `window.*`) y los
+corre **por clústeres (cuatrimestre)** con reinicios acotados, pintando pre-checks + resultado en
+`#csp_resultado`, **sin alterar** el generador metaheurístico existente. El solver está acotado por
+tiempo/nodos (el backtracking completo aún no escala a datasets completos; los pre-checks sí).
