@@ -740,11 +740,14 @@
                 <span>Disponibilidades</span>
             </label>
             <button class="button_accion" id="button_accion">Generar horarios</button>
+            <button class="button_accion" id="button_optimo" title="Motor EXACTO (CP-SAT / HiGHS en WebAssembly): garantiza el máximo de horas. Tarda ~40 s, corre en tu navegador.">Generar ÓPTIMO ✦</button>
             <button id="button_reset_aprendizaje" disabled style="opacity:0.4">Sin aprendizaje</button>
         </main>
 
         <div class="panel-info">
             <div class="span_error" id="span_error" style="color:var(--color-dim-gray);font-weight:normal">⌛ Esperando archivos: <strong>Carga Académica</strong> y <strong>Disponibilidades</strong>.</div>
+
+            <div id="csp_resultado"></div>
 
             <section id="seccion_desglose">
                 <h2>Desglose · Grupo &mdash; Materia &mdash; Horas</h2>
@@ -8266,6 +8269,37 @@ function exportarCSPaExcel(bloques) {
     XLSX.writeFile(wb, 'Horario_CP.xlsx');
 }
 
+/** Motor ÓPTIMO: resuelve el horario con HiGHS (CP-SAT/MIP en WebAssembly) dentro de un
+ *  Web Worker, para no congelar la página durante el solve. Garantiza el máximo de horas
+ *  (óptimo demostrado). Reusa construirDatosCSP/renderGridCSP/exportarCSPaExcel. */
+function ejecutarMotorHiGHS() {
+    const out = document.getElementById('csp_resultado');
+    let cant = 0; MAPA_GRUPOS.forEach(g => cant += g.bloques.length);
+    if (cant === 0) { alert('Carga una plantilla válida primero.'); return; }
+    out.innerHTML = ESTILO_CSP + `<div class="csp-box">✦ Resolviendo con el motor ÓPTIMO (CP-SAT en tu navegador)… puede tardar ~40&nbsp;s. La página sigue respondiendo.</div>`;
+    let worker;
+    try { worker = new Worker('./src/highs_worker.js'); }
+    catch (e) { out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">No se pudo iniciar el worker (${e.message}). Sirve la página por http (Live Server / GitHub Pages), no file://.</div>`; return; }
+    const t0 = Date.now();
+    worker.onmessage = (e) => {
+        worker.terminate();
+        const r = e.data || {};
+        if (!r.ok) { out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">Error del solver: ${r.error || 'desconocido'}</div>`; return; }
+        const bloques = r.horario.map(b => ({ grupo: b.grupo, materia: b.materia, docente: b.docente, dia: b.dia, inicio: b.hora, duracion: 1 }));
+        const seg = ((Date.now() - t0) / 1000).toFixed(1);
+        const completo = r.colocadas === r.total;
+        let html = ESTILO_CSP + `<div class="csp-box ${completo ? 'csp-ok' : 'csp-warn'}">${completo ? '✅ 100% — óptimo demostrado' : '◑ máximo posible'}: <b>${r.colocadas}/${r.total}h</b> · ${seg}s · ${r.status}</div>`;
+        if (bloques.length) {
+            html += `<div class="csp-box"><button class="button_accion" id="optimo_descargar">⬇ Descargar Excel (óptimo)</button></div>` + renderGridCSP(bloques);
+        }
+        out.innerHTML = html;
+        const btn = document.getElementById('optimo_descargar');
+        if (btn) btn.onclick = () => exportarCSPaExcel(bloques);
+    };
+    worker.onerror = (e) => { worker.terminate(); out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">Error en el worker: ${e.message}. Verifica que existan /src/highs_worker.js, /src/highs_solver.js y /lib/highs/.</div>`; };
+    worker.postMessage(construirDatosCSP());
+}
+
 /** Orquesta la corrida del motor CSP (por clústeres, con reinicios acotados) en #csp_resultado. */
 function ejecutarMotorCSP() {
     const out = document.getElementById('csp_resultado');
@@ -8352,6 +8386,9 @@ if (!IS_WORKER) {
         if (cantBloques === 0) return alert("Por favor, carga una plantilla válida primero.");
         ejecutarAlgoritmoFinal();
     };
+
+    const _btnOptimo = document.getElementById("button_optimo");
+    if (_btnOptimo) _btnOptimo.onclick = ejecutarMotorHiGHS;
 
     document.getElementById("button_reset_aprendizaje").onclick = () => {
         resetearAprendizaje();

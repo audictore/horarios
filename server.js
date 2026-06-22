@@ -9,6 +9,8 @@ const MIME = {
     '.svg':  'image/svg+xml',
     '.png':  'image/png',
     '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.wasm': 'application/wasm',
+    '.json': 'application/json; charset=utf-8',
 };
 
 http.createServer((req, res) => {
