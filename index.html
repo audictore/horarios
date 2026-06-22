@@ -8230,6 +8230,14 @@ table.csp-grid{border-collapse:collapse;margin:0.6rem 0;font-size:0.7rem;backgro
 table.csp-grid caption{text-align:left;font-weight:bold;margin-bottom:0.3rem}
 table.csp-grid th,table.csp-grid td{border:2px solid var(--color-black,#221F20);padding:0.2rem 0.35rem;min-width:2.2rem;text-align:center}
 table.csp-grid td.ocupado{background:var(--color-yellow,#FFD60A);font-weight:bold}
+.csp-run{display:flex;align-items:center;gap:0.7rem}
+.csp-spin{flex:0 0 auto;width:1.4rem;height:1.4rem;border:3px solid var(--color-black,#221F20);border-top-color:transparent;border-radius:50%;animation:csp-rot 0.8s linear infinite}
+@keyframes csp-rot{to{transform:rotate(360deg)}}
+.csp-run b{font-variant-numeric:tabular-nums}
+.csp-bar{height:6px;background:var(--color-black,#221F20);border-radius:3px;margin-top:0.5rem;overflow:hidden;position:relative}
+.csp-bar::after{content:"";position:absolute;inset:0;width:40%;background:var(--color-yellow,#FFD60A);animation:csp-slide 1.2s ease-in-out infinite}
+@keyframes csp-slide{0%{left:-40%}100%{left:100%}}
+@media (prefers-reduced-motion:reduce){.csp-spin,.csp-bar::after{animation:none}}
 </style>`;
 
 /** Resuelve UN clúster (cuatrimestre) con la disponibilidad de docentes ya recortada. */
@@ -8276,12 +8284,22 @@ function ejecutarMotorHiGHS() {
     const out = document.getElementById('csp_resultado');
     let cant = 0; MAPA_GRUPOS.forEach(g => cant += g.bloques.length);
     if (cant === 0) { alert('Carga una plantilla válida primero.'); return; }
-    out.innerHTML = ESTILO_CSP + `<div class="csp-box">✦ Resolviendo con el motor ÓPTIMO (CP-SAT en tu navegador)… puede tardar ~40&nbsp;s. La página sigue respondiendo.</div>`;
+    const btnOpt = document.getElementById('button_optimo');
+    const t0 = Date.now();
+    let timer = null;
+    const detener = () => { if (timer) { clearInterval(timer); timer = null; } if (btnOpt) { btnOpt.disabled = false; btnOpt.style.opacity = ''; btnOpt.textContent = 'Generar ÓPTIMO ✦'; } };
+    if (btnOpt) { btnOpt.disabled = true; btnOpt.style.opacity = '0.5'; btnOpt.textContent = 'Resolviendo…'; }
+    const pinta = () => {
+        const s = Math.round((Date.now() - t0) / 1000);
+        out.innerHTML = ESTILO_CSP + `<div class="csp-box"><div class="csp-run"><span class="csp-spin"></span><span>✦ Resolviendo el horario ÓPTIMO en tu navegador… <b>${s}s</b><br><small>Tarda ~1&nbsp;min. No cierres ni recargues la pestaña; la página sigue respondiendo.</small></span></div><div class="csp-bar"></div></div>`;
+    };
+    pinta();
+    timer = setInterval(pinta, 1000);
     let worker;
     try { worker = new Worker('./src/highs_worker.js'); }
-    catch (e) { out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">No se pudo iniciar el worker (${e.message}). Sirve la página por http (Live Server / GitHub Pages), no file://.</div>`; return; }
-    const t0 = Date.now();
+    catch (e) { detener(); out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">No se pudo iniciar el worker (${e.message}). Sirve la página por http (Live Server / GitHub Pages), no file://.</div>`; return; }
     worker.onmessage = (e) => {
+        detener();
         worker.terminate();
         const r = e.data || {};
         if (!r.ok) { out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">Error del solver: ${r.error || 'desconocido'}</div>`; return; }
@@ -8296,7 +8314,7 @@ function ejecutarMotorHiGHS() {
         const btn = document.getElementById('optimo_descargar');
         if (btn) btn.onclick = () => exportarCSPaExcel(bloques);
     };
-    worker.onerror = (e) => { worker.terminate(); out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">Error en el worker: ${e.message}. Verifica que existan /src/highs_worker.js, /src/highs_solver.js y /lib/highs/.</div>`; };
+    worker.onerror = (e) => { detener(); worker.terminate(); out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">Error en el worker: ${e.message}. Verifica que existan /src/highs_worker.js, /src/highs_solver.js y /lib/highs/.</div>`; };
     worker.postMessage(construirDatosCSP());
 }
 
