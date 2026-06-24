@@ -1225,26 +1225,35 @@ function actualizarEstado() {
     }
 }
 
-// ── Whitelist persistente de docentes con expansión por densidad ─────────────
-// El usuario marca manualmente qué docentes pueden subir días cuando la regla
-// de densidad lo pide. Se guarda en localStorage entre recargas.
-const WHITELIST_DENSIDAD_KEY = 'whitelist_densidad_v1';
+// ── Whitelist persistente: días extra autorizados por docente ────────────────
+// El usuario concede a docentes específicos N días extra (0/+1/+2/+3) sobre su
+// escalón institucional. Mapa { docente → diasExtra } en localStorage. Se migra
+// el v1 (Set binario): cada marcado previo equivale a +1.
+const WHITELIST_DENSIDAD_KEY = 'whitelist_dias_extra_v2';
 function obtenerWhitelistDensidad() {
     try {
         const raw = localStorage.getItem(WHITELIST_DENSIDAD_KEY);
-        if (!raw) return new Set();
-        return new Set(JSON.parse(raw));
-    } catch { return new Set(); }
+        if (raw) return new Map(JSON.parse(raw));
+        const v1 = localStorage.getItem('whitelist_densidad_v1');
+        if (v1) {
+            const m = new Map(JSON.parse(v1).map(d => [d, 1]));
+            guardarWhitelistDensidad(m);
+            return m;
+        }
+        return new Map();
+    } catch { return new Map(); }
 }
-function guardarWhitelistDensidad(set) {
-    try { localStorage.setItem(WHITELIST_DENSIDAD_KEY, JSON.stringify([...set])); }
-    catch {}
+function guardarWhitelistDensidad(map) {
+    try { localStorage.setItem(WHITELIST_DENSIDAD_KEY, JSON.stringify([...map])); } catch {}
 }
-function toggleWhitelistDensidad(nombre, marcado) {
+function setExtraDias(nombre, n) {
     const wl = obtenerWhitelistDensidad();
-    if (marcado) wl.add(nombre); else wl.delete(nombre);
+    const k = Math.max(0, Math.min(parseInt(n, 10) || 0, 4));
+    if (k > 0) wl.set(nombre, k); else wl.delete(nombre);
     guardarWhitelistDensidad(wl);
 }
+// Alias retrocompatible (algún código viejo todavía lo invoca).
+function toggleWhitelistDensidad(nombre, marcado) { setExtraDias(nombre, marcado ? 1 : 0); }
 
 // ── FASE 1: Determinar maxDias por docente ────────────────────────────────────
 // Contrasta la carga del docente con su disponibilidad real para decidir cuántos
@@ -1441,7 +1450,9 @@ function mostrarDesglose() {
         ${totalGrupos} grupos &nbsp;·&nbsp; ${totalHrsGlobal} horas totales asignadas
     </p>`;
 
-    // Panel: lista blanca de PAs con expansión por densidad (persistente)
+    // Panel: días extra autorizados por docente PA (persistente). Cada selector da
+    // 0/+1/+2/+3 sobre el escalón institucional. La etiqueta "sugerido +N" aparece
+    // cuando la carga no cabría con menos (carga > (escalón + N - 1) · 4 h/día).
     const wl = obtenerWhitelistDensidad();
     const pas = [];
     MAPA_DOCENTES.forEach(d => {
@@ -1449,19 +1460,30 @@ function mostrarDesglose() {
     });
     pas.sort((a, b) => a.nombre_docente.localeCompare(b.nombre_docente));
     if (pas.length > 0) {
+        const escalonPuro = (h) => h <= 9 ? 2 : h <= 20 ? 3 : 4;
+        const nMarcados = [...wl.values()].filter(v => v > 0).length;
+        const totalExtra = [...wl.values()].reduce((s, v) => s + v, 0);
         html += `<details style="margin:0 0 1rem;border:2px solid var(--color-black,#221F20);background:#FFF8E0;padding:0.6rem 0.8rem;box-shadow:4px 4px 0 var(--color-black,#221F20);border-radius:4px">
             <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem">
-                ⚙️ Docentes con expansión por densidad
+                ⚙️ Días extra autorizados por docente
                 <span style="color:var(--color-dim-gray);font-weight:normal;font-size:0.78rem">
-                    (${wl.size} marcados · permite subir días si la disponibilidad efectiva lo exige)
+                    (${nMarcados} docentes · ${totalExtra} días extra concedidos sobre el escalón)
                 </span>
             </summary>
-            <div style="margin-top:0.5rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0.3rem 0.8rem;font-size:0.82rem">`;
+            <div style="margin-top:0.5rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:0.3rem 0.8rem;font-size:0.82rem">`;
         pas.forEach(d => {
-            const checked = wl.has(d.nombre_docente) ? 'checked' : '';
+            const carga = d.horas_carga;
+            const esc = escalonPuro(carga);
+            const sugerido = Math.max(0, Math.ceil(carga / 4) - esc);   // días extra mínimos para que la carga quepa
+            const actual = wl.get(d.nombre_docente) || 0;
+            let opts = '';
+            for (let k = 0; k <= 3; k++) opts += `<option value="${k}"${k === actual ? ' selected' : ''}>+${k}</option>`;
+            const sug = sugerido > 0
+                ? ` <small style="color:#c62828;font-weight:bold">sugerido +${sugerido}</small>`
+                : '';
             html += `<label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer">
-                <input type="checkbox" ${checked} data-doc="${d.nombre_docente.replace(/"/g, '&quot;')}" class="chk-densidad">
-                <span>${d.nombre_docente} <small style="color:var(--color-dim-gray)">(${d.horas_carga}h)</small></span>
+                <select class="sel-densidad" data-doc="${d.nombre_docente.replace(/"/g, '&quot;')}" style="padding:2px 6px;border:1.5px solid var(--color-black,#221F20);background:#fff;font-family:inherit;font-size:0.82rem">${opts}</select>
+                <span>${d.nombre_docente} <small style="color:var(--color-dim-gray)">(${carga}h · escalón ${esc})</small>${sug}</span>
             </label>`;
         });
         html += `</div></details>`;
@@ -1512,10 +1534,10 @@ function mostrarDesglose() {
 
     document.getElementById("desglose_contenido").innerHTML = html;
     document.getElementById("seccion_desglose").style.display = "block";
-    // Persistir cambios de la whitelist de densidad
-    document.querySelectorAll('#desglose_contenido .chk-densidad').forEach(chk => {
-        chk.addEventListener('change', e => {
-            toggleWhitelistDensidad(e.target.dataset.doc, e.target.checked);
+    // Persistir cambios de los días extra por docente (selector +0/+1/+2/+3)
+    document.querySelectorAll('#desglose_contenido .sel-densidad').forEach(sel => {
+        sel.addEventListener('change', e => {
+            setExtraDias(e.target.dataset.doc, e.target.value);
         });
     });
     crearTabsHorarios();
@@ -8186,7 +8208,23 @@ function construirDatosCSP() {
             }
         });
     });
-    return { grupos, docentes, cargas: [...cargasMap.values()] };
+    const cargas = [...cargasMap.values()];
+    // Escalón institucional ESTRICTO (CP-SAT lo aplica como regla dura): PA con carga ≤9→2 días,
+    // ≤20→3, 21+→4. El usuario puede conceder +1 día a docentes específicos marcándolos en la
+    // whitelist del desglose (persistente en localStorage); sin whitelist, ningún PA excede.
+    const cargaDoc = {};
+    cargas.forEach(c => { cargaDoc[c.docente] = (cargaDoc[c.docente] || 0) + c.horas; });
+    const wl = obtenerWhitelistDensidad();
+    const escalonPuro = (h) => h <= 9 ? 2 : h <= 20 ? 3 : 4;
+    Object.keys(docentes).forEach(dn => {
+        const info = docentes[dn];
+        info.maxDias = null;
+        if (info.tipo === 2) {
+            const base = escalonPuro(cargaDoc[dn] || 0);
+            info.maxDias = Math.min(base + (wl.get(dn) || 0), 6);
+        }
+    });
+    return { ventanas: { matutino: [7, 17], vespertino: [12, 21] }, grupos, docentes, cargas };
 }
 
 function _abrevCSP(nombre) {
@@ -8279,9 +8317,58 @@ function exportarCSPaExcel(bloques) {
 
 /** Motor ÓPTIMO: resuelve el horario con HiGHS (CP-SAT/MIP en WebAssembly) dentro de un
  *  Web Worker, para no congelar la página durante el solve. Garantiza el máximo de horas
- *  (óptimo demostrado). Reusa construirDatosCSP/renderGridCSP/exportarCSPaExcel. */
+ *  (óptimo demostrado). Vuelca el resultado al MISMO apartado que "Generar horarios". */
+
+/** Vuelca el horario óptimo (slots de 1 h del solver) al estado normal del app:
+ *  reconstruye bloques contiguos por día y los coloca con aplicarAsignacion, de modo
+ *  que el desglose, la tabla de horarios y el Excel se generan con el pipeline existente
+ *  (sin rejilla ni botón propios). Devuelve { colocadas } para verificación. */
+function aplicarHorarioOptimo(slots) {
+    // Estado limpio (mismo reset que una corrida nueva).
+    MAPA_GRUPOS.forEach(g => g.reset());
+    MAPA_DOCENTES.forEach(d => d.reset());
+
+    // Localiza las instancias REALES de materia/docente en los bloques del grupo,
+    // para que el render/export (que leen objetos, no strings) funcionen igual.
+    const refDe = (gObj, mat, doc) => gObj.bloques.find(b =>
+        b.materia.nombre_materia === mat && b.docente.nombre_docente === doc);
+
+    // Agrupa los slots de 1 h por carga (grupo|materia|docente) y por día.
+    const porCarga = new Map();
+    slots.forEach(s => {
+        const key = s.grupo + '|' + s.materia + '|' + s.docente;
+        let c = porCarga.get(key);
+        if (!c) { c = { grupo: s.grupo, materia: s.materia, docente: s.docente, dias: new Map() }; porCarga.set(key, c); }
+        if (!c.dias.has(s.dia)) c.dias.set(s.dia, []);
+        c.dias.get(s.dia).push(s.hora);
+    });
+
+    // Por cada carga y día, detecta tramos contiguos (runs) y los coloca como un bloque.
+    porCarga.forEach(c => {
+        const gObj = MAPA_GRUPOS.get(c.grupo);
+        const ref  = gObj && refDe(gObj, c.materia, c.docente);
+        if (!gObj || !ref) return;
+        c.dias.forEach((horas, diaIdx) => {
+            const dia = diasSemana[diaIdx];
+            horas.sort((a, b) => a - b);
+            for (let i = 0; i < horas.length;) {
+                let j = i;
+                while (j + 1 < horas.length && horas[j + 1] === horas[j] + 1) j++;
+                aplicarAsignacion(gObj, { materia: ref.materia, docente: ref.docente, duracion: j - i + 1, grupo: gObj }, dia, horas[i]);
+                i = j + 1;
+            }
+        });
+    });
+
+    let colocadas = 0;
+    MAPA_GRUPOS.forEach(g => diasSemana.forEach(d => g.baseHoras.forEach(h => { if (g.horario[d][h]) colocadas++; })));
+    return { colocadas };
+}
+
 function ejecutarMotorHiGHS() {
-    const out = document.getElementById('csp_resultado');
+    // Volcamos el progreso/resultado al div de errores normal — mismo lugar donde aparece
+    // el feedback del flujo "Generar horarios"; así no hay dos paneles distintos.
+    const out = document.getElementById('span_error');
     let cant = 0; MAPA_GRUPOS.forEach(g => cant += g.bloques.length);
     if (cant === 0) { alert('Carga una plantilla válida primero.'); return; }
     const btnOpt = document.getElementById('button_optimo');
@@ -8303,19 +8390,68 @@ function ejecutarMotorHiGHS() {
         worker.terminate();
         const r = e.data || {};
         if (!r.ok) { out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">Error del solver: ${r.error || 'desconocido'}</div>`; return; }
-        const bloques = r.horario.map(b => ({ grupo: b.grupo, materia: b.materia, docente: b.docente, dia: b.dia, inicio: b.hora, duracion: 1 }));
         const seg = ((Date.now() - t0) / 1000).toFixed(1);
         const completo = r.colocadas === r.total;
-        let html = ESTILO_CSP + `<div class="csp-box ${completo ? 'csp-ok' : 'csp-warn'}">${completo ? '✅ 100% — óptimo demostrado' : '◑ máximo posible'}: <b>${r.colocadas}/${r.total}h</b> · ${seg}s · ${r.status}</div>`;
-        if (bloques.length) {
-            html += `<div class="csp-box"><button class="button_accion" id="optimo_descargar">⬇ Descargar Excel (óptimo)</button></div>` + renderGridCSP(bloques);
+        // Volcar el resultado al MISMO apartado que usa "Generar horarios": el desglose,
+        // la tabla por grupo y el Excel se generan con el pipeline existente (sin duplicar).
+        try {
+            aplicarHorarioOptimo(r.horario);
+            mostrarDesglose();   // desglose + crearTabsHorarios() → seccion existente
+            exportarExcel();     // descarga el .xlsx con el formato normal
+        } catch (err) {
+            out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">El óptimo se resolvió, pero falló al volcarlo al apartado: ${err && err.message}</div>`;
+            return;
         }
-        out.innerHTML = html;
-        const btn = document.getElementById('optimo_descargar');
-        if (btn) btn.onclick = () => exportarCSPaExcel(bloques);
+        out.innerHTML = ESTILO_CSP + `<div class="csp-box ${completo ? 'csp-ok' : 'csp-warn'}">${completo ? '✅ 100% — óptimo demostrado' : '◑ máximo posible'}: <b>${r.colocadas}/${r.total}h</b> · ${seg}s · ${r.status}. El horario y el Excel aparecen abajo.</div>`;
     };
     worker.onerror = (e) => { detener(); worker.terminate(); out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">Error en el worker: ${e.message}. Verifica que existan /src/highs_worker.js, /src/highs_solver.js y /lib/highs/.</div>`; };
     worker.postMessage(construirDatosCSP());
+}
+
+/** Motor ÓPTIMO vía servidor local (CP-SAT/OR-Tools): manda los datos a /api/optimo, muestra
+ *  progreso y vuelca el resultado en el MISMO apartado que "Generar horarios". 354/354 + patrón. */
+async function ejecutarMotorCPSAT() {
+    // Mismo div que el flujo "Generar horarios": el spinner y el resultado aparecen ahí.
+    const out = document.getElementById('span_error');
+    let cant = 0; MAPA_GRUPOS.forEach(g => cant += g.bloques.length);
+    if (cant === 0) { alert('Carga una plantilla válida primero.'); return; }
+    const btnOpt = document.getElementById('button_optimo');
+    const t0 = Date.now();
+    let timer = null;
+    const detener = () => { if (timer) { clearInterval(timer); timer = null; } if (btnOpt) { btnOpt.disabled = false; btnOpt.style.opacity = ''; btnOpt.textContent = 'Generar ÓPTIMO ✦'; } };
+    if (btnOpt) { btnOpt.disabled = true; btnOpt.style.opacity = '0.5'; btnOpt.textContent = 'Resolviendo…'; }
+    const pinta = () => {
+        const s = Math.round((Date.now() - t0) / 1000);
+        out.innerHTML = ESTILO_CSP + `<div class="csp-box"><div class="csp-run"><span class="csp-spin"></span><span>✦ Resolviendo el horario ÓPTIMO con CP-SAT… <b>${s}s</b><br><small>Tarda ~5&nbsp;min (busca el patrón didáctico perfecto: 5h→2,2,1, 6h→2,2,2). No cierres la pestaña.</small></span></div><div class="csp-bar"></div></div>`;
+    };
+    pinta();
+    timer = setInterval(pinta, 1000);
+    try {
+        const resp = await fetch('/api/optimo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(construirDatosCSP()) });
+        const r = await resp.json();
+        detener();
+        if (!r.ok) { out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">Error de CP-SAT: ${String(r.error || 'desconocido').replace(/</g, '&lt;')}</div>`; return; }
+        const completo = r.colocadas === r.total;
+        try {
+            aplicarHorarioOptimo(r.horario);
+            mostrarDesglose();   // desglose + tabla por grupo (apartado existente)
+            exportarExcel();     // descarga el .xlsx con el formato normal
+        } catch (err) {
+            out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">CP-SAT resolvió, pero falló al volcarlo al apartado: ${err && err.message}</div>`;
+            return;
+        }
+        const seg = r.segundos != null ? r.segundos : ((Date.now() - t0) / 1000).toFixed(1);
+        out.innerHTML = ESTILO_CSP + `<div class="csp-box ${completo ? 'csp-ok' : 'csp-warn'}">${completo ? '✅ 100% — patrón didáctico' : '◑ máximo posible'}: <b>${r.colocadas}/${r.total}h</b> · ${seg}s · CP-SAT${r.optimo ? ' (óptimo demostrado)' : ''}. El horario y el Excel aparecen abajo.</div>`;
+    } catch (e) {
+        detener();
+        out.innerHTML = ESTILO_CSP + `<div class="csp-box csp-err">No se pudo contactar el motor local: ${e.message}. ¿El servidor (server.js) sigue corriendo?</div>`;
+    }
+}
+
+/** Despachador del botón ÓPTIMO: CP-SAT local si hay servidor (mejor patrón); si no, HiGHS en el navegador. */
+function ejecutarMotorOptimo() {
+    if (window.__CPSAT_OK) ejecutarMotorCPSAT();
+    else ejecutarMotorHiGHS();
 }
 
 /** Orquesta la corrida del motor CSP (por clústeres, con reinicios acotados) en #csp_resultado. */
@@ -8406,7 +8542,17 @@ if (!IS_WORKER) {
     };
 
     const _btnOptimo = document.getElementById("button_optimo");
-    if (_btnOptimo) _btnOptimo.onclick = ejecutarMotorHiGHS;
+    if (_btnOptimo) {
+        _btnOptimo.onclick = ejecutarMotorOptimo;   // CP-SAT local si hay servidor; si no, HiGHS
+        // Detectar el motor ÓPTIMO local (CP-SAT vía server.js). Si responde, el botón lo usa.
+        fetch('/api/health').then(r => r.ok ? r.json() : null).then(j => {
+            if (j && j.ok) {
+                window.__CPSAT_OK = true;
+                _btnOptimo.title = 'Motor ÓPTIMO CP-SAT (local): 354/354 + patrón didáctico (5h→2,2,1, 6h→2,2,2). Tarda ~5 min.';
+                console.log('%c Motor ÓPTIMO local: CP-SAT detectado ', 'background:#0a0;color:#fff;font-weight:bold;padding:2px 6px');
+            }
+        }).catch(() => { /* sin servidor local → el botón usa HiGHS en el navegador */ });
+    }
 
     document.getElementById("button_reset_aprendizaje").onclick = () => {
         resetearAprendizaje();
