@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>From schedule</title>
+    <title>¿Qué es? — From Schedule</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/Schedule FI BLACK.svg">
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap');
-        :root{
+
+        :root {
             --color-yellow: #FCB814;
             --color-black: #221F20;
             --color-ghost-white: #F3F7FF;
@@ -17,185 +19,221 @@
             --color-celadon: #81C99C;
             --color-gray-olive: #939598;
             --color-soft-periwinkle: #8781BD;
+
             --font-roboto-mono: "Roboto Mono", monospace;
-            --font-size-lg : 10rem;
-            --font-size-md : 5rem;
-            --font-size-sm : 2rem;
-            --font-size-xsm : 1rem;
+            --fs-xs:   0.7rem;
+            --fs-sm:   0.8rem;
+            --fs-base: 0.875rem;
+            --fs-md:   1rem;
+            --fs-lg:   1.15rem;
+            --fs-xl:   1.4rem;
+            --fs-hero: 2.2rem;
+
+            --sp-1:  0.25rem;
+            --sp-2:  0.5rem;
+            --sp-3:  0.75rem;
+            --sp-4:  1rem;
+            --sp-6:  1.5rem;
+            --sp-8:  2rem;
+            --sp-12: 3rem;
+
+            --borde-fuerte: 3px solid var(--color-black);
+            --borde-medio:  2px solid var(--color-black);
+            --borde-fino:   1px solid var(--color-black);
+            --sombra-lg: 5px 5px 0 0 var(--color-gray-olive);
+
+            --header-h: 3.5rem;
+            --content-w: 760px;
         }
 
-        body{
-            width: 100%;
-            height: auto;
+        *, *::before, *::after { box-sizing: border-box; border-radius: 0 !important; }
+
+        body {
+            margin: 0;
+            min-height: 100dvh;
             display: flex;
-            justify-content: center;
-            align-items: center;
             flex-direction: column;
             font-family: var(--font-roboto-mono);
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
+            background: var(--color-ghost-white);
+            color: var(--color-black);
         }
 
-        header{
-            width: 100%;
-            height: 7dvh;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
+        /* ── Header ── */
+        header {
             position: sticky;
             top: 0;
-            background-color: var(--color-yellow);
-            border: solid 1px;
-            border-color: none none var(--color-black) none;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
+            z-index: 10;
+            height: var(--header-h);
+            background: var(--color-yellow);
+            border-bottom: var(--borde-fuerte);
         }
-
-        header nav{
-            width: 100%;
-            height: 100%;
+        header nav {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 0 2rem 0 2rem;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        header nav ul{
-            width: auto;
+            justify-content: space-between;
             height: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-direction: row;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
+            padding: 0 var(--sp-8);
         }
-
-        header nav ul a{
+        header nav ul {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-6);
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        header nav ul a {
+            display: flex;
+            align-items: center;
             text-decoration: none;
-            width: 5dvw;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: var(--font-size-xsm);
             color: var(--color-black);
-            font-family: var(--font-roboto-mono);
-            font-weight: bolder;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
+            font-weight: 700;
+            font-size: var(--fs-sm);
         }
+        header a img { height: 2rem; }
 
-        header nav ul:last-child a:first-child{
-            width: 5dvw;
-            height: 100%;
-            
-        }
-
-        header nav ul:last-child a:last-child{
-            width: 5dvw;
-            height: 100%;
-            box-shadow: inset 0 -5px 0 0 var(--color-black);
-            background-color: transparent;
-        }
-
-        header nav ul a:nth-child(2){
-            width: auto;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 0;
-            margin: 0 0 0 2rem;
-        }
-
-        header a img{
-            width: auto;
-            height: 2rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        main{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            background-color: var(--color-yellow);
-            padding: 4rem 15% 4rem 15%;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.from_schedule{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-direction: column;
-            background-color: var(--color-black);
+        /* ── Hero ── */
+        .hero {
+            background: var(--color-black);
             color: var(--color-ghost-white);
-            padding: 4rem;
-            margin: 0 0 4rem 0;
-            border-radius: 1rem;
-            box-sizing: border-box;
+            padding: var(--sp-12) var(--sp-6);
+            border-bottom: var(--borde-fuerte);
         }
-
-        main section.from_schedule h2{
-            width: 100%;
-            height: auto;
+        .hero-inner {
+            max-width: var(--content-w);
+            margin: 0 auto;
             display: flex;
-            justify-content: flex-start;
             align-items: center;
-            font-size: var(--font-size-md);
-            padding: 0;
+            gap: var(--sp-12);
+        }
+        .hero-logo {
+            flex: 0 0 auto;
+            width: 120px;
+            height: auto;
+        }
+        .hero-text h1 {
+            font-size: var(--fs-hero);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0 0 var(--sp-4) 0;
+            color: var(--color-yellow);
+        }
+        .hero-text p {
+            font-size: var(--fs-md);
+            line-height: 1.7;
             margin: 0;
-            box-sizing: border-box;
+            color: var(--color-gray-olive);
         }
 
-        main section.from_schedule div.from_schedule_cajas{
+        /* ── Main content ── */
+        main {
+            flex: 1 1 auto;
             width: 100%;
-            height: 45dvh;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: var(--font-size-sm);
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
+            max-width: var(--content-w);
+            margin: 0 auto;
+            padding: var(--sp-12) var(--sp-6);
         }
 
-        main section.from_schedule div.from_schedule_cajas img{
-            width: 30%;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        .card {
+            background: #fff;
+            border: var(--borde-fuerte);
+            box-shadow: var(--sombra-lg);
+            padding: var(--sp-8);
+            margin-bottom: var(--sp-8);
         }
 
-        main section.from_schedule div.from_schedule_cajas span{
-            width: 60%;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: justify;
+        .card h2 {
+            font-size: var(--fs-xl);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0 0 var(--sp-6) 0;
+            padding-bottom: var(--sp-3);
+            border-bottom: 3px solid var(--color-yellow);
         }
-        
-        
 
+        .card p, .card li {
+            font-size: var(--fs-base);
+            line-height: 1.65;
+            color: var(--color-dim-gray);
+            margin: 0 0 var(--sp-4) 0;
+        }
+
+        .card ul {
+            padding-left: var(--sp-6);
+            margin: 0 0 var(--sp-4) 0;
+        }
+
+        .card li { margin-bottom: var(--sp-2); }
+        .card strong { color: var(--color-black); }
+
+        .card p:last-child { margin-bottom: 0; }
+
+        /* Feature grid */
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--sp-6);
+            margin-top: var(--sp-6);
+        }
+        .feature {
+            border: var(--borde-medio);
+            padding: var(--sp-6);
+            background: var(--color-ghost-white);
+        }
+        .feature-label {
+            display: block;
+            font-size: var(--fs-xs);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--color-black);
+            margin-bottom: var(--sp-2);
+        }
+        .feature-value {
+            font-size: var(--fs-base);
+            color: var(--color-dim-gray);
+            line-height: 1.5;
+        }
+
+        /* Accent stripe on feature */
+        .feature--yellow  { border-left: 5px solid var(--color-yellow); }
+        .feature--cerulean { border-left: 5px solid var(--color-cerulean); }
+        .feature--celadon  { border-left: 5px solid var(--color-celadon); }
+        .feature--periwinkle { border-left: 5px solid var(--color-soft-periwinkle); }
+
+        /* ── Footer ── */
+        footer {
+            background: var(--color-black);
+            border-top: var(--borde-fuerte);
+            padding: var(--sp-8) var(--sp-8) var(--sp-6);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: var(--sp-4);
+        }
+        footer a.a_que_es {
+            font-family: var(--font-roboto-mono);
+            font-size: var(--fs-sm);
+            font-weight: 700;
+            color: var(--color-ghost-white);
+            text-decoration: none;
+            margin-right: auto;
+        }
+        footer a.a_que_es:hover { color: var(--color-yellow); }
+        footer img.img_logo_FI { height: 1.5rem; }
+        footer a img { width: 1.5rem; height: 1.5rem; opacity: 0.7; transition: opacity 0.15s; }
+        footer a:hover img { opacity: 1; }
+
+        @media (max-width: 860px) {
+            .hero-inner { flex-direction: column; text-align: center; }
+            .hero-logo { width: 80px; }
+            main { padding: var(--sp-6) var(--sp-4); }
+            .card { padding: var(--sp-6); }
+            .features { grid-template-columns: 1fr; }
+        }
     </style>
-
 </head>
 <body>
 
@@ -209,19 +247,82 @@
                 <a href="./manual.html">Manual</a>
             </ul>
         </nav>
-        
     </header>
 
+    <section class="hero">
+        <div class="hero-inner">
+            <img class="hero-logo" src="./assets/Schedule FI YELLOW.svg" alt="From Schedule">
+            <div class="hero-text">
+                <h1>From Schedule</h1>
+                <p>Solución de FROM INDUSTRIES para la generación y optimización
+                   de horarios académicos universitarios.</p>
+            </div>
+        </div>
+    </section>
+
     <main>
-        <section class="from_schedule">
-            <div class="from_schedule_titulo">
-                <h2>¿Que es <br> FROM SCHEDULE?</h2>
+
+        <div class="card">
+            <h2>El problema</h2>
+            <p>
+                Construir el horario de una facultad es un problema combinatorio:
+                cientos de materias, decenas de docentes con disponibilidades distintas,
+                restricciones sindicales, turnos, grupos simultáneos y jornadas continuas.
+                Hacerlo a mano toma semanas y nunca garantiza que no haya conflictos.
+            </p>
+            <p>
+                <strong>From Schedule</strong> resuelve ese problema en minutos con un
+                solver de programación con restricciones (CP-SAT) que encuentra la mejor
+                asignación posible — o demuestra que no existe.
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>Qué hace</h2>
+            <ul>
+                <li>Lee la <strong>carga académica</strong> y las <strong>disponibilidades</strong> desde dos archivos Excel</li>
+                <li>Genera un horario completo que <strong>respeta todas las restricciones</strong> institucionales</li>
+                <li>Optimiza la calidad: días parejos, mínimos huecos, jornadas compactas</li>
+                <li>Exporta el resultado como <strong>Excel</strong> con una hoja por grupo y una por docente</li>
+            </ul>
+
+            <div class="features">
+                <div class="feature feature--yellow">
+                    <span class="feature-label">Motor</span>
+                    <span class="feature-value">CP-SAT (Google OR-Tools) — solver de optimización de clase industrial</span>
+                </div>
+                <div class="feature feature--cerulean">
+                    <span class="feature-label">Cobertura</span>
+                    <span class="feature-value">100% de las horas colocadas cuando es factible, verificado en 2 fases</span>
+                </div>
+                <div class="feature feature--celadon">
+                    <span class="feature-label">Entrada</span>
+                    <span class="feature-value">2 archivos Excel — carga académica y disponibilidades por docente</span>
+                </div>
+                <div class="feature feature--periwinkle">
+                    <span class="feature-label">Salida</span>
+                    <span class="feature-value">Excel con horarios por grupo y por docente, celdas coloreadas por materia</span>
+                </div>
             </div>
-            <div class="from_schedule_cajas">
-                <img src="./assets/Schedule FI YELLOW.svg" alt="">
-                <span>Es una solución avanzada de FROM INDUSTRIES diseñada para la gestión y optimización de la oferta académica universitaria.</span>
-            </div>
-        </section>
+        </div>
+
+        <div class="card">
+            <h2>From Industries</h2>
+            <p>
+                From Industries es un equipo de desarrollo enfocado en soluciones
+                tecnológicas para instituciones educativas. From Schedule es su
+                herramienta principal para la Facultad de Ingeniería.
+            </p>
+        </div>
+
+    </main>
+
+    <footer>
+        <a class="a_que_es" href="./que_es.html">¿Que es FROM SCHEDULE?</a>
+        <img class="img_logo_FI" src="./assets/LOGO-FI-BRUTO-YELLOW.png" alt="">
+        <a class="a_instagram" href="https://www.instagram.com/fromindustries?igsh=MWRkNHZ6MWI5OWN0Yg=="><img class="img_instagram" src="./assets/logotipo-de-instagram.png" alt=""></a>
+        <a class="a_mail" href=""><img class="img_mail" src="./assets/correo-electronico.png" alt=""></a>
+    </footer>
 
 </body>
 </html>

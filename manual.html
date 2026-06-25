@@ -1,14 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manual de usuario</title>
+    <title>Manual — From Schedule</title>
     <link rel="icon" type="image/svg+xml" href="./assets/Schedule FI BLACK.svg">
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap');
-        :root{
+
+        :root {
             --color-yellow: #FCB814;
             --color-black: #221F20;
             --color-ghost-white: #F3F7FF;
@@ -18,976 +19,283 @@
             --color-celadon: #81C99C;
             --color-gray-olive: #939598;
             --color-soft-periwinkle: #8781BD;
+
             --font-roboto-mono: "Roboto Mono", monospace;
-            --font-size-lg : 10rem;
-            --font-size-md : 5rem;
-            --font-size-sm : 2rem;
-            --font-size-xsm : 1rem;
+            --fs-xs:   0.7rem;
+            --fs-sm:   0.8rem;
+            --fs-base: 0.875rem;
+            --fs-md:   1rem;
+            --fs-lg:   1.15rem;
+            --fs-xl:   1.4rem;
+
+            --sp-1:  0.25rem;
+            --sp-2:  0.5rem;
+            --sp-3:  0.75rem;
+            --sp-4:  1rem;
+            --sp-6:  1.5rem;
+            --sp-8:  2rem;
+            --sp-12: 3rem;
+
+            --borde-fuerte: 3px solid var(--color-black);
+            --borde-medio:  2px solid var(--color-black);
+            --borde-fino:   1px solid var(--color-black);
+            --sombra-lg: 5px 5px 0 0 var(--color-gray-olive);
+            --sombra-sm: 3px 3px 0 0 var(--color-black);
+
+            --header-h: 3.5rem;
+            --content-w: 760px;
         }
 
-        body{
-            width: 100%;
-            height: auto;
+        *, *::before, *::after { box-sizing: border-box; border-radius: 0 !important; }
+
+        body {
+            margin: 0;
+            min-height: 100dvh;
             display: flex;
-            justify-content: center;
-            align-items: center;
             flex-direction: column;
             font-family: var(--font-roboto-mono);
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
+            background: var(--color-ghost-white);
+            color: var(--color-black);
         }
 
-        header{
-            width: 100%;
-            height: 7dvh;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
+        /* ── Header ── */
+        header {
             position: sticky;
             top: 0;
-            background-color: var(--color-yellow);
-            
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
+            z-index: 10;
+            height: var(--header-h);
+            background: var(--color-yellow);
+            border-bottom: var(--borde-fuerte);
         }
-
-        header nav{
-            width: 100%;
-            height: 100%;
+        header nav {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 0 2rem 0 2rem;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        header nav ul{
-            width: auto;
+            justify-content: space-between;
             height: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-direction: row;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
+            padding: 0 var(--sp-8);
         }
-
-        header nav ul a{
+        header nav ul {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-6);
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        header nav ul a {
+            display: flex;
+            align-items: center;
             text-decoration: none;
-            width: 5dvw;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: var(--font-size-xsm);
             color: var(--color-black);
-            font-family: var(--font-roboto-mono);
-            font-weight: bolder;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
+            font-weight: 700;
+            font-size: var(--fs-sm);
+        }
+        header nav ul:last-child a:last-child {
+            box-shadow: inset 0 -3px 0 0 var(--color-black);
+            padding-bottom: var(--sp-1);
+        }
+        header a img { height: 2rem; }
+
+        /* ── Main content ── */
+        main {
+            flex: 1 1 auto;
+            width: 100%;
+            max-width: var(--content-w);
+            margin: 0 auto;
+            padding: var(--sp-12) var(--sp-6);
         }
 
-        header nav ul:last-child a:first-child{
-            width: 5dvw;
-            height: 100%;
-            
+        /* ── Section cards ── */
+        .card {
+            background: #fff;
+            border: var(--borde-fuerte);
+            box-shadow: var(--sombra-lg);
+            padding: var(--sp-8);
+            margin-bottom: var(--sp-8);
         }
 
-        header nav ul:last-child a:last-child{
-            width: 5dvw;
-            height: 100%;
-            box-shadow: inset 0 -5px 0 0 var(--color-black);
-            background-color: transparent;
+        .card h2 {
+            font-size: var(--fs-xl);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0 0 var(--sp-6) 0;
+            padding-bottom: var(--sp-3);
+            border-bottom: 3px solid var(--color-yellow);
         }
 
-        header nav ul a:nth-child(2){
-            width: auto;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 0;
-            margin: 0 0 0 2rem;
+        .card h3 {
+            font-size: var(--fs-md);
+            font-weight: 800;
+            margin: var(--sp-6) 0 var(--sp-3) 0;
         }
 
-        header a img{
-            width: auto;
+        .card p, .card li {
+            font-size: var(--fs-base);
+            line-height: 1.65;
+            color: var(--color-dim-gray);
+            margin: 0 0 var(--sp-4) 0;
+        }
+
+        .card ul, .card ol {
+            padding-left: var(--sp-6);
+            margin: 0 0 var(--sp-4) 0;
+        }
+
+        .card li { margin-bottom: var(--sp-2); }
+
+        .card strong { color: var(--color-black); }
+
+        .card code {
+            background: var(--color-yellow);
+            padding: 0.1rem 0.4rem;
+            font-size: var(--fs-sm);
+            font-weight: 700;
+            border: 1px solid var(--color-black);
+        }
+
+        .highlight {
+            background: #FFF8E0;
+            border: var(--borde-medio);
+            padding: var(--sp-4) var(--sp-6);
+            margin: var(--sp-4) 0;
+        }
+        .highlight p:last-child { margin-bottom: 0; }
+
+        .badge {
+            display: inline-block;
+            padding: 0.15rem var(--sp-2);
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            vertical-align: middle;
+            border: var(--borde-medio);
+        }
+        .badge-pa  { background: var(--color-soft-periwinkle); color: #fff; }
+        .badge-ptc { background: var(--color-cerulean); color: #fff; }
+
+        .tabla-ejemplo {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--fs-sm);
+            border: var(--borde-fuerte);
+            margin: var(--sp-4) 0;
+        }
+        .tabla-ejemplo th,
+        .tabla-ejemplo td {
+            padding: var(--sp-2) var(--sp-3);
+            border: var(--borde-fino);
+            text-align: left;
+        }
+        .tabla-ejemplo thead th {
+            background: var(--color-black);
+            color: var(--color-yellow);
+            font-weight: 700;
+            font-size: var(--fs-xs);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .tabla-ejemplo tbody td { background: #fff; }
+
+        .steps { counter-reset: step; list-style: none; padding-left: 0; }
+        .steps li {
+            counter-increment: step;
+            position: relative;
+            padding-left: var(--sp-12);
+            margin-bottom: var(--sp-6);
+        }
+        .steps li::before {
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 2rem;
             height: 2rem;
+            background: var(--color-yellow);
+            border: var(--borde-medio);
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: var(--fs-base);
         }
 
-        main{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            background-color: var(--color-ghost-white);
-            padding: 4rem 15% 4rem 15%;
-            margin: 0;
-            box-sizing: border-box;
+        .page-title {
+            font-size: var(--fs-xl);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0 0 var(--sp-4) 0;
+        }
+        .page-subtitle {
+            font-size: var(--fs-base);
+            color: var(--color-dim-gray);
+            margin: 0 0 var(--sp-12) 0;
+            line-height: 1.6;
         }
 
-        main section.descargar_plantilla{
-            width: 100%;
-            height: auto;
+        /* ── Footer ── */
+        footer {
+            background: var(--color-black);
+            border-top: var(--borde-fuerte);
+            padding: var(--sp-8) var(--sp-8) var(--sp-6);
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-direction: column;
-            background-color: var(--color-celadon);
+            flex-wrap: wrap;
+            align-items: center;
+            gap: var(--sp-4);
+        }
+        footer a.a_que_es {
+            font-family: var(--font-roboto-mono);
+            font-size: var(--fs-sm);
+            font-weight: 700;
+            color: var(--color-ghost-white);
+            text-decoration: none;
+            margin-right: auto;
+        }
+        footer a.a_que_es:hover { color: var(--color-yellow); }
+        footer img.img_logo_FI { height: 1.5rem; }
+        footer a img { width: 1.5rem; height: 1.5rem; opacity: 0.7; transition: opacity 0.15s; }
+        footer a:hover img { opacity: 1; }
+
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--sp-2);
+            margin-top: var(--sp-3);
+            padding: var(--sp-2) var(--sp-4);
+            font-family: var(--font-roboto-mono);
+            font-size: var(--fs-xs);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-decoration: none;
             color: var(--color-black);
-            padding: 4rem;
-            margin: 0 0 4rem 0;
-            border-radius: 1rem;
-            box-sizing: border-box;
+            background: var(--color-yellow);
+            border: var(--borde-medio);
+            box-shadow: var(--sombra-sm);
+            cursor: pointer;
+            transition: box-shadow 0.1s, transform 0.1s;
         }
-
-        main section.descargar_plantilla h2{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            font-size: var(--font-size-md);
-            padding: 0;
-            margin: 0 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.descargar_plantilla div.descargar_plantilla_cajas{
-            width: 100%;
-            height: 90dvh;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-direction: column;
-            font-size: var(--font-size-sm);
-            padding: 0;
-            margin: 2rem 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.descargar_plantilla div.descargar_plantilla_cajas_textos{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-direction: column;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.descargar_plantilla div.descargar_plantilla_cajas_textos p{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            flex-direction: column;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
-        }
-
-        main section.descargar_plantilla div.descargar_plantilla_cajas_textos span{
-            width: auto;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: flex-start;
-            text-align: justify;
-            font-weight: bold;
-        }
-
-        main section.plantilla{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-direction: column;
-            background-color: var(--color-celadon);
-            color: var(--color-black);
-            padding: 4rem;
-            margin: 0 0 4rem 0;
-            border-radius: 1rem;
-            box-sizing: border-box;
-        }
-
-        main section.plantilla h2{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            font-size: var(--font-size-md);
-            padding: 0;
-            margin: 0 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.plantilla div.plantilla_cajas{
-            width: 100%;
-            height: 90dvh;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-direction: column;
-            font-size: var(--font-size-sm);
-            padding: 0;
-            margin: 2rem 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.plantilla div.plantilla_cajas_textos{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-direction: column;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.plantilla div.plantilla_cajas_textos p{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            flex-direction: column;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
-        }
-
-        main section.plantilla div.plantilla_cajas_textos span{
-            width: auto;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: flex-start;
-            text-align: justify;
-            font-weight: bold;
-        }
-
-        main section.plantilla div.plantilla_cajas_textos img{
-            display: block;    
-            margin: 30px auto; 
-            width: 40%;
-            height: auto;
-            
-        }
-
-
-
-        main section.tipos_docentes{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-direction: column;
-            background-color: var(--color-cerulean);
-            padding: 4rem;
-            margin: 0;
-            border-radius: 1rem;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_docentes div.tipos_docentes_titulo{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            padding: 0;
-            margin: 0;
-        }
-
-        main section.tipos_docentes div.tipos_docentes_titulo h2{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            font-size: var(--font-size-md);
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_docentes div.tipos_docentes_cajas{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            padding: 0;
-            margin: 2rem 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_docentes div.tipos_docentes_cajas div.tipos_docentes_cajas_textos{
-            width: 20%;
-            height: 50dvh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_docentes div.tipos_docentes_cajas div.tipos_docentes_cajas_textos span.tipos_docentes_cajas_textos_span{
-            width: 100%;
-            height: 50%;
-            font-size: var(--font-size-sm);
-            overflow-wrap: break-word;
-            font-weight: bold;
-        }
-
-        main section.tipos_docentes div.tipos_docentes_cajas div.tipos_docentes_cajas_textos p.tipos_docentes_cajas_textos_p{
-            width: 100%;
-            height: 30%;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
-        }
-
-        main section.tipos_docentes_ejemplos{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            background-color: var(--color-cerulean);
-            padding: 4rem;
-            margin: 4rem 0 4rem 0;
-            border-radius: 1rem;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_tutulo{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            padding: 0;
-            margin: 0;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_tutulo h2{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            font-size: var(--font-size-md);
-            padding: 0;
-            margin: 0rem 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas{
-            width: 100%;
-            height: 750dvh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            gap: 2rem;
-            padding: 0;
-            margin: 2rem 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas span.tipos_docentes_ejemplos_cajas_textos_span{
-            width: 100%;
-            height: 100%;
-            display: flex;
-            font-size: var(--font-size-sm);
-            font-weight: bold;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas p.tipos_docentes_ejemplos_cajas_textos_p_1{
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            flex-direction: column;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas p.tipos_docentes_ejemplos_cajas_textos_p_1 span{
-            font-weight: bold;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas table.tipos_docentes_ejemplos_cajas_textos_table_1{
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0;
-            font-size: var(--font-size-xsm);
-            border: solid 3px var(--color-black);
-            border-radius: 1rem;
-            border-collapse: collapse;
-            padding: 2rem;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas table.tipos_docentes_ejemplos_cajas_textos_table_1 th{
-            font-weight: normal;
-            border: solid 1px var(--color-black);
-            border-radius: 0rem;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas p.tipos_docentes_ejemplos_cajas_textos_p_2{
-            width: 100%;
-            height: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            flex-direction: column;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas p.tipos_docentes_ejemplos_cajas_textos_p_2 span{
-            font-weight: bold;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas table.tipos_docentes_ejemplos_cajas_textos_table_2{
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0;
-            font-size: var(--font-size-xsm);
-            border: solid 3px var(--color-black);
-            border-radius: 1rem;
-            border-collapse: collapse;
-            padding: 2rem;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas table.tipos_docentes_ejemplos_cajas_textos_table_2 th{
-            font-weight: normal;
-            border: solid 1px var(--color-black);
-            border-radius: 0rem;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas table.tipos_docentes_ejemplos_cajas_textos_table_3{
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0;
-            font-size: var(--font-size-xsm);
-            border: solid 3px var(--color-black);
-            border-radius: 1rem;
-            border-collapse: collapse;
-            padding: 2rem;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_docentes_ejemplos div.tipos_docentes_ejemplos_cajas table.tipos_docentes_ejemplos_cajas_textos_table_3 th{
-            font-weight: normal;
-            border: solid 1px var(--color-black);
-            border-radius: 0rem;
-        }
-
-        main section.tipos_materias{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-direction: column;
-            background-color: var(--color-gray-olive);
-            padding: 4rem;
-            margin: 0;
-            border-radius: 1rem;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_materias div.tipos_materias_titulo{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            padding: 0;
-            margin: 0;
-        }
-
-        main section.tipos_materias div.tipos_materias_titulo h2{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            font-size: var(--font-size-md);
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_materias div.tipos_materias_cajas{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            padding: 0;
-            margin: 2rem 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_materias div.tipos_materias_cajas div.tipos_materias_cajas_textos{
-            width: 25%;
-            height: 50dvh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_materias div.tipos_materias_cajas div.tipos_materias_cajas_textos span.tipos_materias_cajas_textos_span{
-            width: 100%;
-            height: 50%;
-            font-size: var(--font-size-sm);
-            text-align: justify;
-            overflow-wrap: break-word;
-            font-weight: bold;
-        }
-
-        main section.tipos_materias div.tipos_materias_cajas div.tipos_materias_cajas_textos p.tipos_materias_cajas_textos_p{
-            width: 100%;
-            height: 30%;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
-        }
-
-        main section.tipos_materias_ejemplos{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            background-color: var(--color-gray-olive);
-            padding: 4rem;
-            margin: 4rem 0 4rem 0;
-            border-radius: 1rem;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_tutulo{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            padding: 0;
-            margin: 0;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_tutulo h2{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            font-size: var(--font-size-md);
-            padding: 0;
-            margin: 0rem 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas{
-            width: 100%;
-            height: 420dvh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            gap: 2rem;
-            padding: 0;
-            margin: 2rem 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas span.tipos_materias_ejemplos_cajas_textos_span{
-            width: 100%;
-            height: 100%;
-            display: flex;
-            font-size: var(--font-size-sm);
-            font-weight: bold;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas p.tipos_materias_ejemplos_cajas_textos_p_1{
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            flex-direction: column;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas p.tipos_materias_ejemplos_cajas_textos_p_1 span{
-            font-weight: bold;
-            margin: 0;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas table.tipos_materias_ejemplos_cajas_textos_table_1{
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0;
-            font-size: var(--font-size-xsm);
-            border: solid 3px var(--color-black);
-            border-radius: 1rem;
-            border-collapse: collapse;
-            padding: 2rem;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas table.tipos_materias_ejemplos_cajas_textos_table_1 th{
-            font-weight: normal;
-            border: solid 1px var(--color-black);
-            border-radius: 0rem;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas p.tipos_materias_ejemplos_cajas_textos_p_2{
-            width: 100%;
-            height: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            flex-direction: column;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas p.tipos_materias_ejemplos_cajas_textos_p_2 span{
-            font-weight: bold;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas table.tipos_materias_ejemplos_cajas_textos_table_2{
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0;
-            font-size: var(--font-size-xsm);
-            border: solid 3px var(--color-black);
-            border-radius: 1rem;
-            border-collapse: collapse;
-            padding: 2rem;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas table.tipos_materias_ejemplos_cajas_textos_table_2 th{
-            font-weight: normal;
-            border: solid 1px var(--color-black);
-            border-radius: 0rem;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas table.tipos_materias_ejemplos_cajas_textos_table_3{
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0;
-            font-size: var(--font-size-xsm);
-            border: solid 3px var(--color-black);
-            border-radius: 1rem;
-            border-collapse: collapse;
-            padding: 2rem;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_materias_ejemplos div.tipos_materias_ejemplos_cajas table.tipos_materias_ejemplos_cajas_textos_table_3 th{
-            font-weight: normal;
-            border: solid 1px var(--color-black);
-            border-radius: 0rem;
-        }
-
-        main section.tipos_grupos{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-direction: column;
-            background-color: var(--color-soft-periwinkle);
-            padding: 4rem;
-            margin: 0;
-            border-radius: 1rem;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_grupos div.tipos_grupos_titulo{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            padding: 0;
-            margin: 0;
-        }
-
-        main section.tipos_grupos div.tipos_grupos_titulo h2{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            font-size: var(--font-size-md);
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_grupos div.tipos_grupos_cajas{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-around;
-            align-items: flex-end;
-            padding: 0;
-            margin: 2rem 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_grupos div.tipos_grupos_cajas div.tipos_grupos_cajas_textos{
-            width: 25%;
-            height: 50dvh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.tipos_grupos div.tipos_grupos_cajas div.tipos_grupos_cajas_textos span.tipos_grupos_cajas_textos_span{
-            width: 100%;
-            height: 50%;
-            font-size: var(--font-size-sm);
-            text-align: justify;
-            overflow-wrap: break-word;
-            font-weight: bold;
-        }
-
-        main section.tipos_grupos div.tipos_grupos_cajas div.tipos_grupos_cajas_textos p.tipos_grupos_cajas_textos_p{
-            width: 100%;
-            height: 30%;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
-        }
-
-        main section.cargar_plantilla{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-direction: column;
-            background-color: var(--color-celadon);
-            color: var(--color-black);
-            padding: 4rem;
-            margin: 4rem 0 4rem 0;
-            border-radius: 1rem;
-            box-sizing: border-box;
-        }
-
-        main section.cargar_plantilla h2{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            font-size: var(--font-size-md);
-            padding: 0;
-            margin: 0 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.cargar_plantilla div.cargar_plantilla_cajas{
-            width: 100%;
-            height: 170dvh;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-direction: column;
-            font-size: var(--font-size-sm);
-            padding: 0;
-            margin: 2rem 0 2rem 0;
-            box-sizing: border-box;
+        .btn-download:hover {
+            transform: translate(1px, 1px);
+            box-shadow: 2px 2px 0 0 var(--color-black);
         }
-
-        main section.cargar_plantilla div.cargar_plantilla_cajas_textos{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-direction: column;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
-        }
-
-        main section.cargar_plantilla div.cargar_plantilla_cajas_textos p{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            flex-direction: column;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
-        }
-
-        main section.cargar_plantilla div.cargar_plantilla_cajas_textos span{
-            width: auto;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: flex-start;
-            text-align: justify;
-            font-weight: bold;
-        }
-
-        main section.cargar_plantilla div.cargar_plantilla_cajas_textos img{
-            display: block;    
-            margin: 30px auto; 
-            width: auto;
-            height: auto;
-            
-        }
-
-        main section.descargar_horario{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-direction: column;
-            background-color: var(--color-celadon);
-            color: var(--color-black);
-            padding: 4rem;
-            margin: 4rem 0 4rem 0;
-            border-radius: 1rem;
-            box-sizing: border-box;
+        .btn-download:active {
+            transform: translate(3px, 3px);
+            box-shadow: none;
         }
-
-        main section.descargar_horario h2{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            font-size: var(--font-size-md);
-            padding: 0;
-            margin: 0 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.descargar_horario div.descargar_horarioa_cajas{
-            width: 100%;
-            height: 170dvh;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-direction: column;
-            font-size: var(--font-size-sm);
-            padding: 0;
-            margin: 2rem 0 2rem 0;
-            box-sizing: border-box;
-        }
-
-        main section.descargar_horario div.descargar_horario_cajas_textos{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-direction: column;
-            padding: 0;
-            margin: 0;
-            box-sizing: border-box;
+        .btn-download svg {
+            width: 14px;
+            height: 14px;
+            fill: var(--color-black);
         }
 
-        main section.descargar_horario div.descargar_horario_cajas_textos p{
-            width: 100%;
-            height: auto;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            flex-direction: column;
-            font-size: var(--font-size-xsm);
-            text-align: justify;
+        @media (max-width: 860px) {
+            main { padding: var(--sp-6) var(--sp-4); }
+            .card { padding: var(--sp-6); }
         }
-
-        main section.descargar_horario div.descargar_horario_cajas_textos span{
-            width: auto;
-            height: auto;
-            display: flex;
-            justify-content: flex-start;
-            align-items: flex-start;
-            text-align: justify;
-            font-weight: bold;
-        }
-
-        main section.descargar_horario div.descargar_horario_cajas_textos img{
-            display: block;    
-            margin: 30px auto; 
-            width: auto;
-            height: auto;
-            
-        }
-        
-
     </style>
-
 </head>
 <body>
 
@@ -1001,1042 +309,273 @@
                 <a href="./manual.html">Manual</a>
             </ul>
         </nav>
-        
     </header>
 
     <main>
-        <section class="descargar_plantilla">
-            <div class="descargar_plantilla_titulo">
-                <h2>Descarga tu plantilla</h2>
-            </div>
-            <div class="descargar_plantilla_cajas">
-                <div class="descargar_plantilla_cajas_textos">
-                    <span>Boton de descarga de pantilla</span>
-                    <p>La plantilla es la base de generacion de horarios, en esta se crearan, docentes, grupos y materias, y a su vez se realizan cada una de ellas</p>
-                    <p>Se descargara en un archivo excel tradicional llamado "plantillaDatos", se recomienda el uso de versiones modernas de excel como el Office 2021 o superior, Libre Office 26 o superior, o Googles Sheets (tambien se puede usar con versiones anteriores de los programas antes mencionados aunque no se recomienda el uso de los mismos).</p>
-                    <img src="assets/descarga_tu_plantilla.svg" alt="">
-                </div>
-                
-            </div>
-        </section>
-        <section class="plantilla">
-            <div class="plantilla_titulo">
-                <h2>Conoce tu plantilla (Docentes)</h2>
-            </div>
-            <div class="plantilla_cajas_textos">
-                <span>Primera hoja (Docentes)</span>
-                <p>Esta primera hoja cuenta con los datos necesarios para crear el horario de los docentes.</p>
-                <p><span>Nombre: </span>En este apartado se pondra el nombre el nombre (Se puede considerar igual su titulo dentro del mismo)</p>
-                <p><span>Dispoinibilidad de horario por dia: </span>En este apartado se pondra la dispoinibilidad de horarios de los docentes de la siguiente forma, si el docente tiene una dispoinibilidad de 7am a 4pm se escribira en su celda correspondiente como; "7-16", pero si el docente tiene una disponibibilidad de 7am a 12pm y en el mismo dia tiene una dispoinibilidad de 3pm a 9pm, se escribira como "7-12 15-21", y si el docente no tiene ninguna dispoinibilidad para ese dia solo se escribira "-" (ninguna dispoinibilidad debera de quedar vacia).</p>
-                <p><span>Horas extra clase: </span>En este apartado se escribira las horas ajenas a la docencia o tutorias, tales como asesorias por reforzamiento academico, gestion institucional, investigacion, etc.</p>
-                <p><span>Tipo: </span>En este apartado se pondra el tipo de docente al que pertenece (mas adelante se explica los tipos de docente y el como reconocerlos)</p>
-                <br>
-                <span>Partes de la hoja "Materias"</span>
-                <img src="assets/hoja_docentes.svg" alt="">
-                <br>
-                <span>Ejemplo de hoja "Materias" con datos</span>
-                <img src="assets/ejemplo_docentes_lleno.svg" alt="">
+        <h1 class="page-title">Manual de usuario</h1>
+        <p class="page-subtitle">
+            From Schedule genera horarios completos a partir de dos archivos Excel.
+            El motor ÓPTIMO (CP-SAT) encuentra la mejor asignación posible respetando
+            todas las restricciones institucionales.
+        </p>
+
+        <!-- ─── FLUJO GENERAL ─── -->
+        <div class="card">
+            <h2>Flujo general</h2>
+            <ol class="steps">
+                <li>
+                    <strong>Sube la Carga Académica</strong> — archivo .xlsx con los docentes,
+                    sus categorías y las materias asignadas a cada grupo.<br>
+                    <a class="btn-download" href="./assets/Plantilla Carga Académica.xlsx" download><svg viewBox="0 0 24 24"><path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-8 4h16v-2H4v2z"/></svg>Descargar plantilla</a>
+                </li>
+                <li>
+                    <strong>Sube las Disponibilidades</strong> — archivo .xlsx donde cada hoja
+                    es un docente y marca las horas disponibles por día.<br>
+                    <a class="btn-download" href="./assets/Plantilla Disponibilidades de horarios.xlsx" download><svg viewBox="0 0 24 24"><path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-8 4h16v-2H4v2z"/></svg>Descargar plantilla</a>
+                </li>
+                <li>
+                    <strong>Presiona GENERAR ÓPTIMO</strong> — el motor resuelve el horario
+                    (~3-5 min). El resultado aparece en el desglose y se descarga como Excel.
+                </li>
+            </ol>
+        </div>
+
+        <!-- ─── CARGA ACADÉMICA ─── -->
+        <div class="card">
+            <h2>Archivo 1: Carga Académica</h2>
+            <p>
+                Un archivo <code>.xlsx</code> con <strong>una sola hoja</strong>.
+                El sistema detecta automáticamente la fila que contiene el encabezado
+                <code>Profesor</code>.
+            </p>
+
+            <h3>Columnas requeridas</h3>
+            <table class="tabla-ejemplo">
+                <thead>
+                    <tr>
+                        <th>Columna</th>
+                        <th>Contenido</th>
+                        <th>Ejemplo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Profesor</strong></td>
+                        <td>Nombre completo del docente</td>
+                        <td>Horacio Sánchez Hernández</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CATEGORÍA</strong></td>
+                        <td><code>PA</code> para Profesor por Asignatura, cualquier otra cosa se interpreta como PTC</td>
+                        <td>PA</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Asignatura</strong></td>
+                        <td>Texto con formato: <code>Materia Grado°Grupo (Nhrs)</code>. Puede tener varias líneas.</td>
+                        <td>Contabilidad II 2°a (6 hrs)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Formato de Asignatura</h3>
+            <p>Cada línea dentro de la celda de Asignatura sigue el patrón:</p>
+            <div class="highlight">
+                <p><code>NombreMateria Grado°Grupos (Horas hrs)</code></p>
+                <p>
+                    <strong>Ejemplos:</strong><br>
+                    <code>Contabilidad II 2°a (6 hrs)</code> — 6 horas al grupo 2a<br>
+                    <code>Ingles 2 2°ab (9 hrs)</code> — 9 horas repartidas entre 2a y 2b<br>
+                    <code>Tutoria 2°a (2 hrs)</code> — tutoría de 2 horas
+                </p>
             </div>
 
-        </section>
+            <p>
+                El <strong>turno</strong> se determina automáticamente por el grado:
+                semestres 1-4 son <strong>matutino</strong> (7:00-17:00),
+                semestres 5+ son <strong>vespertino</strong> (12:00-21:00).
+            </p>
+        </div>
 
-        <section class="plantilla">
-            <div class="plantilla_titulo">
-                <h2>Conoce tu plantilla (Materias)</h2>
-            </div>
-            <div class="plantilla_cajas_textos">
-                <span>Segunda hoja (Materias)</span>
-                <p>La segunda hoja cuenta con los datos necesarios para crear el horario de los docentes.</p>
-                <p><span>Nombre: </span>En este apartado se pondra el nombre de la materia</p>
-                <p><span>Horas: </span>En este apartado se pondra la cantidad de horas-clase por semana.</p>
-                <p><span>Grado: </span>En este apartado se escribira el grado correspondiente a la materia</p>
-                <p><span>Turno: </span>En este apartado se introduccira el turno correspondiente a la materia</p>
-                <br>
-                <span>Partes de la hoja "Docentes"</span>
-                <img src="assets/hoja_materias.svg" alt="">
-                <br>
-                <span>Ejemplo de hoja "Docentes" con datos</span>
-                <img src="assets/ejemplo_materias_lleno.svg" alt="">
-            </div>
+        <!-- ─── DISPONIBILIDADES ─── -->
+        <div class="card">
+            <h2>Archivo 2: Disponibilidades</h2>
+            <p>
+                Un archivo <code>.xlsx</code> con <strong>una hoja por docente</strong>.
+                El nombre de cada hoja debe coincidir (parcialmente) con el nombre del docente
+                en la Carga Académica.
+            </p>
 
-        </section>
+            <h3>Estructura de cada hoja</h3>
+            <table class="tabla-ejemplo">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Lunes</th>
+                        <th>Martes</th>
+                        <th>Miércoles</th>
+                        <th>Jueves</th>
+                        <th>Viernes</th>
+                        <th>Sábado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>7:00</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td></td></tr>
+                    <tr><td>8:00</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td></td></tr>
+                    <tr><td>9:00</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td></td><td></td></tr>
+                    <tr><td>10:00</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                    <tr><td colspan="7" style="text-align:center;color:var(--color-dim-gray)">... (filas 11:00 a 20:00)</td></tr>
+                </tbody>
+            </table>
 
-         <section class="plantilla">
-            <div class="plantilla_titulo">
-                <h2>Conoce tu plantilla (Grupos)</h2>
+            <div class="highlight">
+                <p>
+                    <strong>Celda con contenido</strong> = disponible (cualquier texto o símbolo sirve).<br>
+                    <strong>Celda vacía</strong> = no disponible.
+                </p>
+                <p>
+                    Las filas van de las <strong>7:00 a las 20:00</strong> (14 franjas horarias).
+                    Las columnas son <strong>Lunes a Sábado</strong> (6 días).
+                </p>
             </div>
-            <div class="plantilla_cajas_textos">
-                <span>Tercera hoja (Materias)</span>
-                <p>La segunda hoja cuenta con los datos necesarios para crear el horario de los docentes.</p>
-                <p><span>Nombre: </span>En este apartado se pondra el nombre del grupo</p>
-                <p><span>Turno: </span>En este apartado se pondra el turno respectivo del grupo ("Matutino" y "Vespertino"), Matutino se considera de 7am a 5pm y Vespertino de 12pm a 9pm</p>
-                <br>
-                <span>Partes de la hoja "Grupos"</span>
-                <img src="assets/hoja_grupos.svg" alt="">
-                <br>
-                <span>Ejemplo de hoja "Docentes" con datos</span>
-                <img src="assets/ejemplo_grupos_lleno.svg" alt="">
-            </div>
+        </div>
 
-        </section>
+        <!-- ─── TIPOS DE DOCENTE ─── -->
+        <div class="card">
+            <h2>Tipos de docente</h2>
+            <p>El sistema distingue dos categorías principales de docente:</p>
 
-        <section class="plantilla">
-            <div class="plantilla_titulo">
-                <h2>Conoce tu plantilla (Asignaciones)</h2>
-            </div>
-            <div class="plantilla_cajas_textos">
-                <span>Cuarta hoja (Asignaciones)</span>
-                <p>La cuarta hoja es la union de las 3 hojas anteriores, aqui se determina que docente dara que materia a que grupo.</p>
-                <p><span>Docente: </span>En este apartado se pondra el nombre del docente en la union</p>
-                <p><span>Materia: </span>En este apartado se pondra el nombre de la materia de la union</p>
-                <p><span>Grupo: </span>En este apartado se pondra el nombre del grupo de la union</p>
-                <br>
-                <span>Partes de la hoja "Asignaciones"</span>
-                <img src="assets/hoja_asignaciones.svg" alt="">
-                <br>
-                <span>Ejemplo de hoja "Asignaciones" con datos</span>
-                <img src="assets/ejemplo_asignaciones_lleno.svg" alt="">
-            </div>
+            <h3><span class="badge badge-pa">PA</span> Profesor por Asignatura</h3>
+            <p>
+                Docente que asiste solo a impartir sus horas-clase.
+                El sistema <strong>minimiza sus días de asistencia</strong> según su carga
+                usando un <strong>escalón institucional</strong>.
+            </p>
 
-        </section>
-
-        <section class="tipos_docentes">
-                <div class="tipos_docentes_titulo">
-                    <h2>Tipos de docentes</h2>
-                </div>
-                <div class="tipos_docentes_cajas">
-                    <div class="tipos_docentes_cajas_textos">
-                        <span class="tipos_docentes_cajas_textos_span">Tipo 1:<br> Docente de ingles o placa</span> 
-                        <p class="tipos_docentes_cajas_textos_p">Este tipo de docente es el docente que pertenece a la coordinacion de ingles, alguna otra coordinacion o tiene una disponibibilidad de horario bastante reducida o justa.</p>
-                    </div>
-                    <div class="tipos_docentes_cajas_textos">
-                        <span class="tipos_docentes_cajas_textos_span">Tipo 2:<br> Docente por asigntura (PA)</span>
-                        <p class="tipos_docentes_cajas_textos_p">Este tipo de docente es aquel que solo se encuentra en una unica coordinacion o en su defecto tiene una dispoinibilidad amplia que no afecte a la gestion del programa educativo y solo su principal funcion es cumplir con sus horas-clase.</p>
-                    </div>
-                    <div class="tipos_docentes_cajas_textos">
-                        <span class="tipos_docentes_cajas_textos_span">Tipo 3:<br> Docente por tiempo completo (PTC)</span> 
-                        <p class="tipos_docentes_cajas_textos_p">Este tipo de docente es aquel que solo se encuentra en una unica coordinacion toma horas-clase y demas actividades de gestion institucional en un horario laboral semi tradicional.</p>
-                    </div>
-                    <div class="tipos_docentes_cajas_textos">
-                        <span class="tipos_docentes_cajas_textos_span">Tipo 4:<br> Administractivos</span> 
-                        <p class="tipos_docentes_cajas_textos_p">Este tipo de docente es aquel que se le asigna pocas horas de clase, debido que su principal papel dentro de la universidad es su papel administractivo y sus horas-clase estan dentro de su horario tradicional.
-                    </div>
-                </div>
-        </section>
-        <section class="tipos_docentes_ejemplos">
-            <div class="tipos_docentes_ejemplos_tutulo">
-                <h2>¿Como reconocer un tipo de docente?</h2>
-            </div>
-            <div class="tipos_docentes_ejemplos_cajas">
-                <span class="tipos_docentes_ejemplos_cajas_textos_span">Tipo 1:<br> Docente de ingles o placa</span>
-                <p class="tipos_docentes_ejemplos_cajas_textos_p_1"><span>Caso 1: </span>Docentes de ingles que tienen una materia tipo placa (Esto aplica para las materias de ingles del nuevo modelo educativo 2024), con este tipo de docente se le debe de asignar una dispoinibilidad exacta, ya que los grupos del P.E. se mezclan a las horas de ingles por su nivel, por lo regular solo pueden tener una sola asignatura a un solo grupo.</p>
-                <table class="tipos_docentes_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de disponibibilidad docente de ingles con materias de ingles del modelo de estudios 2024 con una materia de 15 horas a la semana</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                <p class="tipos_docentes_ejemplos_cajas_textos_p_1"><span>Caso 2: </span>Docentes de ingles que tienen una disponibibilidad ajustada o justa (no es una materia placa), por lo regular el docente es compartido con otro P.E. se debe de considerar solo su disponibibilidad con el P.E. de interes no el total con la universidad.</p>
-                <table class="tipos_docentes_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de disponibibilidad docente de ingles con materias de ingles del modelo de estudios 2018</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th>✓</th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th>✓</th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                <p class="tipos_docentes_ejemplos_cajas_textos_p_2"><span>Caso 3: </span>Docentes que tienen una disponibilidad bastante justa o exacta por lo cual los convierte en placas (Estos suelen ser compartido por otro P.E., pertenecen al sindicato de la universidad), por lo regular solo pueden tener una sola asignatura a un solo grupo.</p>
-                <table class="tipos_docentes_ejemplos_cajas_textos_table_2">
-                    <tr>
-                        <td colspan="7">Ejemplo de disponibibilidad de un docente que comparte P.E. y tiene una disponibilidad justa</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th></th><th></th><th></th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th>✓</th><th></th><th></th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th>✓</th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                <span class="tipos_docentes_ejemplos_cajas_textos_span">Tipo 2:<br> Docente por asigntura (PA)</span>
-                <p class="tipos_docentes_ejemplos_cajas_textos_p_2"><span>Caso 1: </span>Docentes que tienen una disponibilidad rajustada a amplia, este tipo de docente se busca que solo asista la menor cantidad de horas posibles en la universidad y la menor de cantidad de dias posible (Esto considerando sus horas-clase), esto puede el tradicional P.A. o un trabajador de interno de la universidad que debe de tener su horario de clases fuera de su horario administractivo.</p>
-                <table class="tipos_docentes_ejemplos_cajas_textos_table_3">
-                    <tr>
-                        <td colspan="7">Ejemplo de disponibibilidad de un docente que no comparte P.E. y ofrece una disponibibilidad amplia</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                <p class="tipos_docentes_ejemplos_cajas_textos_p_2"><span>Caso 2: </span>Docentes que forman parte dentro de la area administractiva de la universidad sin importar el area (sin considerar directivos), ellos tienen una disponibibilidad externa a su horario administractivo.</p>
-                <table class="tipos_docentes_ejemplos_cajas_textos_table_3">
-                    <tr>
-                        <td colspan="7">Ejemplo de disponibibilidad de un docente que no comparte P.E. y tiene una disponibilidad justa debido a su horario administractivo</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th colspan="5" rowspan="9">Horario administractivo <br> (En este espacio no se puede tomar horas-clase)</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                </table>
-                <span class="tipos_docentes_ejemplos_cajas_textos_span">Tipo 3:<br> Docente tiempo completo</span>
-                <p class="tipos_docentes_ejemplos_cajas_textos_p_1"><span>Caso 1: </span>Docentes que cumplen una jornada laboral semanal de 40 horas (mas 2.5 horas a la semana de comida, pero a efectos del horario no se considera) en 5 dias de la semana, es indiferente si su horario es de apertura (7am) o de cierre (9pm), siempre que se cumplan sus 8 horas diarias</p>
-                <table class="tipos_docentes_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de horario de un docente por tiempo completo en caso cumpliendo 4 para abrir y 1 para cerrar (Su dispoinibilidad se toma en cuenta junto con sus guardias).</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>
-                </table>
-                <p class="tipos_docentes_ejemplos_cajas_textos_p_1"><span>Caso 2: </span>Docentes que cumplen una jornada laboral semanal de 40 horas cumpliendo su jornada en el horario administractivo 9am a 5pm (Esto considerando su espacio efectivo en el generador de horarios)</p>
-                <table class="tipos_docentes_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de horario de un docente por tiempo completo que toma su jornada semanal dentro del horario administractivo (Se intenta que se cumpla este caso pero no es obligatorio).</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                <p class="tipos_docentes_ejemplos_cajas_textos_p_1"><span>Caso 3: </span>Docentes que cumplen una jornada laboral semanal de 40 horas cumpliendo su jornada semanal en 6 dias de la semana (la forma en la cual las horas queden distribuidas se toma a consideracion de las necesidades del P.E.)</p>
-                <table class="tipos_docentes_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de horario de un docente por tiempo completo que cumple su jornada semanal en 6 dias en vez de 5 (este tipo de horario no es comun, se usa mas como ultimo recurso).</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th></th><th></th><th></th><th></th><th></th><th>✓</th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th></th><th></th><th></th><th></th><th></th><th>✓</th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th></th><th></th><th></th><th></th><th></th><th>✓</th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th><th></th><th></th><th></th><th></th><th>✓</th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th><th></th><th></th><th></th><th></th><th>✓</th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                </table>
-                <span class="tipos_docentes_ejemplos_cajas_textos_span">Tipo 4:<br> Administractivos</span>
-                <p class="tipos_docentes_ejemplos_cajas_textos_p_1"><span>Caso 1: </span>Docentes que cumplen una jornada laboral semanal de 40 horas este mismo es de 9am a 5pm) en 5 dias de la semana, ellos toman sus horas clase dentro del horario administractivo de la universidad (hay esepciones como los tecnicos academicos y coordinadores de P.E.)</p>
-                <table class="tipos_docentes_ejemplos_cajas_textos_table_3">
-                    <tr>
-                        <td colspan="7">Ejemplo de disponibibilidad de un docente administractivo que asiste dentro del horario administractivo de la universidad</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th colspan="5" rowspan="8">Horario administractivo <br> (En este se deben de considerar sus horas-clase u horas-tutoria)</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                <p class="tipos_docentes_ejemplos_cajas_textos_p_1"><span>Caso 2: </span>Docentes Administractivos que cumplen una jornada de 40 horas a la semana, pero no necesariamente con el horario administractivo, en este perfil entra coordinadores y tecnicos academicos de los P.E.</p>
-                <table class="tipos_docentes_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de horario del coordinador y/o tecnico academico de los P.E.</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th>✓</th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th>✓</th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th>✓</th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th>✓</th><th></th>
-                    </tr>
-                </table>
+            <h3>¿Qué es el escalón?</h3>
+            <p>
+                El escalón es la regla que limita cuántos días a la semana puede asistir
+                un docente PA, según el total de horas que imparte:
+            </p>
+            <table class="tabla-ejemplo">
+                <thead><tr><th>Escalón</th><th>Carga semanal</th><th>Días máximos</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>2</strong></td><td>1 - 9 horas</td><td>2 días</td></tr>
+                    <tr><td><strong>3</strong></td><td>10 - 20 horas</td><td>3 días</td></tr>
+                    <tr><td><strong>4</strong></td><td>21+ horas</td><td>4 días</td></tr>
+                </tbody>
+            </table>
+            <div class="highlight">
+                <p>
+                    <strong>Ejemplo:</strong> un docente PA con 12 horas semanales tiene
+                    escalón 3 — el sistema solo puede colocar sus clases en un máximo
+                    de 3 días distintos de la semana.
+                </p>
             </div>
 
-        </section>
-        <section class="tipos_materias">
-                <div class="tipos_materias_titulo">
-                    <h2>Tipos de materias</h2>
-                </div>
-                <div class="tipos_materias_cajas">
-                    <div class="tipos_materias_cajas_textos">
-                        <span class="tipos_materias_cajas_textos_span">Ttradicionales:<br> Materias de cualquier tipo</span> 
-                        <p class="tipos_materias_cajas_textos_p">Este tipo de materia es la tradicional, la cual debe tener una sesion de clase al dia con minimo de una hora y un maximo de 3 horas.</p>
-                    </div>
-                    <div class="tipos_materias_cajas_textos">
-                        <span class="tipos_materias_cajas_textos_span">Tutorias:<br> Materias de guia estudiantil</span>
-                        <p class="tipos_materias_cajas_textos_p">Este tipo de materia tiene dos modalidades; grupal e individual, por ende puede tener mas de una sesion al dia, de igual forma esta suele tener pocas horas-tutoria a la semana por lo regular 2 o 3.</p>
-                    </div>
-                    <div class="tipos_materias_cajas_textos">
-                        <span class="tipos_materias_cajas_textos_span">Ingles:<br> Docente por tiempo completo (PTC)</span> 
-                        <p class="tipos_materias_cajas_textos_p">Este tipo materia tiene dos subtipos, en este apartado es si tiene un TSU o NA, El TSU de la materia "NA" hara que se maneje como una materia tradicional, El TSU de la materia que no sea "NA" hara que se maneje como una materia placa, esto debido a que se necesita que se tome ingles en un espacio en especifico.</p>
-                    </div>
-                    
-                </div>
-        </section>
-        <section class="tipos_materias_ejemplos">
-            <div class="tipos_materias_ejemplos_tutulo">
-                <h2>¿Como reconocer tu tipo de materia?</h2>
+            <h3>Días extra autorizados</h3>
+            <p>
+                A veces el escalón puro no alcanza: si un docente PA tiene muchos grupos
+                en turnos distintos o disponibilidad muy limitada, el solver puede no
+                lograr colocar todas sus horas en los días permitidos.
+            </p>
+            <p>
+                Para esto existe el panel <strong>Días extra autorizados por docente</strong>
+                en la pantalla del generador. Ahí puedes conceder <strong>+1, +2 o +3 días
+                adicionales</strong> sobre el escalón base de cada docente PA.
+            </p>
+            <div class="highlight">
+                <p>
+                    <strong>¿Cómo funciona?</strong> Junto a cada docente PA aparece un selector
+                    con su carga y escalón actual (ej: <code>19h · escalón 3</code>).
+                    Si el sistema detecta que necesita más días, muestra la etiqueta
+                    <strong style="color:var(--color-tomato)">sugerido +2</strong> en rojo.
+                    Tú decides si aceptas la sugerencia ajustando el selector a <code>+1</code>,
+                    <code>+2</code> o <code>+3</code> y vuelves a generar.
+                </p>
             </div>
-            <div class="tipos_materias_ejemplos_cajas">
-                <span class="tipos_materias_ejemplos_cajas_textos_span">Tradicional</span>
-                <p class="tipos_materias_ejemplos_cajas_textos_p_1"> <span>Materias que se busca partir en sesiones equilibradas: </span><br>Materia de 8 horas, se partira como: sesion 1 de 2 horas, sesion 2 de 2 horas, sesion 3 de 2 horas y sesion 4 de 2 horas.<br>Materia de 7 horas, se partira como: sesion 1 de 2 horas, sesion 2 de 2 horas, sesion 3 de 2 horas y sesion 4 de 1 horas<br>Materia de 6 horas, se partira como: sesion 1 de 2 horas, sesion 2 de 2 horas, sesion 3 de 2 horas.<br>Materia de 5 horas, se partira como: sesion 1 de 2 horas, sesion 2 de 2 horas, sesion 3 de 1 horas.<br>Materia de 4 horas, se partira como: sesion 1 de 2 horas y sesion 2 de 2 horas.<br>Materia de 3 horas, se partira como: sesion 1 de 2 horas y sesion 2 de 1 horas. <br>Materia de 2 horas, se partira como: sesion 1 de 1 horas y sesion 2 de 1 horas.<br>Materia de 1 hora, se partira como: sesion 1 de 1 hora.</p>
-                <table class="tipos_materias_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de particion de horas de una materia de 5 horas a la semana</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                
-                <table class="tipos_materias_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de particion de horas de una materia de 7 horas a la semana</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th>✓</th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                <span class="tipos_materias_ejemplos_cajas_textos_span">Tutorias</span>
-                <p class="tipos_materias_ejemplos_cajas_textos_p_1"> <span>Materias que se busca en sesiones cortas y al inicio o final de la jornada dependiendo si el grupos tiene un turno matutino o vespertino y puede tener dos sesiones de tutoria el mismo dia.</span><br><br>Materia de 3 horas, se partira como: sesion 1 de 2 horas y sesion 2 de 1 horas. <br>Materia de 2 horas, se partira como: sesion 1 de 1 horas y sesion 2 de 1 horas.<br>Materia de 1 hora, se partira como: sesion 1 de 1 hora.</p>
-                <table class="tipos_materias_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de particion de horas de una tutoria de 2 horas a la semana con sus sesiones en diferentes dias para un grupo con turno matutino.</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                
-                <table class="tipos_materias_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de particion de horas de una tutoria de 3 horas con sus sesiones en el mismo dia.</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th>✓</th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th>✓</th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th>✓</th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                </table>
+            <p>
+                Los días extra autorizados se guardan automáticamente en el navegador,
+                así no necesitas configurarlos de nuevo en cada sesión.
+            </p>
 
-                <span class="tipos_materias_ejemplos_cajas_textos_span">Ingles</span>
-                <p class="tipos_materias_ejemplos_cajas_textos_p_1"> <span>Materia que tiene dos tipos de distribuciones</span><br>Materia tipo placa: Este tipo se debe a que se tiene la necesidad de que se de ingles en un espacio especifico y por ende no importa la cantidad de dias, sesiones, cantidad de horas por sesion, lo unico que se requiere es que se de en ese espacio previamente elejido.<br>Ingles tradicional: Este tipo se maneja como una materia tradicional por lo que no necesita tener un espacio previamente reservado.</p>
-                <table class="tipos_materias_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de ingles como placa donde se debe tener ese espacio exclusivo para tomar esa materia.</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th><th></th><th>✓</th><th>✓</th><th>✓</th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                
-                <table class="tipos_materias_ejemplos_cajas_textos_table_1">
-                    <tr>
-                        <td colspan="7">Ejemplo de particion de una materia de ingles (no placa), que se comporta como una materia tradicional.</td>
-                    </tr>
-                    <tr>
-                        <th>Horas</th><th>Lunes</th><th>Martes</th><th>Miercoles</th><th>Jueves</th><th>Viernes</th><th>Sabado</th>
-                    </tr>
-                    <tr>
-                        <th>7:00 - 8:00</th><th>✓</th><th>✓</th><th>✓</th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>8:00 - 9:00</th><th>✓</th><th>✓</th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>9:00 - 10:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>10:00 - 11:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>11:00 - 12:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>12:00 - 13:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>13:00 - 14:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>14:00 - 15:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>15:00 - 16:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>16:00 - 17:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>17:00 - 18:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>18:00 - 19:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                    <tr>
-                        <th>19:00 - 20:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>                        
-                    <tr>
-                        <th>20:00 - 21:00</th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    </tr>
-                </table>
-                
+            <h3><span class="badge badge-ptc">PTC</span> Profesor de Tiempo Completo</h3>
+            <p>
+                Docente con jornada completa. Incluye categorías como
+                <strong>PTC Investigador</strong>, <strong>Director</strong>, etc.
+                No tiene restricción de días — puede impartir clase cualquier día disponible.
+                Se escribe cualquier categoría distinta de <code>PA</code> en la columna CATEGORÍA.
+            </p>
+        </div>
 
-        </section>
-        <section class="tipos_grupos">
-                <div class="tipos_grupos_titulo">
-                    <h2>Tipos de grupos</h2>
-                </div>
-                <div class="tipos_grupos_cajas">
-                    <div class="tipos_grupos_cajas_textos">
-                        <span class="tipos_grupos_cajas_textos_span">Matutinos:</span> 
-                        <p class="tipos_grupos_cajas_textos_p">Grupos que toman clases por las mañanas, a partir de 7am hasta la tarde (esta hora puede variar segun la cantidad de horas-carga que se tenga en la semana y cuantos dias de la semana se consideren).</p>
-                    </div>
-                    <div class="tipos_grupos_cajas_textos">
-                        <span class="tipos_grupos_cajas_textos_span">Vespertinos:</span> 
-                        <p class="tipos_grupos_cajas_textos_p">Grupos que toman clases por las tardes, a terminando hasta las 9pm y empiezan clases por el media dia (esta hora puede variar segun la cantidad de horas-carga que se tenga en la semana y cuantos dias de la semana se consideren).</p>
-                    </div>
-                    
-                </div>
-        </section>
-        <section class="cargar_plantilla">
-            <div class="cargar_plantilla_titulo">
-                <h2>Carga tu plantilla</h2>
-            </div>
-            <div class="cargar_plantilla_cajas">
-                <div class="cargar_plantilla_cajas_textos">
-                    <span>Boton de descargar tus horarios</span>
-                    <p>Ya que llenaste tu plantilla con sus docentes, materias, grupos y asignaciones (Sin dejar ninguna sola celda vacia), es hora de cargarla al sistema.</p>
-                    <p>Se cargara desde un boton tradicional llamado "Seleccionar plantilla", no importa como se llame el archivo de carga pero siempre se debera de subir con extension .xlsx, se recomienda el uso de versiones modernas de excel como el Office 2021 o superior, Libre Office 26 o superior, o Googles Sheets (tambien se puede usar con versiones anteriores de los programas antes mencionados aunque no se recomienda el uso de los mismos).</p>
-                    <img src="assets/carga_tu_plantilla.svg" alt="">
-                    <br>
-                    <p>Si el archivo se cargo correctamente nos aparecera el siguiente mensaje "✔ Archivo cargado correctamente."</p>
-                    <img src="assets/mensaje_carga_exitosa.svg" alt="">
-                    
-                </div>
-                
-            </div>
-        </section>
+        <!-- ─── MOTOR ÓPTIMO ─── -->
+        <div class="card">
+            <h2>Motor ÓPTIMO</h2>
+            <p>
+                El motor utiliza <strong>CP-SAT</strong> (OR-Tools) para encontrar la
+                asignación que maximiza las horas colocadas respetando todas las
+                restricciones simultáneamente:
+            </p>
 
-        <section class="descargar_horario">
-            <div class="descargar_horario_titulo">
-                <h2>Descarga tus horarios</h2>
+            <h3>Restricciones duras (inquebrantables)</h3>
+            <ul>
+                <li>No hay solapes: un docente o grupo no puede tener dos clases a la misma hora</li>
+                <li>Se respeta la disponibilidad declarada de cada docente</li>
+                <li>Bloques de máximo 2 horas consecutivas por materia (patrón didáctico)</li>
+                <li>Cero huecos en el horario de cada grupo (jornada continua)</li>
+                <li>Escalón de días PA (2/3/4 días según carga)</li>
+                <li>Máximo 3 horas muertas por semana para docentes PA</li>
+                <li>Inglés simultáneo: semestres pares se sincronizan</li>
+            </ul>
+
+            <h3>Preferencias (el solver las optimiza)</h3>
+            <ul>
+                <li><strong>Días parejos</strong> — distribuir las horas del grupo uniformemente entre días</li>
+                <li><strong>Mínimo 3h/día por docente</strong> — evitar que un docente asista solo por 1 hora</li>
+                <li><strong>Minimizar huecos de docente</strong> — reducir tiempos muertos entre clases</li>
+                <li><strong>Márgenes de jornada</strong> — grupos matutinos empiezan a las 7:00, vespertinos terminan a las 21:00</li>
+            </ul>
+
+            <div class="highlight">
+                <p>
+                    El solver tarda aproximadamente <strong>3-5 minutos</strong>.
+                    Primero verifica que el 100% de horas es factible (fase 1),
+                    luego optimiza la calidad del horario (fase 2).
+                </p>
             </div>
-            <div class="descargar_horario_cajas">
-                <div class="descargar_horario_cajas_textos">
-                    <span>Boton de descarga de horarios</span>
-                    <p>Ya que cargaste tu plantilla de forma exitosa solo quedaria generar tu horario.</p>
-                    <p>Se desde un boton tradicional llamado "Generar horarios", el sistema solo tardara unos segundos en generarlo.</p>
-                    <img src="assets/descargar_horarios.svg" alt="">
-                    <br>
-                    <p>Si no hubo ningun conflicto con los datos de tu plantilla, los horarios se habran creado con exito y aparecera en pantalla como "Horarios generados con exito" y podras ver un archivo en formato .xlsx llamado "Horarios_Flexibles" en cual se concentrara los horarios grupales y los horarios de los docentes en este mismo, uno por hoja del libro del archivo.</p>
-                    <img src="assets/generacion_exitosa.svg" alt="">
-                    
-                </div>
-                
-            </div>
-        </section>
+        </div>
+
+        <!-- ─── RESULTADO ─── -->
+        <div class="card">
+            <h2>Resultado</h2>
+            <p>Al terminar, el sistema muestra:</p>
+
+            <h3>Desglose</h3>
+            <p>
+                Tabla interactiva con todos los grupos, materias, docentes y horas asignadas.
+                Aquí también encuentras el panel de <strong>Días extra autorizados</strong>
+                para ajustar el escalón PA si es necesario.
+            </p>
+
+            <h3>Excel descargable</h3>
+            <p>
+                Se genera automáticamente un archivo <code>Horarios Generados.xlsx</code> con:
+            </p>
+            <ul>
+                <li><strong>Una hoja por grupo</strong> — tabla HORA x DÍA con materia y docente</li>
+                <li><strong>Una hoja por docente</strong> — su horario semanal completo</li>
+                <li>Celdas coloreadas por materia para identificación visual rápida</li>
+                <li>Totales de horas por semana al final de cada hoja</li>
+            </ul>
+        </div>
+
     </main>
-    
+
+    <footer>
+        <a class="a_que_es" href="./que_es.html">¿Que es FROM SCHEDULE?</a>
+        <img class="img_logo_FI" src="./assets/LOGO-FI-BRUTO-YELLOW.png" alt="">
+        <a class="a_instagram" href="https://www.instagram.com/fromindustries?igsh=MWRkNHZ6MWI5OWN0Yg=="><img class="img_instagram" src="./assets/logotipo-de-instagram.png" alt=""></a>
+        <a class="a_mail" href=""><img class="img_mail" src="./assets/correo-electronico.png" alt=""></a>
+    </footer>
+
 </body>
 </html>

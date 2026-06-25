@@ -75,7 +75,7 @@ const server = http.createServer((req, res) => {
     }
 
     // ── Estáticos ────────────────────────────────────────────────────────────
-    const filePath = path.join(__dirname, urlPath === '/' ? 'index.html' : urlPath);
+    const filePath = path.join(__dirname, urlPath === '/' ? 'index.html' : decodeURIComponent(urlPath));
     const ext = path.extname(filePath).toLowerCase();
     fs.readFile(filePath, (err, data) => {
         if (err) { res.writeHead(404); res.end('Not found'); return; }
