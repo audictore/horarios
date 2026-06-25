@@ -195,14 +195,6 @@ for g, idxs in porGru.items():
         m.Add(hgd >= 1).OnlyEnforceIf(abr); m.Add(hgd == 0).OnlyEnforceIf(abr.Not())
         horas_gd[(g, d)] = hgd; abierto_gd[(g, d)] = abr
 
-# Mínimo de horas por día de grupo (DURO): si un grupo tiene clases un día, debe tener
-# al menos MIN_HORAS_GRUPO para justificar la asistencia de los alumnos.
-MIN_HORAS_GRUPO = 6
-for g, idxs in porGru.items():
-    for d in DIAS:
-        if (g, d) not in abierto_gd: continue
-        m.Add(horas_gd[(g, d)] >= MIN_HORAS_GRUPO).OnlyEnforceIf(abierto_gd[(g, d)])
-
 # Días parejos (PREFERENCIA): distribuir las horas del grupo lo más uniformemente posible
 # entre sus días abiertos. Se minimiza (max_día − min_día) por grupo.
 # Ej: 41h en 5 días → 8,8,8,8,9 = spread 1 (casi perfecto).
@@ -239,38 +231,20 @@ for g, idxs in porGru.items():
         m.Add(pen >= abierto_gd[(g, d)] - ocup)
         margen_terms.append(pen)
 
+# Objetivo lexicográfico (pesos separados para que las prioridades no se mezclen):
+#   1º máx horas (100%); 2º patrón didáctico (peso 1000); 3º huecos-docente (peso 100);
+#   4º días parejos grupo (min spread, peso 500); 4b flacos docente ≥3 h (peso 200);
+#   5º márgenes de jornada (peso 1).
+# Restricciones DURAS arriba (no entran al objetivo): escalón de días PA, cero huecos grupo.
 patron = 2 * sum(sesion_terms) + 3 * sum(exceso_terms)
-import os
-_MAXT = int(os.environ.get('CP_MAX_TIME', '300'))
-t0 = time.time()
-
-# ── Fase 1 (rápida): demostrar que 100% horas es factible ─────────────────────
-# Objetivo simple: solo maximizar horas colocadas. El solver encuentra un punto
-# inicial con todas las horas (si existe) mucho más rápido sin penalizaciones.
-m.Maximize(sum(colocadas))
-s1 = cp_model.CpSolver()
-s1.parameters.max_time_in_seconds = min(45, _MAXT // 5)
-s1.parameters.num_search_workers = 8
-st1 = s1.Solve(m)
-f1_ok = st1 in (cp_model.OPTIMAL, cp_model.FEASIBLE)
-f1_col = sum(s1.Value(v) for v in x.values()) if f1_ok else 0
-t1 = time.time() - t0
-print(f'Fase 1: {f1_col}/{HREQ}h en {t1:.1f}s ({s1.StatusName(st1)})')
-
-if f1_ok:
-    for var in x.values(): m.AddHint(var, s1.Value(var))
-    if f1_col >= HREQ:
-        m.Add(sum(colocadas) >= HREQ)
-        print(f'  → 100% factible, bloqueando cota dura.')
-
-# ── Fase 2: objetivo completo (calidad) con hints de fase 1 ───────────────────
 m.Maximize(1000000 * sum(colocadas) - 1000 * patron
            - 100 * sum(hueco_doc_terms) - 500 * sum(desnivel_terms) - 200 * sum(corto_doc_terms)
            - sum(margen_terms))
-solver = cp_model.CpSolver()
-solver.parameters.max_time_in_seconds = _MAXT
-solver.parameters.num_search_workers = 8
-st = solver.Solve(m); dt = time.time() - t0
+
+import os
+_MAXT = int(os.environ.get('CP_MAX_TIME', '300'))  # tope (s); 300 alcanza patrón 100%. CP_MAX_TIME lo ajusta
+solver = cp_model.CpSolver(); solver.parameters.max_time_in_seconds = _MAXT; solver.parameters.num_search_workers = 8
+t0 = time.time(); st = solver.Solve(m); dt = time.time() - t0
 ok = st in (cp_model.OPTIMAL, cp_model.FEASIBLE)
 col = sum(solver.Value(v) for v in x.values()) if ok else 0
 hue = sum(solver.Value(t) for t in hueco_terms) if ok else 0
@@ -279,7 +253,7 @@ dsn = sum(solver.Value(t) for t in desnivel_terms) if ok else 0
 crd = sum(solver.Value(t) for t in corto_doc_terms) if ok else 0
 mrg = sum(solver.Value(t) for t in margen_terms) if ok else 0
 hud = sum(solver.Value(t) for t in hueco_doc_terms) if ok else 0
-print(f'estado={solver.StatusName(st)}  tiempo={dt:.1f}s  colocadas={col}/{HREQ}h ({round(col/HREQ*100)}%)  patron={pat}  huecos_grupo={hue}  huecos_doc={hud}  desnivel={dsn}  flacos_doc={crd}  margenes={mrg}  optimo={"SI" if st==cp_model.OPTIMAL else "no(tope)"}')
+print(f'estado={solver.StatusName(st)}  tiempo={dt:.2f}s  colocadas={col}/{HREQ}h ({round(col/HREQ*100)}%)  patron={pat}  huecos_grupo={hue}  huecos_doc={hud}  desnivel={dsn}  flacos_doc={crd}  margenes={mrg}  optimo={"SI" if st==cp_model.OPTIMAL else "no(tope)"}')
 
 if ok:
     oD, oG, inc = defaultdict(int), defaultdict(int), []
