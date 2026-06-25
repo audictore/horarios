@@ -292,8 +292,34 @@
         }
 
         @media (max-width: 860px) {
+            header nav { padding: 0 var(--sp-4); }
+            header nav ul { gap: var(--sp-3); }
             main { padding: var(--sp-6) var(--sp-4); }
-            .card { padding: var(--sp-6); }
+            .card { padding: var(--sp-6); overflow-x: auto; }
+            footer { padding: var(--sp-6) var(--sp-4); }
+        }
+
+        @media (max-width: 480px) {
+            :root { --header-h: 3rem; }
+            header nav { padding: 0 var(--sp-3); }
+            header nav ul { gap: var(--sp-2); }
+            header nav ul a { font-size: var(--fs-xs); }
+            header a img { height: 1.5rem; }
+            main { padding: var(--sp-4) var(--sp-3); }
+            .card { padding: var(--sp-4); }
+            .card h2 { font-size: var(--fs-lg); }
+            .page-title { font-size: var(--fs-lg); letter-spacing: 1px; }
+            .page-subtitle { font-size: var(--fs-sm); margin-bottom: var(--sp-6); }
+            .steps li { padding-left: var(--sp-8); margin-bottom: var(--sp-4); }
+            .steps li::before { width: 1.5rem; height: 1.5rem; font-size: var(--fs-sm); }
+            .highlight { padding: var(--sp-3) var(--sp-4); }
+            .highlight p { font-size: var(--fs-sm); }
+            .btn-download { font-size: 0.6rem; padding: var(--sp-2) var(--sp-3); }
+            .tabla-ejemplo { font-size: var(--fs-xs); }
+            .tabla-ejemplo th, .tabla-ejemplo td { padding: var(--sp-1) var(--sp-2); }
+            .badge { font-size: 0.55rem; }
+            footer { flex-direction: column; align-items: flex-start; padding: var(--sp-4) var(--sp-3); gap: var(--sp-3); }
+            footer a.a_que_es { margin-right: 0; }
         }
     </style>
 </head>

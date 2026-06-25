@@ -348,9 +348,38 @@
 
         /* ── Responsive ─────────────────────────────────────── */
         @media (max-width: 860px) {
-            .app-layout { flex-direction: column; padding: var(--sp-4); }
+            header nav { padding: 0 var(--sp-4); }
+            header nav ul { gap: var(--sp-3); }
+            .app-layout { flex-direction: column; padding: var(--sp-4); gap: var(--sp-4); }
             main { position: static; flex: 0 0 auto; width: 100%; }
-            .span_error { max-height: 40vh; }
+            .span_error { max-height: 40vh; overflow-x: auto; }
+            footer { padding: var(--sp-6) var(--sp-4); }
+            #desglose_contenido { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            table.csp-grid { font-size: 0.65rem; }
+            table.csp-grid th, table.csp-grid td { min-width: 1.8rem; padding: 0.15rem 0.25rem; }
+        }
+
+        @media (max-width: 480px) {
+            :root { --header-h: 3rem; }
+            header nav { padding: 0 var(--sp-3); }
+            header nav ul { gap: var(--sp-2); }
+            header nav ul a { font-size: var(--fs-xs); }
+            header a img { height: 1.5rem; }
+            .app-layout { padding: var(--sp-2); gap: var(--sp-3); }
+            main .label_carga, main .label_disp, main .button_accion {
+                font-size: var(--fs-sm); min-height: 2.75rem;
+                padding: var(--sp-2) var(--sp-3); box-shadow: var(--sombra-sm);
+            }
+            .span_error { font-size: var(--fs-sm); padding: var(--sp-3); }
+            #seccion_desglose { padding: var(--sp-3); }
+            #seccion_desglose h2 { font-size: var(--fs-base); letter-spacing: 0.5px; }
+            .desglose-tabla { font-size: var(--fs-xs); }
+            .desglose-tabla thead th { padding: var(--sp-2); }
+            .desglose-tabla tr.doc-header td { padding: var(--sp-2) var(--sp-3); font-size: var(--fs-sm); }
+            .desglose-tabla tr.asig-row td { padding: var(--sp-1) var(--sp-2); }
+            .badge-cat, .badge-turno { font-size: 0.55rem; padding: 0.1rem var(--sp-1); }
+            footer { flex-direction: column; align-items: flex-start; padding: var(--sp-4) var(--sp-3); gap: var(--sp-3); }
+            footer a.a_que_es { margin-right: 0; }
         }
     </style>
 
@@ -1002,7 +1031,7 @@ function mostrarDesglose() {
                     (${nMarcados} docentes · ${totalExtra} días extra concedidos sobre el escalón)
                 </span>
             </summary>
-            <div style="margin-top:0.5rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:0.3rem 0.8rem;font-size:0.82rem">`;
+            <div style="margin-top:0.5rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:0.3rem 0.8rem;font-size:0.82rem">`;
         pas.forEach(d => {
             const carga = d.horas_carga;
             const esc = escalonPuro(carga);
