@@ -204,6 +204,60 @@
       }
     }
 
+    // ── Reglas duras adicionales (paridad con CP-SAT) ─────────────────────
+    let bn = 0; const bn_ = () => 'b' + (bn++);
+
+    // Piso duro: DEBE colocar todas las horas o INFEASIBLE.
+    const totalH = cargas.reduce((s, c) => s + c.horas, 0);
+    add(vars.map((_, v) => 'x' + v).join(' + ') + ' >= ' + totalH);
+
+    // Bloques ≤ 2h (duro, materias normales): no 3+ horas consecutivas de la misma materia.
+    cargas.forEach((c, i) => {
+      const u = norm(c.materia); if (u.includes('TUTORIA')) return;
+      const v = ventanas[c.turno], lo = v[0], hi = v[1];
+      for (const d of DIAS) for (let h = lo + 2; h < hi; h++)
+        if (has(i, d, h) && has(i, d, h - 1) && has(i, d, h - 2))
+          add(xn(i, d, h) + ' + ' + xn(i, d, h - 1) + ' + ' + xn(i, d, h - 2) + ' <= 2');
+    });
+
+    // maxDias PA (duro): cada PA trabaja a lo sumo maxDias días.
+    for (const doc in docs) {
+      const di = docentes[doc]; if (!di || di.tipo !== 2 || !di.maxDias) continue;
+      const actV = [];
+      for (const d of DIAS) {
+        const sl = []; for (const i of docs[doc]) for (let h = 7; h < 21; h++) if (has(i, d, h)) sl.push(xn(i, d, h));
+        if (!sl.length) continue;
+        const a = bn_(); binExtra.push(a); actV.push(a);
+        for (const s of sl) add(a + ' - ' + s + ' >= 0');
+        add(a + ' - ' + sl.join(' - ') + ' <= 0');
+      }
+      if (actV.length > di.maxDias) add(actV.join(' + ') + ' <= ' + di.maxDias);
+    }
+
+    // Cero huecos de grupo (duro): clases del grupo en cada día forman bloque contiguo.
+    for (const g in grupos) {
+      const gI = grupos[g], turno = cargas[gI[0]].turno, lo = ventanas[turno][0], hi = ventanas[turno][1];
+      for (const d of DIAS) {
+        const occ = {};
+        for (let h = lo; h < hi; h++) {
+          const xs = []; for (const i of gI) if (has(i, d, h)) xs.push(xn(i, d, h));
+          if (!xs.length) continue;
+          const o = bn_(); binExtra.push(o); occ[h] = o;
+          for (const x of xs) add(o + ' - ' + x + ' >= 0');
+          add(o + ' - ' + xs.join(' - ') + ' <= 0');
+        }
+        const hrs = Object.keys(occ).map(Number).sort((a, b) => a - b);
+        if (hrs.length <= 1) continue;
+        const rises = [];
+        for (let j = 0; j < hrs.length; j++) {
+          const h = hrs[j], ri = bn_(); binExtra.push(ri); rises.push(ri);
+          if (j === 0 || hrs[j - 1] !== h - 1) { add(ri + ' - ' + occ[h] + ' = 0'); }
+          else { add(ri + ' - ' + occ[h] + ' <= 0'); add(ri + ' + ' + occ[hrs[j - 1]] + ' <= 1'); add(ri + ' - ' + occ[h] + ' + ' + occ[hrs[j - 1]] + ' >= 0'); }
+        }
+        if (rises.length > 1) add(rises.join(' + ') + ' <= 1');
+      }
+    }
+
     const xterms = vars.map((_, v) => 'x' + v);
     const acPen = acSlacks.length ? acSlacks.map(s => ' - 0.0001 ' + s).join('') : '';
     const L = ['Maximize', ' obj: ' + xterms.join(' + ') + acPen, 'Subject To'].concat(R, ['Binary']);
