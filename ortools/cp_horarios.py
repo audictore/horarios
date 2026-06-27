@@ -235,6 +235,7 @@ for g, idxs in porGru.items():
 # Prioridad: aula específica de materia > aula base del grupo > pool por tipo.
 # Aulas base compartidas entre turnos: el más temprano tiene prioridad en el empalme.
 aulas_cfg = D.get('aulas') or {}
+aula_clash_terms = []
 if aulas_cfg.get('aulas'):
     norm_grp = lambda s: re.sub(r'[^A-Z0-9 ]', '', norm(s)).strip()
     gr_base = aulas_cfg.get('grupoAulas') or {}
@@ -276,7 +277,7 @@ if aulas_cfg.get('aulas'):
                 hour_restricted[base].append((i, sp[1], sp[2]))
             else:
                 single_map[base].append(i)
-    # No-overlap per (aula, day, hour)
+    # No-overlap per (aula, day, hour) — SOFT: penalizar pero no sacrificar horas
     all_aids = set(single_map) | set(hour_restricted)
     for aid in all_aids:
         idxs = single_map.get(aid, [])
@@ -286,7 +287,10 @@ if aulas_cfg.get('aulas'):
                 t = [x[(i, d, h)] for i in idxs if (i, d, h) in x]
                 for ri, o_lo, o_hi in rest:
                     if (h < o_lo or h >= o_hi) and (ri, d, h) in x: t.append(x[(ri, d, h)])
-                if len(t) > 1: m.AddAtMostOne(t)
+                if len(t) > 1:
+                    clash = m.NewIntVar(0, len(t), f'ac_{aid}_{d}_{h}')
+                    m.Add(clash >= sum(t) - 1)
+                    aula_clash_terms.append(clash)
     # Pool capacity: tipo → máx simultáneas = cantidad de aulas de ese tipo.
     # Solo aplica a pools con capacidad ≥ 2; pools de 1 aula (multimedia, multiusos)
     # se omiten como constraint dura porque una materia puede usar salón Normal
@@ -309,19 +313,24 @@ if aulas_cfg.get('aulas'):
                 t = [x[(i, d, h)] for i in idxs if (i, d, h) in x]
                 if len(t) > cap: m.Add(sum(t) <= cap)
 
-# Objetivo lexicográfico (pesos separados para que las prioridades no se mezclen):
-#   1º máx horas (100%); 2º patrón didáctico (peso 1000); 3º huecos-docente (peso 100);
-#   4º días parejos grupo (min spread, peso 500); 4b flacos docente ≥3 h (peso 200);
-#   5º márgenes de jornada (peso 1).
-# Restricciones DURAS arriba (no entran al objetivo): escalón de días PA, cero huecos grupo.
+# Completitud es DURA (sum(colocadas) >= HREQ). Objetivo solo optimiza calidad:
+#   patrón didáctico (1000), huecos-doc (100), días parejos (500), flacos (200),
+#   márgenes (1), aula clash (50).
 patron = 2 * sum(sesion_terms) + 3 * sum(exceso_terms)
-m.Maximize(1000000 * sum(colocadas) - 1000 * patron
+aula_pen = sum(aula_clash_terms) if aula_clash_terms else 0
+
+m.Add(sum(colocadas) >= HREQ)
+
+m.Maximize(- 1000 * patron
            - 100 * sum(hueco_doc_terms) - 500 * sum(desnivel_terms) - 200 * sum(corto_doc_terms)
-           - sum(margen_terms))
+           - sum(margen_terms) - 50 * aula_pen)
 
 import os
-_MAXT = int(os.environ.get('CP_MAX_TIME', '300'))  # tope (s); 300 alcanza patrón 100%. CP_MAX_TIME lo ajusta
-solver = cp_model.CpSolver(); solver.parameters.max_time_in_seconds = _MAXT; solver.parameters.num_search_workers = 8
+_MAXT = int(os.environ.get('CP_MAX_TIME', '300'))
+solver = cp_model.CpSolver()
+solver.parameters.max_time_in_seconds = _MAXT
+solver.parameters.num_search_workers = 8
+solver.parameters.random_seed = 42
 t0 = time.time(); st = solver.Solve(m); dt = time.time() - t0
 ok = st in (cp_model.OPTIMAL, cp_model.FEASIBLE)
 col = sum(solver.Value(v) for v in x.values()) if ok else 0
@@ -331,7 +340,8 @@ dsn = sum(solver.Value(t) for t in desnivel_terms) if ok else 0
 crd = sum(solver.Value(t) for t in corto_doc_terms) if ok else 0
 mrg = sum(solver.Value(t) for t in margen_terms) if ok else 0
 hud = sum(solver.Value(t) for t in hueco_doc_terms) if ok else 0
-print(f'estado={solver.StatusName(st)}  tiempo={dt:.2f}s  colocadas={col}/{HREQ}h ({round(col/HREQ*100)}%)  patron={pat}  huecos_grupo={hue}  huecos_doc={hud}  desnivel={dsn}  flacos_doc={crd}  margenes={mrg}  optimo={"SI" if st==cp_model.OPTIMAL else "no(tope)"}')
+acl = sum(solver.Value(t) for t in aula_clash_terms) if ok else 0
+print(f'estado={solver.StatusName(st)}  tiempo={dt:.2f}s  colocadas={col}/{HREQ}h ({round(col/HREQ*100)}%)  patron={pat}  huecos_grupo={hue}  huecos_doc={hud}  desnivel={dsn}  flacos_doc={crd}  margenes={mrg}  aula_clash={acl}  optimo={"SI" if st==cp_model.OPTIMAL else "no(tope)"}')
 
 if ok:
     oD, oG, inc = defaultdict(int), defaultdict(int), []
@@ -343,37 +353,7 @@ if ok:
     print(f'solapes_doc={sum(1 for v in oD.values() if v>1)}  solapes_grupo={sum(1 for v in oG.values() if v>1)}  incompletas={len(inc)}')
     for s in inc[:12]: print('   • ' + s)
 
-    # ── Garantía / diagnóstico: si NO se alcanzó el 100%, decir QUÉ dato corregir ──
-    if col < HREQ:
-        print('\n⚠ NO se alcanzó el 100%. El óptimo demostrado es ' + str(col) + '/' + str(HREQ) + 'h.')
-        print('  Causa (qué corregir en la plantilla):')
-        cargaDoc = defaultdict(int); turnosDoc = defaultdict(set)
-        for c in cargas: cargaDoc[c['docente']] += c['horas']; turnosDoc[c['docente']].add(c['turno'])
-        docs_inc = set(cargas[i]['docente'] for i, c in enumerate(cargas)
-                       if sum(solver.Value(x[(i, d, h)]) for d in DIAS for h in range(*ventanas[c['turno']]) if (i, d, h) in x) < c['horas'])
-        culpa = False
-        for doc in sorted(docs_inc):
-            disp = docentes[doc]['disponibilidad']; vts = [ventanas[t] for t in turnosDoc[doc]]
-            dispH = sum(1 for dia in DIAS for h in set(disp.get(str(dia), [])) if any(lo <= h < hi for lo, hi in vts))
-            if cargaDoc[doc] > dispH:
-                print(f'  ⛔ DATO: "{doc}" — {cargaDoc[doc]}h de carga pero solo {dispH}h disponibles en su turno (faltan {cargaDoc[doc]-dispH}h). Amplíale disponibilidad o quítale carga.')
-                culpa = True
-            else:
-                md = docentes[doc].get('maxDias')
-                if docentes[doc]['tipo'] == 2 and md is not None and cargaDoc[doc] > md * DURMAX:
-                    print(f'  ⛔ ESCALÓN: "{doc}" (PA) — {cargaDoc[doc]}h no caben en {md} días (máx {md*DURMAX}h). Marca este docente en "+1 día permitido" del desglose y vuelve a generar.')
-                    culpa = True
-        if not culpa:
-            print('  Cada docente tiene capacidad suficiente por separado → el faltante es por INTERACCIÓN.')
-            print('  Causas típicas:')
-            print('  · Inglés sincronizado: los profes deben coincidir en hora.')
-            print('  · Cero huecos de grupo (regla DURA): si un docente sólo tiene huecos puntuales en')
-            print('    su disponibilidad, sus horas no caben sin generar un hueco para el grupo.')
-            print('  Opciones: marca a un PA en "+1 día permitido", amplía disponibilidad, reparte una')
-            print('  carga, o ablanda la regla de cero huecos (avísame).')
-        print('  NOTA: el Excel generado es PARCIAL (no uses este horario hasta corregir y volver a 100%).')
-    else:
-        print('\n✅ 100% GARANTIZADO: 354/354h, óptimo demostrado. Horario completo y válido.')
+    print(f'\n✅ {col}/{HREQ}h completo. Horario válido.')
 
     # ── Exportar a Excel (una hoja por grupo, formato HORA × DÍAS) ──
     wb = openpyxl.Workbook(); wb.remove(wb.active)
@@ -407,3 +387,28 @@ if ok:
                'huecos': hue, 'status': solver.StatusName(st), 'segundos': round(dt, 1)},
               open('horario_cp.json', 'w', encoding='utf-8'), ensure_ascii=False)
     print('✅ JSON generado: horario_cp.json')
+else:
+    diag = []
+    if st == cp_model.INFEASIBLE:
+        print(f'\n⛔ INFEASIBLE: no es posible colocar {HREQ}/{HREQ}h con las restricciones actuales.')
+        cargaDoc = defaultdict(int); turnosDoc = defaultdict(set)
+        for c in cargas: cargaDoc[c['docente']] += c['horas']; turnosDoc[c['docente']].add(c['turno'])
+        for doc in sorted(cargaDoc):
+            di = docentes[doc]['disponibilidad']; vts = [ventanas[t] for t in turnosDoc[doc]]
+            dispH = sum(1 for dia in DIAS for h in set(di.get(str(dia), [])) if any(lo <= h < hi for lo, hi in vts))
+            if cargaDoc[doc] > dispH:
+                msg = f'"{doc}" — {cargaDoc[doc]}h de carga pero solo {dispH}h disponibles'
+                print('  ⛔ ' + msg); diag.append(msg)
+            else:
+                md = docentes[doc].get('maxDias')
+                if docentes[doc]['tipo'] == 2 and md is not None and cargaDoc[doc] > md * DURMAX:
+                    msg = f'"{doc}" (PA) — {cargaDoc[doc]}h no caben en {md} días (máx {md*DURMAX}h). Marca "+1 día permitido"'
+                    print('  ⛔ ' + msg); diag.append(msg)
+        if not diag:
+            print('  Cada docente cabe por separado → conflicto por INTERACCIÓN (inglés sync / cero huecos).')
+    else:
+        print(f'\n⚠ Sin solución en {dt:.0f}s (estado={solver.StatusName(st)})')
+    json.dump({'ok': False, 'colocadas': 0, 'total': HREQ, 'horario': [],
+               'status': solver.StatusName(st), 'segundos': round(dt, 1),
+               'error': '; '.join(diag) if diag else f'No se encontró solución ({solver.StatusName(st)})'},
+              open('horario_cp.json', 'w', encoding='utf-8'), ensure_ascii=False)

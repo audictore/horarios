@@ -85,6 +85,7 @@
     // Priority: materia-specific aula > group base aula > pool capacity.
     // Single-aula assignments → direct no-overlap.
     // Multi-aula → solver picks exactly one via y variables; z = x·y linearization.
+    const acSlacks = []; let acN = 0;
     if (datos.aulas && datos.aulas.aulas && datos.aulas.aulas.length > 0) {
       const aCfg = datos.aulas, singleMap = {}, multiMats = {};
       const grBase = aCfg.grupoAulas || {};
@@ -166,7 +167,7 @@
           }
         }); });
       }
-      // No-overlap per (aula, day, hour): single x + multi z + hour-restricted
+      // No-overlap per (aula, day, hour): SOFT — penalizar pero no sacrificar horas
       const allAids = new Set(Object.keys(singleMap));
       for (const key in zSlot) allAids.add(key.split('|')[0]);
       for (const key in hourRestricted) allAids.add(key);
@@ -179,7 +180,7 @@
           for (const r of rList) if (r.allowed.has(h) && has(r.idx, d, h)) t.push(xn(r.idx, d, h));
           const zs = zSlot[aid + '|' + d + '|' + h] || [];
           t.push(...zs);
-          if (t.length > 1) add(t.join(' + ') + ' <= 1');
+          if (t.length > 1) { const sn = 'ac' + acN++; acSlacks.push(sn); add(t.join(' + ') + ' - ' + sn + ' <= 1'); }
         }
       }
     }
@@ -204,7 +205,8 @@
     }
 
     const xterms = vars.map((_, v) => 'x' + v);
-    const L = ['Maximize', ' obj: ' + xterms.join(' + '), 'Subject To'].concat(R, ['Binary']);
+    const acPen = acSlacks.length ? acSlacks.map(s => ' - 0.0001 ' + s).join('') : '';
+    const L = ['Maximize', ' obj: ' + xterms.join(' + ') + acPen, 'Subject To'].concat(R, ['Binary']);
     const allBin = xterms.concat(binExtra);
     for (let k = 0; k < allBin.length; k += 100) L.push(' ' + allBin.slice(k, k + 100).join(' '));
     L.push('End');
