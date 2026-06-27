@@ -81,6 +81,128 @@
         if (pres.length === idxs.length) { for (let j = 1; j < pres.length; j++) add(xn(pres[0], d, h) + ' - ' + xn(pres[j], d, h) + ' = 0'); }
         else for (const i of pres) add(xn(i, d, h) + ' = 0'); } }
 
+    // Aula no-overlap: for each aula, at most 1 session per (day, hour).
+    // Priority: materia-specific aula > group base aula > pool capacity.
+    // Single-aula assignments → direct no-overlap.
+    // Multi-aula → solver picks exactly one via y variables; z = x·y linearization.
+    if (datos.aulas && datos.aulas.aulas && datos.aulas.aulas.length > 0) {
+      const aCfg = datos.aulas, singleMap = {}, multiMats = {};
+      const grBase = aCfg.grupoAulas || {};
+      let yCount = 0;
+      const hourRestricted = {};
+      const normGrp = s => String(s).toUpperCase().normalize('NFD').replace(/[^A-Z0-9 ]/g, '').trim();
+      const grBaseNorm = {};
+      for (const g in grBase) grBaseNorm[normGrp(g)] = grBase[g];
+      // Aulas base compartidas entre turnos: turno más temprano tiene prioridad
+      const grupoTurno = {};
+      cargas.forEach(c => { const k = normGrp(c.grupo); if (!grupoTurno[k]) grupoTurno[k] = c.turno; });
+      const baseAulaGs = {};
+      for (const g in grBase) (baseAulaGs[grBase[g]] = baseAulaGs[grBase[g]] || []).push(normGrp(g));
+      const sharedPrio = {};
+      for (const aula in baseAulaGs) {
+        const gs = baseAulaGs[aula];
+        const byT = {};
+        gs.forEach(g => { const t = grupoTurno[g]; if (t) (byT[t] = byT[t] || []).push(g); });
+        const ts = Object.keys(byT);
+        if (ts.length > 1) {
+          const vs = ts.map(t => ({ t, lo: ventanas[t][0], hi: ventanas[t][1], gs: byT[t] }));
+          vs.sort((a, b) => a.lo - b.lo);
+          const oLo = Math.max(...vs.map(v => v.lo)), oHi = Math.min(...vs.map(v => v.hi));
+          if (oLo < oHi) {
+            const nonP = new Set();
+            vs.slice(1).forEach(v => v.gs.forEach(g => nonP.add(g)));
+            sharedPrio[aula] = { nonP, oLo, oHi };
+          }
+        }
+      }
+      cargas.forEach((c, i) => {
+        // 1) Materia-specific aula assignment
+        let asig = aCfg.asignaciones[c.materia];
+        if (!asig) { for (const k in aCfg.asignaciones) if (norm(k) === norm(c.materia)) { asig = aCfg.asignaciones[k]; break; } }
+        if (asig && asig.aulas.length > 0) {
+          if (asig.aulas.length === 1) {
+            (singleMap[asig.aulas[0]] = singleMap[asig.aulas[0]] || []).push(i);
+          } else {
+            const mn = norm(c.materia);
+            if (!multiMats[mn]) multiMats[mn] = { aulas: asig.aulas, cIdxs: [], yIdx: yCount++ };
+            multiMats[mn].cIdxs.push(i);
+          }
+          return;
+        }
+        // 2) Group base aula (default room)
+        const base = grBaseNorm[normGrp(c.grupo)];
+        if (base) {
+          const sp = sharedPrio[base];
+          if (sp && sp.nonP.has(normGrp(c.grupo))) {
+            const v = ventanas[c.turno], lo = v[0], hi = v[1];
+            const allowed = new Set();
+            for (let h = lo; h < hi; h++) if (h < sp.oLo || h >= sp.oHi) allowed.add(h);
+            if (allowed.size > 0) {
+              if (!hourRestricted[base]) hourRestricted[base] = [];
+              hourRestricted[base].push({ idx: i, allowed });
+            }
+          } else {
+            (singleMap[base] = singleMap[base] || []).push(i);
+          }
+        }
+      });
+      // Multi-aula: y picks aula, z linearizes x·y product
+      const zSlot = {};
+      for (const mn in multiMats) {
+        const { aulas, cIdxs, yIdx } = multiMats[mn];
+        const yN = aulas.map((_, ai) => 'ya' + yIdx + 'a' + ai);
+        binExtra.push(...yN);
+        add(yN.join(' + ') + ' = 1');
+        cIdxs.forEach(ci => { aulas.forEach((aid, ai) => {
+          for (const d of DIAS) for (let h = 7; h < 21; h++) {
+            if (!has(ci, d, h)) continue;
+            const zn = 'z' + ci + 'a' + ai + 'd' + d + 'h' + h;
+            binExtra.push(zn);
+            add(zn + ' - ' + xn(ci, d, h) + ' <= 0');
+            add(zn + ' - ' + yN[ai] + ' <= 0');
+            add(zn + ' - ' + xn(ci, d, h) + ' - ' + yN[ai] + ' >= -1');
+            const key = aid + '|' + d + '|' + h;
+            (zSlot[key] = zSlot[key] || []).push(zn);
+          }
+        }); });
+      }
+      // No-overlap per (aula, day, hour): single x + multi z + hour-restricted
+      const allAids = new Set(Object.keys(singleMap));
+      for (const key in zSlot) allAids.add(key.split('|')[0]);
+      for (const key in hourRestricted) allAids.add(key);
+      for (const aid of allAids) {
+        const sIdxs = singleMap[aid] || [];
+        const rList = hourRestricted[aid] || [];
+        for (const d of DIAS) for (let h = 7; h < 21; h++) {
+          const t = [];
+          for (const i of sIdxs) if (has(i, d, h)) t.push(xn(i, d, h));
+          for (const r of rList) if (r.allowed.has(h) && has(r.idx, d, h)) t.push(xn(r.idx, d, h));
+          const zs = zSlot[aid + '|' + d + '|' + h] || [];
+          t.push(...zs);
+          if (t.length > 1) add(t.join(' + ') + ' <= 1');
+        }
+      }
+    }
+    // Pool capacity: "Normal" = any aula of that type → sum of sessions ≤ pool size.
+    if (datos.aulas && datos.aulas.pools) {
+      const poolSes = {};
+      cargas.forEach((c, i) => {
+        let pool = datos.aulas.pools[c.materia];
+        if (!pool) { for (const k in datos.aulas.pools) if (norm(k) === norm(c.materia)) { pool = datos.aulas.pools[k]; break; } }
+        if (pool) pool.tipos.forEach(t => { (poolSes[t] = poolSes[t] || []).push(i); });
+      });
+      for (const tipo in poolSes) {
+        const cap = (datos.aulas.poolCapacidad || {})[tipo] || 1;
+        if (cap < 2) continue;
+        const idxs = poolSes[tipo];
+        for (const d of DIAS) for (let h = 7; h < 21; h++) {
+          const t = [];
+          for (const i of idxs) if (has(i, d, h)) t.push(xn(i, d, h));
+          if (t.length > cap) add(t.join(' + ') + ' <= ' + cap);
+        }
+      }
+    }
+
     const xterms = vars.map((_, v) => 'x' + v);
     const L = ['Maximize', ' obj: ' + xterms.join(' + '), 'Subject To'].concat(R, ['Binary']);
     const allBin = xterms.concat(binExtra);

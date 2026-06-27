@@ -231,6 +231,84 @@ for g, idxs in porGru.items():
         m.Add(pen >= abierto_gd[(g, d)] - ocup)
         margen_terms.append(pen)
 
+# ── Aula constraints ──────────────────────────────────────────────────────
+# Prioridad: aula específica de materia > aula base del grupo > pool por tipo.
+# Aulas base compartidas entre turnos: el más temprano tiene prioridad en el empalme.
+aulas_cfg = D.get('aulas') or {}
+if aulas_cfg.get('aulas'):
+    norm_grp = lambda s: re.sub(r'[^A-Z0-9 ]', '', norm(s)).strip()
+    gr_base = aulas_cfg.get('grupoAulas') or {}
+    gr_base_norm = {norm_grp(g): v for g, v in gr_base.items()}
+    grupo_turno = {}
+    for c in cargas:
+        ng = norm_grp(c['grupo'])
+        if ng not in grupo_turno: grupo_turno[ng] = c['turno']
+    # Detectar aulas base compartidas entre turnos
+    base_aula_gs = defaultdict(list)
+    for g in gr_base: base_aula_gs[gr_base[g]].append(norm_grp(g))
+    shared_prio = {}
+    for aid, gs in base_aula_gs.items():
+        by_t = defaultdict(list)
+        for g in gs:
+            t = grupo_turno.get(g)
+            if t: by_t[t].append(g)
+        if len(by_t) > 1:
+            vs = sorted([(t, ventanas[t][0], ventanas[t][1], ggs) for t, ggs in by_t.items()], key=lambda v: v[1])
+            o_lo, o_hi = max(v[1] for v in vs), min(v[2] for v in vs)
+            if o_lo < o_hi:
+                non_p = set()
+                for v in vs[1:]: non_p.update(v[3])
+                shared_prio[aid] = (non_p, o_lo, o_hi)
+    single_map, hour_restricted = defaultdict(list), defaultdict(list)
+    for i, c in enumerate(cargas):
+        asig = aulas_cfg.get('asignaciones', {}).get(c['materia'])
+        if not asig:
+            nm = norm(c['materia'])
+            for k, v in aulas_cfg.get('asignaciones', {}).items():
+                if norm(k) == nm: asig = v; break
+        if asig and asig.get('aulas'):
+            for aid in asig['aulas']: single_map[aid].append(i)
+            continue
+        base = gr_base_norm.get(norm_grp(c['grupo']))
+        if base:
+            sp = shared_prio.get(base)
+            if sp and norm_grp(c['grupo']) in sp[0]:
+                hour_restricted[base].append((i, sp[1], sp[2]))
+            else:
+                single_map[base].append(i)
+    # No-overlap per (aula, day, hour)
+    all_aids = set(single_map) | set(hour_restricted)
+    for aid in all_aids:
+        idxs = single_map.get(aid, [])
+        rest = hour_restricted.get(aid, [])
+        for d in DIAS:
+            for h in range(7, 21):
+                t = [x[(i, d, h)] for i in idxs if (i, d, h) in x]
+                for ri, o_lo, o_hi in rest:
+                    if (h < o_lo or h >= o_hi) and (ri, d, h) in x: t.append(x[(ri, d, h)])
+                if len(t) > 1: m.AddAtMostOne(t)
+    # Pool capacity: tipo → máx simultáneas = cantidad de aulas de ese tipo.
+    # Solo aplica a pools con capacidad ≥ 2; pools de 1 aula (multimedia, multiusos)
+    # se omiten como constraint dura porque una materia puede usar salón Normal
+    # cuando el especial está ocupado.
+    pool_ses = defaultdict(list)
+    for i, c in enumerate(cargas):
+        pool = aulas_cfg.get('pools', {}).get(c['materia'])
+        if not pool:
+            nm = norm(c['materia'])
+            for k, v in aulas_cfg.get('pools', {}).items():
+                if norm(k) == nm: pool = v; break
+        if pool:
+            for t in pool.get('tipos', []): pool_ses[t].append(i)
+    pool_cap = aulas_cfg.get('poolCapacidad', {})
+    for tipo, idxs in pool_ses.items():
+        cap = pool_cap.get(tipo, 1)
+        if cap < 2: continue
+        for d in DIAS:
+            for h in range(7, 21):
+                t = [x[(i, d, h)] for i in idxs if (i, d, h) in x]
+                if len(t) > cap: m.Add(sum(t) <= cap)
+
 # Objetivo lexicográfico (pesos separados para que las prioridades no se mezclen):
 #   1º máx horas (100%); 2º patrón didáctico (peso 1000); 3º huecos-docente (peso 100);
 #   4º días parejos grupo (min spread, peso 500); 4b flacos docente ≥3 h (peso 200);

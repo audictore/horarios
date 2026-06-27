@@ -138,6 +138,7 @@
 
         main .label_carga,
         main .label_disp,
+        main .label_aulas,
         main .button_accion {
             display: flex;
             align-items: center;
@@ -160,6 +161,7 @@
 
         main .label_carga:hover,
         main .label_disp:hover,
+        main .label_aulas:hover,
         main .button_accion:hover {
             transform: translate(5px, 5px);
             box-shadow: 0 0 0 0 var(--color-gray-olive);
@@ -366,7 +368,7 @@
             header nav ul a { font-size: var(--fs-xs); }
             header a img { height: 1.5rem; }
             .app-layout { padding: var(--sp-2); gap: var(--sp-3); }
-            main .label_carga, main .label_disp, main .button_accion {
+            main .label_carga, main .label_disp, main .label_aulas, main .button_accion {
                 font-size: var(--fs-sm); min-height: 2.75rem;
                 padding: var(--sp-2) var(--sp-3); box-shadow: var(--sombra-sm);
             }
@@ -409,6 +411,10 @@
             <input class="input_excel" id="input_disp" type="file" accept=".xlsx,.xls">
             <label for="input_disp" class="label_disp">
                 <span>Disponibilidades</span>
+            </label>
+            <input class="input_excel" id="input_aulas" type="file" accept=".xlsx,.xls">
+            <label for="input_aulas" class="label_aulas">
+                <span>Aulas (opcional)</span>
             </label>
             <button class="button_accion" id="button_optimo" title="Motor EXACTO (CP-SAT / HiGHS): garantiza el máximo de horas colocadas.">Generar ÓPTIMO ✦</button>
         </main>
@@ -821,6 +827,87 @@ function setExtraDias(nombre, n) {
 // Alias retrocompatible (algún código viejo todavía lo invoca).
 function toggleWhitelistDensidad(nombre, marcado) { setExtraDias(nombre, marcado ? 1 : 0); }
 
+// ── Aulas: cargadas desde Excel ─────────────────────────────────────────────
+// Formato del Excel:
+//   Hoja 1 "Aulas":        Nombre | Tipo  (normal / multimedia / multiusos)
+//   Hoja 2 "Asignaciones": Materia | Aula | Obligatorio  (sí/no)
+// { aulas: [{id, nombre, tipo}],
+//   asignaciones: { materia: {aulas:[id], obligatorio:bool} },
+//   pools: { materia: {tipos:[string], obligatorio:bool} },
+//   poolCapacidad: { tipo: N } }
+let datosAulas = { aulas: [], asignaciones: {}, pools: {}, poolCapacidad: {} };
+
+function parsearAulas(wb) {
+    const cfg = { aulas: [], asignaciones: {}, pools: {}, poolCapacidad: {} };
+    const normH = s => String(s).trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const tipos = new Set(['normal', 'multimedia', 'multiusos']);
+
+    // Hoja 1: lista de aulas
+    const h1 = wb.Sheets[wb.SheetNames[0]];
+    if (h1) {
+        const rows = XLSX.utils.sheet_to_json(h1, { defval: '' });
+        rows.forEach((r, i) => {
+            const nombre = String(r[Object.keys(r)[0]] || '').trim();
+            let tipo = String(r[Object.keys(r)[1]] || 'normal').trim().toLowerCase();
+            if (!tipos.has(tipo)) tipo = 'normal';
+            if (nombre) cfg.aulas.push({ id: 'aula-' + i, nombre, tipo });
+        });
+    }
+    // Pool capacities: count of aulas per type
+    tipos.forEach(t => { cfg.poolCapacidad[t] = cfg.aulas.filter(a => a.tipo === t).length; });
+
+    // Hoja 2: asignaciones materia → aula (nombre exacto o tipo como pool)
+    if (wb.SheetNames.length >= 2) {
+        const h2 = wb.Sheets[wb.SheetNames[1]];
+        if (h2) {
+            const rows = XLSX.utils.sheet_to_json(h2, { defval: '' });
+            rows.forEach(r => {
+                const keys = Object.keys(r);
+                const materia = String(r[keys[0]] || '').trim();
+                const aulaNom = String(r[keys[1]] || '').trim();
+                const obligStr = normH(r[keys[2]] || '');
+                const obligatorio = ['SI', 'SÍ', 'OBLIGATORIO', '1', 'TRUE'].includes(obligStr);
+                if (!materia || !aulaNom) return;
+                // Match by exact aula name first
+                const aula = cfg.aulas.find(a => a.nombre === aulaNom);
+                if (aula) {
+                    if (!cfg.asignaciones[materia]) cfg.asignaciones[materia] = { aulas: [], obligatorio: false };
+                    if (!cfg.asignaciones[materia].aulas.includes(aula.id)) cfg.asignaciones[materia].aulas.push(aula.id);
+                    if (obligatorio) cfg.asignaciones[materia].obligatorio = true;
+                    return;
+                }
+                // Match by type name → pool assignment (e.g., "Normal" → any normal aula)
+                const tipoLower = aulaNom.toLowerCase().trim();
+                if (tipos.has(tipoLower)) {
+                    if (!cfg.pools[materia]) cfg.pools[materia] = { tipos: [], obligatorio: false };
+                    if (!cfg.pools[materia].tipos.includes(tipoLower)) cfg.pools[materia].tipos.push(tipoLower);
+                    if (obligatorio) cfg.pools[materia].obligatorio = true;
+                }
+            });
+        }
+    }
+
+    // Hoja 3: aula base por grupo (Grupo | Aula)
+    cfg.grupoAulas = {};
+    if (wb.SheetNames.length >= 3) {
+        const h3 = wb.Sheets[wb.SheetNames[2]];
+        if (h3) {
+            const rows = XLSX.utils.sheet_to_json(h3, { defval: '' });
+            rows.forEach(r => {
+                const keys = Object.keys(r);
+                const grupo = String(r[keys[0]] || '').trim();
+                const aulaNom = String(r[keys[1]] || '').trim();
+                if (!grupo || !aulaNom) return;
+                const aula = cfg.aulas.find(a => a.nombre === aulaNom);
+                if (aula) cfg.grupoAulas[grupo] = aula.id;
+            });
+        }
+    }
+
+    datosAulas = cfg;
+    if (wbCarga && wbDisp) mostrarDesglose();
+}
+
 // ── FASE 1: Determinar maxDias por docente ────────────────────────────────────
 // Contrasta la carga del docente con su disponibilidad real para decidir cuántos
 // días usará el algoritmo en la iteración (Fase 2).
@@ -1050,6 +1137,62 @@ function mostrarDesglose() {
         html += `</div></details>`;
     }
 
+    // ── Panel: Aulas (solo lectura, cargadas desde Excel) ─────────────────────
+    const aulaCfg = datosAulas;
+    if (aulaCfg.aulas.length > 0) {
+        const tipoColores = { normal: 'background:#221F20;color:#FCB814', multimedia: 'background:#FCB814;color:#221F20;border:1px solid #221F20', multiusos: 'background:#81C99C;color:#221F20;border:1px solid #221F20' };
+        const nAsigEsp = Object.keys(aulaCfg.asignaciones).filter(k => aulaCfg.asignaciones[k].aulas.length > 0).length;
+        const nPool = Object.keys(aulaCfg.pools || {}).length;
+        const nTotal = nAsigEsp + nPool;
+        html += `<details style="margin:0 0 1rem;border:2px solid var(--color-black,#221F20);background:#FFF8E0;padding:0.6rem 0.8rem;box-shadow:4px 4px 0 var(--color-black,#221F20)">
+            <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem">
+                🏢 Aulas cargadas
+                <span style="color:var(--color-dim-gray);font-weight:normal;font-size:0.78rem">(${aulaCfg.aulas.length} aulas · ${nTotal} materias asignadas)</span>
+            </summary>
+            <div style="margin-top:0.5rem;display:flex;flex-direction:column;gap:0.3rem">`;
+        // Specific aulas
+        aulaCfg.aulas.forEach(a => {
+            const mats = Object.entries(aulaCfg.asignaciones).filter(([, v]) => v.aulas.includes(a.id)).map(([m, v]) => `${m}${v.obligatorio ? ' ⬤' : ''}`);
+            html += `<div style="display:flex;align-items:center;gap:0.5rem;background:#fff;border:1.5px solid var(--color-black);padding:0.3rem 0.5rem">
+                <span style="font-size:0.8rem;font-weight:bold;flex:0 0 auto">${a.nombre}</span>
+                <span style="font-size:0.65rem;padding:1px 6px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;${tipoColores[a.tipo] || tipoColores.normal}">${a.tipo}</span>
+                <span style="font-size:0.7rem;color:var(--color-dim-gray);flex:1;text-align:right">${mats.length ? mats.join(', ') : '<em>sin materias</em>'}</span>
+            </div>`;
+        });
+        // Pool assignments (type-based)
+        if (aulaCfg.pools && Object.keys(aulaCfg.pools).length > 0) {
+            const poolsByTipo = {};
+            Object.entries(aulaCfg.pools).forEach(([mat, p]) => {
+                p.tipos.forEach(t => { (poolsByTipo[t] = poolsByTipo[t] || []).push(`${mat}${p.obligatorio ? ' ⬤' : ''}`); });
+            });
+            for (const tipo in poolsByTipo) {
+                const cap = (aulaCfg.poolCapacidad || {})[tipo] || 0;
+                html += `<div style="display:flex;align-items:center;gap:0.5rem;background:#e8f0fe;border:1.5px solid var(--color-black);padding:0.3rem 0.5rem">
+                    <span style="font-size:0.8rem;font-weight:bold;flex:0 0 auto">Pool ${tipo}</span>
+                    <span style="font-size:0.65rem;padding:1px 6px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;${tipoColores[tipo] || tipoColores.normal}">×${cap} aulas</span>
+                    <span style="font-size:0.7rem;color:var(--color-dim-gray);flex:1;text-align:right">${poolsByTipo[tipo].join(', ')}</span>
+                </div>`;
+            }
+        }
+        // Group base aulas
+        if (aulaCfg.grupoAulas && Object.keys(aulaCfg.grupoAulas).length > 0) {
+            html += `<div style="margin-top:0.5rem;padding-top:0.4rem;border-top:1px dashed var(--color-dim-gray)">
+                <span style="font-size:0.7rem;font-weight:bold">Aula base por grupo:</span>
+                <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.3rem">`;
+            const aulaById = {};
+            aulaCfg.aulas.forEach(a => { aulaById[a.id] = a; });
+            Object.entries(aulaCfg.grupoAulas).sort((a, b) => a[0].localeCompare(b[0])).forEach(([g, aid]) => {
+                const a = aulaById[aid];
+                if (!a) return;
+                html += `<span style="font-size:0.7rem;background:#fff;border:1px solid var(--color-black);padding:1px 6px"><strong>${g}</strong> → ${a.nombre}</span>`;
+            });
+            html += `</div></div>`;
+        }
+        html += `<p style="margin:0.4rem 0 0;font-size:0.65rem;color:var(--color-dim-gray)">⬤ = obligatorio · sin marca = preferencia · editar en el Excel de aulas</p>
+            </div>
+        </details>`;
+    }
+
     html += `<table class="desglose-tabla">
         <thead>
             <tr>
@@ -1120,6 +1263,10 @@ document.getElementById("input_disp").onchange = e => {
     });
 };
 
+document.getElementById("input_aulas").onchange = e => {
+    leerArchivo(e.target.files[0], wb => { parsearAulas(wb); });
+};
+
 function aplicarAsignacion(grupo, bloque, dia, horaInicio, esForzado = false) {
     // Guardia: si el bloque ya está en cualquier slot del grupo, no duplicar.
     // Cubre el caso donde un swap o SA olvidó hacer quitarAsignacion primero.
@@ -1184,6 +1331,31 @@ function aplicarEstilosForzados(ws) {
     }
 }
 
+function resolverAula(grupoNombre, materiaNombre) {
+    if (!datosAulas || !datosAulas.aulas || datosAulas.aulas.length === 0) return '';
+    const n = s => String(s).toUpperCase().normalize('NFD').replace(/[^A-Z0-9 ]/g, '').trim();
+    const aulaNombre = id => { const a = datosAulas.aulas.find(x => x.id === id); return a ? a.nombre : ''; };
+    let asig = datosAulas.asignaciones && datosAulas.asignaciones[materiaNombre];
+    if (!asig) { for (const k in (datosAulas.asignaciones || {})) if (n(k) === n(materiaNombre)) { asig = datosAulas.asignaciones[k]; break; } }
+    if (asig && asig.aulas.length > 0) return asig.aulas.map(aulaNombre).filter(Boolean).join(' / ');
+    // 2) Pool → single-aula types (multimedia, multiusos) override group base
+    let pool = datosAulas.pools && datosAulas.pools[materiaNombre];
+    if (!pool) { for (const k in (datosAulas.pools || {})) if (n(k) === n(materiaNombre)) { pool = datosAulas.pools[k]; break; } }
+    if (pool) {
+        const nombres = pool.tipos.map(t => {
+            const del = datosAulas.aulas.filter(a => a.tipo === t);
+            return del.length === 1 ? del[0].nombre : null;
+        }).filter(Boolean);
+        if (nombres.length > 0) return nombres.join(' / ');
+    }
+    // 3) Group base aula (default)
+    const grBase = datosAulas.grupoAulas || {};
+    let base = grBase[grupoNombre];
+    if (!base) { for (const k in grBase) if (n(k) === n(grupoNombre)) { base = grBase[k]; break; } }
+    if (base) return aulaNombre(base);
+    return '';
+}
+
 function exportarExcel() {
     const wb = XLSX.utils.book_new();
     MAPA_GRUPOS.forEach(g => {
@@ -1195,7 +1367,13 @@ function exportarExcel() {
             const r = [h];
             diasSemana.forEach((d, dIdx) => {
                 const bloque = g.horario[d][h];
-                r.push(bloque ? (bloque.nombreStrRender || bloque.nombreStr) : "");
+                if (bloque) {
+                    const txt = bloque.nombreStrRender || bloque.nombreStr;
+                    const aula = resolverAula(g.nombre_grupo, bloque.materia.nombre_materia);
+                    r.push(aula ? txt + ' | ' + aula : txt);
+                } else {
+                    r.push("");
+                }
                 if (bloque) {
                     // Clave materia+grupo para que el color sea único por (materia, grupo)
                     // y sea consistente con la hoja del docente.
@@ -1219,8 +1397,11 @@ function exportarExcel() {
         });
         const asigs = [...enGrupo.values()].sort((a, b) => a.materia.localeCompare(b.materia));
         rows.push([]);
-        rows.push(["MATERIA", "DOCENTE", "HORAS"]);
-        asigs.forEach(({ materia, docente, horas }) => rows.push([materia, docente, `${horas}h`]));
+        rows.push(["MATERIA", "DOCENTE", "HORAS", "AULA"]);
+        asigs.forEach(({ materia, docente, horas }) => {
+            const aula = resolverAula(g.nombre_grupo, materia);
+            rows.push([materia, docente, `${horas}h`, aula || '']);
+        });
         // ────────────────────────────────────────────────────────────────
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -1252,8 +1433,8 @@ function exportarExcel() {
         // Anchos de columna para lectura cómoda
         ws['!cols'] = [
             { wch: 6 },
-            { wch: 30 }, { wch: 30 }, { wch: 30 },
-            { wch: 30 }, { wch: 30 }, { wch: 30 }
+            { wch: 45 }, { wch: 45 }, { wch: 45 },
+            { wch: 45 }, { wch: 45 }, { wch: 45 }
         ];
 
         aplicarEstilosForzados(ws);
@@ -1305,6 +1486,68 @@ function exportarExcel() {
         aplicarEstilosForzados(ws);
         XLSX.utils.book_append_sheet(wb, ws, "D_" + d.nombre_docente.substring(0, 25));
     });
+
+    // ── Hojas por Aula ─────────────────────────────────────────────────────
+    if (datosAulas && datosAulas.aulas && datosAulas.aulas.length > 0) {
+        const aulaHorario = {};
+        datosAulas.aulas.forEach(a => { aulaHorario[a.nombre] = {}; });
+        MAPA_GRUPOS.forEach(g => {
+            g.baseHoras.forEach(h => {
+                diasSemana.forEach(d => {
+                    const bloque = g.horario[d][h];
+                    if (!bloque) return;
+                    const aulaTxt = resolverAula(g.nombre_grupo, bloque.materia.nombre_materia);
+                    if (!aulaTxt) return;
+                    aulaTxt.split(' / ').forEach(aN => {
+                        if (aulaHorario[aN]) {
+                            const key = d + '|' + h;
+                            if (!aulaHorario[aN][key]) aulaHorario[aN][key] = [];
+                            aulaHorario[aN][key].push({
+                                texto: `${bloque.materia.nombre_materia} [${g.nombre_grupo}]`,
+                                colorKey: bloque.materia.nombre_materia + ' [' + g.nombre_grupo + ']'
+                            });
+                        }
+                    });
+                });
+            });
+        });
+        datosAulas.aulas.forEach(a => {
+            const schedule = aulaHorario[a.nombre];
+            const rows = [["HORA", "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"]];
+            const colorCeldas = new Map();
+            for (let h = 7; h <= 20; h++) {
+                const r = [h];
+                const hIdx = h - 7;
+                diasSemana.forEach((d, dIdx) => {
+                    const entries = schedule[d + '|' + h];
+                    if (entries && entries.length > 0) {
+                        r.push(entries.map(e => e.texto).join('\n'));
+                        colorCeldas.set(`${hIdx + 1},${dIdx + 1}`, colorParaMateria(entries[0].colorKey));
+                    } else {
+                        r.push("");
+                    }
+                });
+                rows.push(r);
+            }
+            let totalSemana = 0;
+            diasSemana.forEach(d => { for (let h = 7; h <= 20; h++) if (schedule[d + '|' + h]) totalSemana++; });
+            rows.push([]);
+            rows.push(["TOTAL HORAS EN LA SEMANA:", `${totalSemana} hrs`, "", "TIPO:", a.tipo]);
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            colorCeldas.forEach((hex, key) => {
+                const [r, c] = key.split(',').map(Number);
+                const addr = XLSX.utils.encode_cell({ r, c });
+                if (ws[addr]) ws[addr].s = { fill: { patternType: "solid", fgColor: { rgb: hex } } };
+            });
+            ws['!cols'] = [
+                { wch: 6 },
+                { wch: 35 }, { wch: 35 }, { wch: 35 },
+                { wch: 35 }, { wch: 35 }, { wch: 35 }
+            ];
+            XLSX.utils.book_append_sheet(wb, ws, "A_" + a.nombre.substring(0, 25));
+        });
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     const rowsCambios = [["GRUPO", "MATERIA", "DOCENTE ASIGNADO ORIGINALMENTE", "DOCENTE FINAL (OPTIMIZADO)"]];
     if (LOG_CAMBIOS.length === 0) rowsCambios.push(["No hubo intercambios finales de docentes", "-", "-", "-"]);
@@ -1369,7 +1612,7 @@ function construirDatosCSP() {
             info.maxDias = Math.min(base + (wl.get(dn) || 0), 6);
         }
     });
-    return { ventanas: { matutino: [7, 17], vespertino: [12, 21] }, grupos, docentes, cargas };
+    return { ventanas: { matutino: [7, 17], vespertino: [12, 21] }, grupos, docentes, cargas, aulas: datosAulas };
 }
 
 const ESTILO_CSP = `<style>
