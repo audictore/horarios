@@ -1,0 +1,22 @@
+{
+  "builds": [
+    {
+      "src": "api/optimo.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/api/optimo", "dest": "/api/optimo.py" },
+    { "src": "/(.*)", "dest": "/$1" }
+  ],
+  "functions": {
+    "api/optimo.py": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  }
+}
