@@ -1,3 +1,4 @@
 .claude/
 *.xlsx
 node_modules/
+.vercel
