@@ -360,6 +360,12 @@
                     <a class="btn-download" href="./assets/Plantilla Disponibilidades de horarios.xlsx" download><svg viewBox="0 0 24 24"><path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-8 4h16v-2H4v2z"/></svg>Descargar plantilla</a>
                 </li>
                 <li>
+                    <strong>Sube las Aulas <em>(opcional)</em></strong> — archivo .xlsx con las aulas
+                    del plantel, qué materias necesitan un aula específica y el aula base de cada
+                    grupo. Si lo omites, el horario se genera igual sin asignar aulas.<br>
+                    <a class="btn-download" href="./assets/Plantilla Aulas.xlsx" download><svg viewBox="0 0 24 24"><path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-8 4h16v-2H4v2z"/></svg>Descargar plantilla</a>
+                </li>
+                <li>
                     <strong>Presiona GENERAR ÓPTIMO</strong> — el motor resuelve el horario
                     (~3-5 min). El resultado aparece en el desglose y se descarga como Excel.
                 </li>
@@ -463,6 +469,69 @@
                     Las columnas son <strong>Lunes a Sábado</strong> (6 días).
                 </p>
             </div>
+        </div>
+
+        <!-- ─── AULAS ─── -->
+        <div class="card">
+            <h2>Archivo 3: Aulas <em>(opcional)</em></h2>
+            <p>
+                Un archivo <code>.xlsx</code> con <strong>hasta tres hojas</strong>. Sirve para
+                que el motor asigne aulas a cada clase. Es <strong>opcional</strong>: si no lo
+                subes, el horario se genera igual, solo sin aula asignada.
+            </p>
+
+            <h3>Hoja 1 — Aulas</h3>
+            <p>La lista de aulas del plantel y su tipo.</p>
+            <table class="tabla-ejemplo">
+                <thead>
+                    <tr><th>Nombre</th><th>Tipo</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Aula 9</td><td>normal</td></tr>
+                    <tr><td>Multimedia 1</td><td>multimedia</td></tr>
+                    <tr><td>LEGO</td><td>multiusos</td></tr>
+                </tbody>
+            </table>
+            <div class="highlight">
+                <p>
+                    El <strong>Tipo</strong> debe ser <code>normal</code>, <code>multimedia</code>
+                    o <code>multiusos</code>. Cualquier otro valor se toma como <code>normal</code>.
+                </p>
+            </div>
+
+            <h3>Hoja 2 — Asignaciones</h3>
+            <p>Qué aula (o tipo de aula) necesita cada materia.</p>
+            <table class="tabla-ejemplo">
+                <thead>
+                    <tr><th>Materia</th><th>Aula</th><th>Obligatorio</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Emprendimiento</td><td>Multimedia 1</td><td>sí</td></tr>
+                    <tr><td>Logistica administrativa</td><td>multiusos</td><td>no</td></tr>
+                </tbody>
+            </table>
+            <div class="highlight">
+                <p>
+                    En <strong>Aula</strong> puedes poner el <strong>nombre exacto</strong> de un
+                    aula (de la Hoja 1) o un <strong>tipo</strong>
+                    (<code>normal</code>/<code>multimedia</code>/<code>multiusos</code>): en ese
+                    caso vale cualquier aula de ese tipo.<br>
+                    <strong>Obligatorio</strong> = <code>sí</code> exige ese aula; <code>no</code>
+                    es solo una preferencia.
+                </p>
+            </div>
+
+            <h3>Hoja 3 — Aula base por grupo <em>(opcional)</em></h3>
+            <p>El aula fija donde un grupo toma la mayoría de sus clases.</p>
+            <table class="tabla-ejemplo">
+                <thead>
+                    <tr><th>Grupo</th><th>Aula</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>8a</td><td>Aula 9</td></tr>
+                    <tr><td>2b</td><td>Aula 16</td></tr>
+                </tbody>
+            </table>
         </div>
 
         <!-- ─── TIPOS DE DOCENTE ─── -->
